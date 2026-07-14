@@ -444,6 +444,7 @@ const PageContent = ({
   isCursor,
   scrollStoryRef,
   onSceneChange,
+  activeSection,
   heroTransitionRef,
   heroTransitionProgress,
   aboutTeamTransitionRef,
@@ -465,6 +466,7 @@ const PageContent = ({
   isCursor?: boolean,
   scrollStoryRef?: React.RefObject<ScrollStoryHandle | null>,
   onSceneChange?: (scene: 'PRODUCTS' | 'SERVICES' | 'EVENTS' | null) => void,
+  activeSection?: AppSectionId,
   heroTransitionRef?: React.RefObject<HTMLDivElement>,
   heroTransitionProgress?: any,
   aboutTeamTransitionRef?: React.RefObject<HTMLDivElement>,
@@ -1157,6 +1159,7 @@ export default function App() {
         isCursor={false}
         scrollStoryRef={scrollStoryRef}
         onSceneChange={handleSceneChange}
+        activeSection={activeSection}
         heroTransitionRef={heroTransitionRef}
         heroTransitionProgress={heroTransitionProgress}
         aboutTeamTransitionRef={aboutTeamTransitionRef}
@@ -1208,7 +1211,7 @@ export default function App() {
                 y: magScrollY,
               }}
             >
-              <PageContent iconIndex={iconIndex} filmRollXVal={filmRollXVal} isCursor={true} />
+              <PageContent iconIndex={iconIndex} filmRollXVal={filmRollXVal} isCursor={true} activeSection={activeSection} />
             </motion.div>
           </motion.div>
         </div>
