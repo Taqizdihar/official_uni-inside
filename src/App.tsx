@@ -677,6 +677,7 @@ const PageContent = ({
         servicesRef={servicesRef} 
         eventsRef={eventsRef} 
         onSceneChange={onSceneChange}
+        activeSection={activeSection}
       />
 
       {/* Spacer for Breathing Room */}
@@ -825,12 +826,11 @@ export default function App() {
       }
 
       const viewportMid = window.innerHeight * 0.35;
-      // NOTE: productsRef / servicesRef / eventsRef are intentionally excluded here.
-      // They live inside the sticky ScrollStory and their getBoundingClientRect values
-      // are unreliable during pinning. The ScrollStory controller handles those sections.
       const sectionRefs = [
         { id: 'about' as AppSectionId, ref: aboutRef },
         { id: 'team' as AppSectionId, ref: teamRef },
+        { id: 'products' as AppSectionId, ref: productsRef },
+        { id: 'events' as AppSectionId, ref: eventsRef },
         { id: 'achievements' as AppSectionId, ref: achievementsRef },
         { id: 'contact' as AppSectionId, ref: contactRef },
       ];

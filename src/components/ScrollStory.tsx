@@ -28,6 +28,7 @@ export interface ScrollStoryProps {
    * while this is active (scene !== null).
    */
   onSceneChange?: (scene: 'PRODUCTS' | 'SERVICES' | 'EVENTS' | null) => void;
+  activeSection?: string;
 }
 
 const SCENE_CONFIG = {
@@ -69,6 +70,7 @@ export const ScrollStory = forwardRef<ScrollStoryHandle, ScrollStoryProps>((
     servicesRef,
     eventsRef,
     onSceneChange,
+    activeSection,
   },
   ref
 ) => {
@@ -516,19 +518,42 @@ export const ScrollStory = forwardRef<ScrollStoryHandle, ScrollStoryProps>((
     };
   }, []);
 
-  // Shopping cart cursor & instant touch collection tracking
+  // Visibility control based strictly on active section
+  useEffect(() => {
+    if (!cartCursorRef.current) return;
+    
+    if (activeSection === 'products') {
+      gsap.to(cartCursorRef.current, { 
+        autoAlpha: 1, 
+        duration: 0.2, 
+        ease: 'power2.out' 
+      });
+      if (productsLayerRef.current) {
+        productsLayerRef.current.style.cursor = 'none';
+      }
+    } else {
+      gsap.to(cartCursorRef.current, { 
+        autoAlpha: 0, 
+        duration: 0.2, 
+        ease: 'power2.out' 
+      });
+      if (productsLayerRef.current) {
+        productsLayerRef.current.style.cursor = '';
+      }
+    }
+  }, [activeSection]);
+
+  // Shopping cart cursor tracking & instant touch collection tracking
   useEffect(() => {
     const handlePointerMove = (e: PointerEvent | MouseEvent) => {
       cursorPosRef.current = { x: e.clientX, y: e.clientY };
 
-      const layer = productsLayerRef.current;
-      if (layer && layer.contains(e.target as Node) && (gsap.getProperty(layer, 'opacity') as number) >= 0.5) {
-        if (cartCursorRef.current) {
-          cartCursorRef.current.style.display = 'block';
-          cartCursorRef.current.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0)`;
-        }
-        layer.style.cursor = 'none';
+      if (cartCursorRef.current) {
+        cartCursorRef.current.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0)`;
+      }
 
+      const layer = productsLayerRef.current;
+      if (layer && layer.contains(e.target as Node) && activeSection === 'products') {
         activeParticlesRef.current.forEach((particle) => {
           const r = particle.getBoundingClientRect();
           if (
@@ -540,17 +565,13 @@ export const ScrollStory = forwardRef<ScrollStoryHandle, ScrollStoryProps>((
             collectProduct(particle);
           }
         });
-      } else {
-        if (cartCursorRef.current) {
-          cartCursorRef.current.style.display = 'none';
-        }
-        if (layer) layer.style.cursor = '';
       }
     };
 
     window.addEventListener('pointermove', handlePointerMove, { passive: true });
     return () => window.removeEventListener('pointermove', handlePointerMove);
-  }, []);
+  }, [activeSection]);
+
 
   return (
     <div ref={containerRef} className="w-full relative" style={{ height: '550vh' }}>
@@ -645,8 +666,8 @@ export const ScrollStory = forwardRef<ScrollStoryHandle, ScrollStoryProps>((
       {/* Shopping Cart Custom Cursor */}
       <div
         ref={cartCursorRef}
-        className="fixed top-0 left-0 pointer-events-none z-[999999] hidden -translate-x-1 -translate-y-1"
-        style={{ display: 'none' }}
+        className="fixed top-0 left-0 pointer-events-none z-[999999] -translate-x-1 -translate-y-1"
+        style={{ opacity: 0, visibility: 'hidden' }}
       >
         <svg
           className="w-20 h-20 sm:w-24 sm:h-24 text-[#202121] drop-shadow-[0_2px_8px_rgba(255,255,255,0.95)]"
