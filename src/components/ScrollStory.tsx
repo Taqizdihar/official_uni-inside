@@ -15,6 +15,7 @@ gsap.registerPlugin(ScrollTrigger);
 
 export interface ScrollStoryHandle {
   scrollToScene: (scene: 'PRODUCTS' | 'SERVICES' | 'EVENTS') => void;
+  getContainer: () => HTMLDivElement | null;
 }
 
 export interface ScrollStoryProps {
@@ -112,7 +113,8 @@ export const ScrollStory = forwardRef<ScrollStoryHandle, ScrollStoryProps>((
 
       const targetY = st.start + targetProgress * (st.end - st.start);
       window.scrollTo({ top: targetY, behavior: 'smooth' });
-    }
+    },
+    getContainer: () => containerRef.current
   }), []);
 
   useEffect(() => {
@@ -150,7 +152,12 @@ export const ScrollStory = forwardRef<ScrollStoryHandle, ScrollStoryProps>((
           onUpdate: (self) => {
             // Only fire while actually active
             if (!self.isActive) return;
-            const scene = progressToScene(self.progress);
+            let scene = progressToScene(self.progress);
+            
+            // If scrolling down and entering exit zone, lock to EVENTS
+            if (self.direction > 0 && self.progress >= 0.88) {
+              scene = 'EVENTS';
+            }
             reportScene(scene);
           },
         },
@@ -656,7 +663,7 @@ export const ScrollStory = forwardRef<ScrollStoryHandle, ScrollStoryProps>((
                transformOrigin: 'center top',
              }}
            >
-             <div ref={eventsRef} id="events" className="scroll-mt-0 w-full relative z-10" />
+             <div ref={eventsRef} id="news" className="scroll-mt-0 w-full relative z-10" />
              <EventsSection />
            </div>
         </div>

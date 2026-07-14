@@ -4,7 +4,7 @@ import logoDarkTheme from '../assets/global/Logo - Dark Theme.png';
 
 export const Footer = () => {
   const currentYear = new Date().getFullYear();
-  const navigationLinks = ['ABOUT US', 'OUR TEAM', 'PRODUCTS', 'SERVICES', 'EVENTS', 'ACHIEVEMENTS', 'CONTACT US'];
+  const navigationLinks = ['ABOUT US', 'OUR TEAM', 'PRODUCTS', 'SERVICES', 'NEWS', 'ACHIEVEMENTS', 'CONTACT US'];
   const socialLinks = [
     { id: 'whatsapp', Icon: FaWhatsapp, url: 'https://wa.me/6281316556908' },
     { id: 'instagram', Icon: FaInstagram, url: 'https://www.instagram.com/uniinside.studio?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==' },

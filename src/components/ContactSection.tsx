@@ -29,7 +29,7 @@ const chatMessages = [
   "Love the theme!",
   "Successful studio soon!",
   "Keep up the good work!",
-  "Nice Events!"
+  "Nice News!"
 ];
 
 // Anchor on Hand Phone PNG at (23,316) → 1.13%, 11.7%

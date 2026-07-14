@@ -828,11 +828,26 @@ export default function App() {
       }
 
       const viewportMid = window.innerHeight * 0.35;
+      
+      const scrollStoryContainer = scrollStoryRef.current?.getContainer();
+      if (scrollStoryContainer) {
+        const rect = scrollStoryContainer.getBoundingClientRect();
+        if (rect.top <= viewportMid && rect.bottom >= viewportMid) {
+          const progress = (viewportMid - rect.top) / rect.height;
+          if (progress >= 0.664) {
+            setActiveSection('events');
+          } else if (progress >= 0.312) {
+            setActiveSection('services');
+          } else {
+            setActiveSection('products');
+          }
+          return;
+        }
+      }
+
       const sectionRefs = [
         { id: 'about' as AppSectionId, ref: aboutRef },
         { id: 'team' as AppSectionId, ref: teamRef },
-        { id: 'products' as AppSectionId, ref: productsRef },
-        { id: 'events' as AppSectionId, ref: eventsRef },
         { id: 'achievements' as AppSectionId, ref: achievementsRef },
         { id: 'contact' as AppSectionId, ref: contactRef },
       ];
@@ -1049,7 +1064,7 @@ export default function App() {
       case 'team':         return 'OUR TEAM';
       case 'products':     return 'PRODUCTS';
       case 'services':     return 'SERVICES';
-      case 'events':       return 'EVENTS';
+      case 'events':       return 'NEWS';
       case 'achievements': return 'ACHIEVEMENTS';
       case 'contact':      return 'CONTACT US';
       default:             return null;
@@ -1103,16 +1118,17 @@ export default function App() {
         </a>
 
         <div className="hidden lg:flex items-center gap-5 xl:gap-8">
-          {['ABOUT US', 'OUR TEAM', 'PRODUCTS', 'SERVICES', 'EVENTS', 'ACHIEVEMENTS', 'CONTACT US'].map((link) => {
+          {['ABOUT US', 'OUR TEAM', 'PRODUCTS', 'SERVICES', 'NEWS', 'ACHIEVEMENTS', 'CONTACT US'].map((link) => {
             const isHighlightActive = activeHighlight === link;
             return (
               <motion.a
                 key={link}
                 href={`#${link.toLowerCase().replace(/\s+/g, '-')}`}
                 onClick={(e) => {
-                  if (link === 'PRODUCTS' || link === 'SERVICES' || link === 'EVENTS') {
+                  if (link === 'PRODUCTS' || link === 'SERVICES' || link === 'NEWS') {
                     e.preventDefault();
-                    scrollStoryRef.current?.scrollToScene(link);
+                    const sceneName = link === 'NEWS' ? 'EVENTS' : link;
+                    scrollStoryRef.current?.scrollToScene(sceneName as any);
                   } else {
                     const targetId = link.toLowerCase().replace(/\s+/g, '-');
                     const el = document.getElementById(targetId);

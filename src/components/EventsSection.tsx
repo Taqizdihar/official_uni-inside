@@ -30,10 +30,10 @@ export const EventsSection = forwardRef<HTMLDivElement, {}>((props, ref) => {
     <div className="w-full flex flex-col px-8 lg:px-24">
       <div className="mb-6 sm:mb-8">
         <h2 className="text-[44px] sm:text-[70px] lg:text-[95px] font-black uppercase text-[#202121] leading-none tracking-tight">
-          EVENTS
+          NEWS
         </h2>
         <p className="text-[18px] sm:text-[24px] text-gray-600 font-medium mt-2 sm:mt-3">
-          Catch up with our latest news and upcoming events
+          Catch up with our latest news and updates
         </p>
       </div>
 
