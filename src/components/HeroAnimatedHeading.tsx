@@ -21,16 +21,17 @@ import soundwaveData from '../assets/lottie/creative/soundwave.json';
 export interface CharacterItem {
   char: string;
   lottie: any;
+  scale?: number;
 }
 
-// Character mapping per #3
+// Character mapping with per-icon scale refinement (#1, #3)
 const charactersRow1: CharacterItem[] = [
   { char: 'C', lottie: cameraData },
-  { char: 'R', lottie: rocketData },
+  { char: 'R', lottie: rocketData, scale: 1.30 },
   { char: 'E', lottie: pencilData },
   { char: 'A', lottie: brushData },
   { char: 'T', lottie: monitorData },
-  { char: 'I', lottie: codeData },
+  { char: 'I', lottie: codeData, scale: 1.50 },
   { char: 'V', lottie: droneData },
   { char: 'E', lottie: lightbulbData },
 ];
@@ -39,9 +40,9 @@ const charactersRow2: CharacterItem[] = [
   { char: 'S', lottie: shutterData },
   { char: 'T', lottie: cameraVideoData },
   { char: 'U', lottie: photoData },
-  { char: 'D', lottie: megaphoneData },
-  { char: 'I', lottie: soundwaveData },
-  { char: 'O', lottie: print3dData },
+  { char: 'D', lottie: megaphoneData, scale: 1.30 },
+  { char: 'I', lottie: soundwaveData, scale: 1.30 },
+  { char: 'O', lottie: print3dData, scale: 1.30 },
 ];
 
 type CharacterAnimationState = 'IDLE' | 'MORPH_TO_ICON' | 'PLAYING' | 'HOLD' | 'MORPH_TO_LETTER';
@@ -54,15 +55,15 @@ interface AnimatedCharacterProps {
 }
 
 // Global deterministic timing constants per #4
-const MORPH_IN_MS = 250;
-const PLAY_MS = 900;
-const HOLD_MS = 120;
-const MORPH_OUT_MS = 250;
+const MORPH_IN_MS = 350;
+const PLAY_MS = 850;
+const HOLD_MS = 200; // PLAY_MS + HOLD_MS = 1050ms total icon visibility (#4)
+const MORPH_OUT_MS = 350;
 
 /**
  * Memoized individual character component.
- * Manages exact deterministic global timing schedule, natural typography width,
- * and clean Lottie lifecycle (#1, #2, #3, #4, #5, #6, #7, #8, #10).
+ * Manages exact deterministic global timing schedule, rotational card-flip 3D morphing,
+ * natural typography width, and clean Lottie lifecycle (#1, #2, #3, #4, #5, #6, #7, #8).
  */
 export const AnimatedCharacter: React.FC<AnimatedCharacterProps> = React.memo(({
   item,
@@ -96,7 +97,7 @@ export const AnimatedCharacter: React.FC<AnimatedCharacterProps> = React.memo(({
     }
   }, []);
 
-  // Lottie playback & clipping synchronization (#6, #7, #8)
+  // Lottie playback & clipping synchronization (#4, #6, #8)
   useEffect(() => {
     if (state === 'MORPH_TO_ICON' || state === 'PLAYING') {
       if (lottieRef.current && isDOMLoadedRef.current) {
@@ -126,14 +127,14 @@ export const AnimatedCharacter: React.FC<AnimatedCharacterProps> = React.memo(({
         clearInterval(playRetryInterval);
       };
     } else if (state === 'HOLD' || state === 'MORPH_TO_LETTER' || state === 'IDLE') {
-      // Clip and stop Lottie playback after scheduled play duration (#6, #7, #8)
+      // Clip and pause Lottie playback after scheduled play duration
       if (lottieRef.current) {
         lottieRef.current.pause();
       }
     }
   }, [state]);
 
-  // Global deterministic timeline schedule (#3, #4, #5, #9)
+  // Global deterministic timeline schedule (#4, #5, #6)
   useEffect(() => {
     if (staggerTimeoutRef.current) clearTimeout(staggerTimeoutRef.current);
     if (playTimeoutRef.current) clearTimeout(playTimeoutRef.current);
@@ -148,11 +149,11 @@ export const AnimatedCharacter: React.FC<AnimatedCharacterProps> = React.memo(({
     setState('IDLE');
     stateRef.current = 'IDLE';
 
-    // Base delay accounting for initial parent entrance animation on refresh (#9)
+    // Base delay accounting for initial parent entrance animation on refresh
     const baseDelay = runId === 1 ? 800 : 0;
-    const delay = baseDelay + charIndex * 60; // 60ms sequential stagger per character (#4, #5)
+    const delay = baseDelay + charIndex * 60; // 60ms sequential stagger per character (#5)
 
-    // 1. Morph in begins
+    // 1. Morph in begins (rotates 0deg -> 180deg over 350ms)
     staggerTimeoutRef.current = setTimeout(() => {
       setState('MORPH_TO_ICON');
       stateRef.current = 'MORPH_TO_ICON';
@@ -182,7 +183,7 @@ export const AnimatedCharacter: React.FC<AnimatedCharacterProps> = React.memo(({
       }
     }, delay + MORPH_IN_MS + PLAY_MS + HOLD_MS);
 
-    // 5. Sequence completes and returns to clean LETTER MODE (MORPH_IN_MS + PLAY_MS + HOLD_MS + MORPH_OUT_MS)
+    // 5. Sequence completes and returns to clean LETTER MODE
     idleTimeoutRef.current = setTimeout(() => {
       if (stateRef.current !== 'IDLE') {
         setState('IDLE');
@@ -199,59 +200,87 @@ export const AnimatedCharacter: React.FC<AnimatedCharacterProps> = React.memo(({
     };
   }, [runId, charIndex]);
 
-  // Character wrapper preserving natural typography dimensions (#1, #2, #10)
+  const isIconActive = state === 'MORPH_TO_ICON' || state === 'PLAYING' || state === 'HOLD';
+  const isMorphingBack = state === 'MORPH_TO_LETTER';
+
+  // Character cell preserving natural typography dimensions with 3D perspective (#1, #2, #8)
   return (
-    <span className="relative inline-flex items-center justify-center w-auto min-w-0 flex-none select-none">
-      {/* Invisible layout anchor strictly inheriting natural typography spacing (#1, #2) */}
+    <span
+      className="relative inline-flex items-center justify-center w-auto min-w-0 flex-none select-none"
+      style={{
+        perspective: '800px',
+        transformStyle: 'preserve-3d',
+      }}
+    >
+      {/* Invisible layout anchor strictly inheriting natural typography spacing (#1) */}
       <span className="invisible pointer-events-none select-none">
         {item.char}
       </span>
 
-      {/* Letter element (#8, #17, #18, #19) */}
+      {/* Letter element card face (#2, #3, #8) */}
       <motion.span
         className="absolute inset-0 flex items-center justify-center pointer-events-none"
-        style={textPopStyle}
+        style={{
+          ...textPopStyle,
+          backfaceVisibility: 'hidden',
+          WebkitBackfaceVisibility: 'hidden',
+          transformStyle: 'preserve-3d',
+          willChange: 'transform',
+        }}
         initial={false}
-        animate={
-          state === 'IDLE'
-            ? { opacity: 1, scale: 1 }
-            : state === 'MORPH_TO_ICON' || state === 'PLAYING' || state === 'HOLD'
-            ? { opacity: 0, scale: 0.92 }
-            : { opacity: 1, scale: 1 } // MORPH_TO_LETTER
-        }
+        animate={{
+          rotateY: state === 'IDLE' ? 0 : isIconActive ? 180 : 360,
+          opacity: state === 'IDLE' ? 1 : isIconActive ? 0 : 1,
+        }}
         transition={{
-          opacity: {
-            duration: state === 'MORPH_TO_ICON' ? 0.25 : state === 'MORPH_TO_LETTER' ? 0.25 : 0,
-            ease: state === 'MORPH_TO_ICON' ? 'easeOut' : 'easeInOut',
+          rotateY: {
+            duration: state === 'IDLE' ? 0 : 0.35,
+            ease: [0.22, 1, 0.36, 1],
           },
-          scale: {
-            duration: state === 'MORPH_TO_ICON' ? 0.25 : state === 'MORPH_TO_LETTER' ? 0.25 : 0,
-            ease: state === 'MORPH_TO_ICON' ? 'easeOut' : 'easeInOut',
+          opacity: {
+            duration: state === 'IDLE' ? 0 : 0.35,
+            ease: [0.22, 1, 0.36, 1],
           },
         }}
       >
         {item.char}
       </motion.span>
 
-      {/* Lottie Icon element (#2, #7, #8) */}
+      {/* Lottie Icon element card face (#2, #3, #8) */}
       <motion.div
         className="absolute inset-0 flex items-center justify-center pointer-events-none"
+        style={{
+          backfaceVisibility: 'hidden',
+          WebkitBackfaceVisibility: 'hidden',
+          transformStyle: 'preserve-3d',
+          willChange: 'transform',
+        }}
         initial={false}
-        animate={
-          state === 'IDLE'
-            ? { opacity: 0, scale: 0.92 }
-            : state === 'MORPH_TO_ICON' || state === 'PLAYING' || state === 'HOLD'
-            ? { opacity: 1, scale: 1 }
-            : { opacity: 0, scale: 0.92 } // MORPH_TO_LETTER
-        }
+        animate={{
+          rotateY: state === 'IDLE' ? -180 : isIconActive ? 0 : 180,
+          opacity: state === 'IDLE' ? 0 : isIconActive ? 1 : 0,
+        }}
         transition={{
-          duration: state === 'MORPH_TO_ICON' ? 0.25 : state === 'MORPH_TO_LETTER' ? 0.25 : 0,
-          ease: state === 'MORPH_TO_ICON' ? 'easeOut' : 'easeInOut',
+          rotateY: {
+            duration: state === 'IDLE' ? 0 : 0.35,
+            ease: [0.22, 1, 0.36, 1],
+          },
+          opacity: {
+            duration: state === 'IDLE' ? 0 : 0.35,
+            ease: [0.22, 1, 0.36, 1],
+          },
         }}
       >
-        {/* Icon sized to fit inside character area without increasing wrapper width (#1, #2) */}
-        <div className="w-[0.7em] h-[0.7em] max-w-full max-h-full flex items-center justify-center">
-          {/* Unmount Lottie completely when in IDLE letter mode to prevent lingering instances (#7, #8) */}
+        {/* Icon container scaled inside character area without increasing wrapper width (#1, #8) */}
+        <div
+          className="w-[0.7em] h-[0.7em] max-w-full max-h-full flex items-center justify-center relative"
+          style={{
+            transform: item.scale && item.scale !== 1 ? `scale(${item.scale}) translateZ(0)` : 'translateZ(0)',
+            transformOrigin: 'center center',
+            willChange: 'transform',
+          }}
+        >
+          {/* Unmount Lottie completely when in IDLE letter mode to prevent lingering instances */}
           {state !== 'IDLE' && (
             <Lottie
               lottieRef={lottieRef}
@@ -277,26 +306,63 @@ export interface HeroAnimatedHeadingProps {
 
 /**
  * HeroAnimatedHeading Component
- * Replaces the static heading in Hero without altering surrounding layout or dimensions (#4, #12).
- * Features sequential letter-to-icon morph on mount and on hover (#9, #10).
+ * Replaces the static heading in Hero without altering surrounding layout or dimensions.
+ * Features sequential rotational letter-to-icon morph on mount and non-interrupting hover loop (#7).
  */
 export const HeroAnimatedHeading: React.FC<HeroAnimatedHeadingProps> = React.memo(({ textPopStyle }) => {
   const [runId, setRunId] = useState<number>(1);
   const containerRef = useRef<HTMLHeadingElement>(null);
   const isInView = useInView(containerRef, { amount: 0.15 });
   const prevInViewRef = useRef<boolean>(true);
+  const isHoveredRef = useRef<boolean>(false);
+  const isPlayingRef = useRef<boolean>(true); // True initially for runId === 1
+  const loopTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Track sequence cycle completion and repeat if still hovered without interruption (#7)
+  useEffect(() => {
+    isPlayingRef.current = true;
+    if (loopTimeoutRef.current) clearTimeout(loopTimeoutRef.current);
+
+    const baseDelay = runId === 1 ? 800 : 0;
+    // Total cycle: last char (index 13) starts at baseDelay + 13 * 60 = baseDelay + 780ms.
+    // Last char finishes at baseDelay + 780 + 1750 = baseDelay + 2530ms.
+    const totalCycleDuration = baseDelay + 13 * 60 + MORPH_IN_MS + PLAY_MS + HOLD_MS + MORPH_OUT_MS;
+
+    loopTimeoutRef.current = setTimeout(() => {
+      isPlayingRef.current = false;
+      // If still hovered when cycle completes, wait slightly and repeat naturally (#7)
+      if (isHoveredRef.current) {
+        setRunId((prev) => prev + 1);
+      }
+    }, totalCycleDuration + 300);
+
+    return () => {
+      if (loopTimeoutRef.current) clearTimeout(loopTimeoutRef.current);
+    };
+  }, [runId]);
 
   // Replay sequence whenever heading reappears in the viewport after leaving it
   useEffect(() => {
     if (isInView && !prevInViewRef.current) {
-      setRunId((prev) => prev + 1);
+      if (!isPlayingRef.current) {
+        setRunId((prev) => prev + 1);
+      }
     }
     prevInViewRef.current = isInView;
   }, [isInView]);
 
-  // Restart sequence on hover (#10)
+  // Non-interrupting hover start (#7)
   const handleMouseEnter = useCallback(() => {
-    setRunId((prev) => prev + 1);
+    isHoveredRef.current = true;
+    // If no sequence is currently running, start sequence immediately (#7)
+    if (!isPlayingRef.current) {
+      setRunId((prev) => prev + 1);
+    }
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    isHoveredRef.current = false;
+    // Let current sequence finish naturally and return to text cleanly (#7)
   }, []);
 
   return (
@@ -305,6 +371,7 @@ export const HeroAnimatedHeading: React.FC<HeroAnimatedHeadingProps> = React.mem
       className="flex flex-col font-black uppercase w-full select-none cursor-default"
       aria-label="Creative Studio"
       onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       {/* Row 1: CREATIVE */}
       <div
