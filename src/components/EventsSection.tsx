@@ -1,5 +1,6 @@
 import React, { forwardRef } from 'react';
 import { motion } from 'motion/react';
+import { useNavigate } from 'react-router-dom';
 
 const mockEvents = [
   {
@@ -26,15 +27,48 @@ const mockEvents = [
 ];
 
 export const EventsSection = forwardRef<HTMLDivElement, {}>((props, ref) => {
+  const navigate = useNavigate();
+
   return (
     <div className="w-full flex flex-col px-8 lg:px-24">
-      <div className="mb-6 sm:mb-8">
-        <h2 className="text-[44px] sm:text-[70px] lg:text-[95px] font-black uppercase text-[#202121] leading-none tracking-tight">
-          NEWS
-        </h2>
-        <p className="text-[18px] sm:text-[24px] text-gray-600 font-medium mt-2 sm:mt-3">
-          Catch up with our latest news and updates
-        </p>
+      <div className="mb-6 sm:mb-8 flex items-center justify-between">
+        <div>
+          <div className="group flex items-center cursor-pointer w-fit" onClick={() => navigate('/news')}>
+            <h2 className="text-[44px] sm:text-[70px] lg:text-[95px] font-black uppercase text-[#202121] leading-none tracking-tight">
+              NEWS
+            </h2>
+            <motion.div 
+              className="ml-6 sm:ml-10 flex items-center overflow-hidden"
+              initial="initial"
+              whileHover="hover"
+            >
+              <motion.div
+                variants={{
+                  initial: { x: 0 },
+                  hover: { x: 10 }
+                }}
+                transition={{ duration: 0.3, ease: 'easeOut' }}
+              >
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-[#202121] w-12 h-12 sm:w-16 sm:h-16">
+                  <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </motion.div>
+              <motion.span
+                variants={{
+                  initial: { opacity: 0, x: -20, width: 0 },
+                  hover: { opacity: 1, x: 10, width: 'auto' }
+                }}
+                transition={{ duration: 0.4, ease: 'easeOut' }}
+                className="text-[24px] sm:text-[32px] font-bold text-[#202121] whitespace-nowrap ml-2 overflow-hidden"
+              >
+                See More
+              </motion.span>
+            </motion.div>
+          </div>
+          <p className="text-[18px] sm:text-[24px] text-gray-600 font-medium mt-2 sm:mt-3">
+            Catch up with our latest news and updates
+          </p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

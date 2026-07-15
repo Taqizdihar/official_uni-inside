@@ -1074,7 +1074,12 @@ export default function App() {
   const activeHighlight = getActiveNavHighlight();
 
   return (
-    <div className="w-full relative font-sans overflow-hidden min-h-screen">
+    <motion.div 
+      initial={{ y: 0 }}
+      exit={{ y: '100%', opacity: 1, scale: 0.95 }}
+      transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+      className="w-full relative font-sans overflow-hidden min-h-screen"
+    >
       <style>{`
         .hide-cursor, .hide-cursor * {
           cursor: none !important;
@@ -1234,7 +1239,7 @@ export default function App() {
         {/* The Handle */}
         <div className="absolute w-[48px] h-[16px] bg-[#202121] rounded-full shadow-lg" style={{ bottom: -12, right: -12, transform: 'rotate(45deg)' }} />
       </motion.div>
-    </div>
+    </motion.div>
   );
 }
 
