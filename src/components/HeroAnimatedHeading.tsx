@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { motion } from 'motion/react';
+import { motion, useInView } from 'motion/react';
 import Lottie, { type LottieRefCurrentProps } from 'lottie-react';
 
 // Import all 14 Lottie JSON files exactly once at module level (#15)
@@ -282,6 +282,17 @@ export interface HeroAnimatedHeadingProps {
  */
 export const HeroAnimatedHeading: React.FC<HeroAnimatedHeadingProps> = React.memo(({ textPopStyle }) => {
   const [runId, setRunId] = useState<number>(1);
+  const containerRef = useRef<HTMLHeadingElement>(null);
+  const isInView = useInView(containerRef, { amount: 0.15 });
+  const prevInViewRef = useRef<boolean>(true);
+
+  // Replay sequence whenever heading reappears in the viewport after leaving it
+  useEffect(() => {
+    if (isInView && !prevInViewRef.current) {
+      setRunId((prev) => prev + 1);
+    }
+    prevInViewRef.current = isInView;
+  }, [isInView]);
 
   // Restart sequence on hover (#10)
   const handleMouseEnter = useCallback(() => {
@@ -290,6 +301,7 @@ export const HeroAnimatedHeading: React.FC<HeroAnimatedHeadingProps> = React.mem
 
   return (
     <h1
+      ref={containerRef}
       className="flex flex-col font-black uppercase w-full select-none cursor-default"
       aria-label="Creative Studio"
       onMouseEnter={handleMouseEnter}
