@@ -44,7 +44,7 @@ const charactersRow2: CharacterItem[] = [
   { char: 'O', lottie: print3dData },
 ];
 
-type CharacterAnimationState = 'IDLE' | 'MORPH_TO_ICON' | 'HOLD' | 'MORPH_TO_LETTER';
+type CharacterAnimationState = 'IDLE' | 'MORPH_TO_ICON' | 'PLAYING' | 'HOLD' | 'MORPH_TO_LETTER';
 
 interface AnimatedCharacterProps {
   item: CharacterItem;
@@ -53,10 +53,16 @@ interface AnimatedCharacterProps {
   textPopStyle?: React.CSSProperties;
 }
 
+// Global deterministic timing constants per #4
+const MORPH_IN_MS = 250;
+const PLAY_MS = 900;
+const HOLD_MS = 120;
+const MORPH_OUT_MS = 250;
+
 /**
  * Memoized individual character component.
- * Manages exact sequential timing, Lottie playback, and Framer Motion morphing
- * while keeping an immutable layout box to prevent any reflow/layout shifts (#12, #13, #15).
+ * Manages exact deterministic global timing schedule, natural typography width,
+ * and clean Lottie lifecycle (#1, #2, #3, #4, #5, #6, #7, #8, #10).
  */
 export const AnimatedCharacter: React.FC<AnimatedCharacterProps> = React.memo(({
   item,
@@ -70,42 +76,19 @@ export const AnimatedCharacter: React.FC<AnimatedCharacterProps> = React.memo(({
   const isDOMLoadedRef = useRef<boolean>(false);
 
   const staggerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const playTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const holdTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const returnTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const idleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Synchronize stateRef with state
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
 
-  const handleLottieComplete = useCallback(() => {
-    if (stateRef.current === 'MORPH_TO_ICON' || stateRef.current === 'HOLD') {
-      setState('HOLD');
-      stateRef.current = 'HOLD';
-
-      if (holdTimeoutRef.current) clearTimeout(holdTimeoutRef.current);
-      // After finishing Lottie: hold for about 150–200 ms (180ms) before morphing back (#7, #19)
-      holdTimeoutRef.current = setTimeout(() => {
-        if (stateRef.current === 'HOLD') {
-          setState('MORPH_TO_LETTER');
-          stateRef.current = 'MORPH_TO_LETTER';
-
-          if (returnTimeoutRef.current) clearTimeout(returnTimeoutRef.current);
-          // Morph back duration ≈ 250ms (#19)
-          returnTimeoutRef.current = setTimeout(() => {
-            if (stateRef.current === 'MORPH_TO_LETTER') {
-              setState('IDLE');
-              stateRef.current = 'IDLE';
-            }
-          }, 250);
-        }
-      }, 180);
-    }
-  }, []);
-
   const handleDOMLoaded = useCallback(() => {
     isDOMLoadedRef.current = true;
-    if (stateRef.current === 'MORPH_TO_ICON') {
+    if (stateRef.current === 'MORPH_TO_ICON' || stateRef.current === 'PLAYING') {
       if (lottieRef.current) {
         lottieRef.current.setSpeed(1.0);
         lottieRef.current.goToAndPlay(0, true);
@@ -113,9 +96,9 @@ export const AnimatedCharacter: React.FC<AnimatedCharacterProps> = React.memo(({
     }
   }, []);
 
-  // Lottie playback synchronization (#7)
+  // Lottie playback & clipping synchronization (#6, #7, #8)
   useEffect(() => {
-    if (state === 'MORPH_TO_ICON') {
+    if (state === 'MORPH_TO_ICON' || state === 'PLAYING') {
       if (lottieRef.current && isDOMLoadedRef.current) {
         lottieRef.current.setSpeed(1.0);
         lottieRef.current.goToAndPlay(0, true);
@@ -124,11 +107,11 @@ export const AnimatedCharacter: React.FC<AnimatedCharacterProps> = React.memo(({
         lottieRef.current.goToAndPlay(0, true);
       }
 
-      // Retry brief interval right after transitioning to MORPH_TO_ICON to ensure Lottie starts
-      // when SVG DOM finishes loading asynchronously on initial page refresh
+      // Retry interval right after transitioning to MORPH_TO_ICON/PLAYING to ensure Lottie starts
+      // when SVG DOM finishes loading asynchronously
       let retries = 0;
       const playRetryInterval = setInterval(() => {
-        if (stateRef.current === 'MORPH_TO_ICON' && lottieRef.current) {
+        if ((stateRef.current === 'MORPH_TO_ICON' || stateRef.current === 'PLAYING') && lottieRef.current) {
           if (!isDOMLoadedRef.current || retries === 0) {
             lottieRef.current.setSpeed(1.0);
             lottieRef.current.goToAndPlay(0, true);
@@ -139,31 +122,24 @@ export const AnimatedCharacter: React.FC<AnimatedCharacterProps> = React.memo(({
         }
       }, 40);
 
-      // Safety fallback completion in case onComplete event is missed during browser tab refresh/backgrounding
-      const durationSec = lottieRef.current?.getDuration(false) || 1.2;
-      const fallbackMs = Math.max(1000, durationSec * 1000 + 400);
-      const safetyCompleteTimeout = setTimeout(() => {
-        if (stateRef.current === 'MORPH_TO_ICON') {
-          handleLottieComplete();
-        }
-      }, fallbackMs);
-
       return () => {
         clearInterval(playRetryInterval);
-        clearTimeout(safetyCompleteTimeout);
       };
-    } else if (state === 'IDLE') {
+    } else if (state === 'HOLD' || state === 'MORPH_TO_LETTER' || state === 'IDLE') {
+      // Clip and stop Lottie playback after scheduled play duration (#6, #7, #8)
       if (lottieRef.current) {
-        lottieRef.current.stop();
+        lottieRef.current.pause();
       }
     }
-  }, [state, handleLottieComplete]);
+  }, [state]);
 
-  // Lifecycle & run coordination (#6, #9, #10)
+  // Global deterministic timeline schedule (#3, #4, #5, #9)
   useEffect(() => {
     if (staggerTimeoutRef.current) clearTimeout(staggerTimeoutRef.current);
+    if (playTimeoutRef.current) clearTimeout(playTimeoutRef.current);
     if (holdTimeoutRef.current) clearTimeout(holdTimeoutRef.current);
     if (returnTimeoutRef.current) clearTimeout(returnTimeoutRef.current);
+    if (idleTimeoutRef.current) clearTimeout(idleTimeoutRef.current);
 
     if (lottieRef.current) {
       lottieRef.current.stop();
@@ -172,36 +148,62 @@ export const AnimatedCharacter: React.FC<AnimatedCharacterProps> = React.memo(({
     setState('IDLE');
     stateRef.current = 'IDLE';
 
-    // On initial page load/refresh (runId === 1), the parent heading container in App.tsx
-    // has an entrance animation (delay: 0.2s + duration: 0.7s). We add 800ms base delay
-    // so the sequential wave starts right after the text becomes visible on page load (#9).
-    // On hover restart (runId > 1), baseDelay is 0ms (#10).
+    // Base delay accounting for initial parent entrance animation on refresh (#9)
     const baseDelay = runId === 1 ? 800 : 0;
-    const delay = baseDelay + charIndex * 60;
+    const delay = baseDelay + charIndex * 60; // 60ms sequential stagger per character (#4, #5)
 
+    // 1. Morph in begins
     staggerTimeoutRef.current = setTimeout(() => {
       setState('MORPH_TO_ICON');
       stateRef.current = 'MORPH_TO_ICON';
     }, delay);
 
+    // 2. Play icon phase begins (MORPH_IN_MS after morph start)
+    playTimeoutRef.current = setTimeout(() => {
+      if (stateRef.current !== 'IDLE') {
+        setState('PLAYING');
+        stateRef.current = 'PLAYING';
+      }
+    }, delay + MORPH_IN_MS);
+
+    // 3. Hold phase begins (MORPH_IN_MS + PLAY_MS after morph start)
+    holdTimeoutRef.current = setTimeout(() => {
+      if (stateRef.current !== 'IDLE') {
+        setState('HOLD');
+        stateRef.current = 'HOLD';
+      }
+    }, delay + MORPH_IN_MS + PLAY_MS);
+
+    // 4. Morph out begins (MORPH_IN_MS + PLAY_MS + HOLD_MS after morph start)
+    returnTimeoutRef.current = setTimeout(() => {
+      if (stateRef.current !== 'IDLE') {
+        setState('MORPH_TO_LETTER');
+        stateRef.current = 'MORPH_TO_LETTER';
+      }
+    }, delay + MORPH_IN_MS + PLAY_MS + HOLD_MS);
+
+    // 5. Sequence completes and returns to clean LETTER MODE (MORPH_IN_MS + PLAY_MS + HOLD_MS + MORPH_OUT_MS)
+    idleTimeoutRef.current = setTimeout(() => {
+      if (stateRef.current !== 'IDLE') {
+        setState('IDLE');
+        stateRef.current = 'IDLE';
+      }
+    }, delay + MORPH_IN_MS + PLAY_MS + HOLD_MS + MORPH_OUT_MS);
+
     return () => {
       if (staggerTimeoutRef.current) clearTimeout(staggerTimeoutRef.current);
+      if (playTimeoutRef.current) clearTimeout(playTimeoutRef.current);
       if (holdTimeoutRef.current) clearTimeout(holdTimeoutRef.current);
       if (returnTimeoutRef.current) clearTimeout(returnTimeoutRef.current);
+      if (idleTimeoutRef.current) clearTimeout(idleTimeoutRef.current);
     };
   }, [runId, charIndex]);
 
-  // Character wrapper with fixed width & height (#12, #13)
+  // Character wrapper preserving natural typography dimensions (#1, #2, #10)
   return (
-    <span className="relative inline-flex items-center justify-center align-middle select-none">
-      {/* Invisible layout anchor to lock width & height permanently */}
-      <span
-        className="invisible pointer-events-none select-none flex items-center justify-center px-[0.03em]"
-        style={{
-          minWidth: item.char === 'I' ? '0.68em' : '1.12em',
-          height: '1.08em',
-        }}
-      >
+    <span className="relative inline-flex items-center justify-center w-auto min-w-0 flex-none select-none">
+      {/* Invisible layout anchor strictly inheriting natural typography spacing (#1, #2) */}
+      <span className="invisible pointer-events-none select-none">
         {item.char}
       </span>
 
@@ -213,17 +215,17 @@ export const AnimatedCharacter: React.FC<AnimatedCharacterProps> = React.memo(({
         animate={
           state === 'IDLE'
             ? { opacity: 1, scale: 1 }
-            : state === 'MORPH_TO_ICON' || state === 'HOLD'
+            : state === 'MORPH_TO_ICON' || state === 'PLAYING' || state === 'HOLD'
             ? { opacity: 0, scale: 0.92 }
             : { opacity: 1, scale: 1 } // MORPH_TO_LETTER
         }
         transition={{
           opacity: {
-            duration: state === 'MORPH_TO_ICON' ? 0.12 : state === 'MORPH_TO_LETTER' ? 0.25 : 0,
+            duration: state === 'MORPH_TO_ICON' ? 0.25 : state === 'MORPH_TO_LETTER' ? 0.25 : 0,
             ease: state === 'MORPH_TO_ICON' ? 'easeOut' : 'easeInOut',
           },
           scale: {
-            duration: state === 'MORPH_TO_ICON' ? 0.18 : state === 'MORPH_TO_LETTER' ? 0.25 : 0,
+            duration: state === 'MORPH_TO_ICON' ? 0.25 : state === 'MORPH_TO_LETTER' ? 0.25 : 0,
             ease: state === 'MORPH_TO_ICON' ? 'easeOut' : 'easeInOut',
           },
         }}
@@ -231,34 +233,36 @@ export const AnimatedCharacter: React.FC<AnimatedCharacterProps> = React.memo(({
         {item.char}
       </motion.span>
 
-      {/* Lottie Icon element (#8, #14, #17, #18, #19) */}
+      {/* Lottie Icon element (#2, #7, #8) */}
       <motion.div
         className="absolute inset-0 flex items-center justify-center pointer-events-none"
         initial={false}
         animate={
           state === 'IDLE'
             ? { opacity: 0, scale: 0.92 }
-            : state === 'MORPH_TO_ICON' || state === 'HOLD'
+            : state === 'MORPH_TO_ICON' || state === 'PLAYING' || state === 'HOLD'
             ? { opacity: 1, scale: 1 }
             : { opacity: 0, scale: 0.92 } // MORPH_TO_LETTER
         }
         transition={{
-          duration: state === 'MORPH_TO_ICON' ? 0.18 : state === 'MORPH_TO_LETTER' ? 0.25 : 0,
+          duration: state === 'MORPH_TO_ICON' ? 0.25 : state === 'MORPH_TO_LETTER' ? 0.25 : 0,
           ease: state === 'MORPH_TO_ICON' ? 'easeOut' : 'easeInOut',
         }}
       >
-        {/* Icon size ~90-95% of capital letter height (#14) */}
-        <div className="w-[0.68em] h-[0.68em] flex items-center justify-center">
-          <Lottie
-            lottieRef={lottieRef}
-            animationData={item.lottie}
-            loop={false}
-            autoplay={false}
-            onDOMLoaded={handleDOMLoaded}
-            onLoadedImages={handleDOMLoaded}
-            onComplete={handleLottieComplete}
-            style={{ width: '100%', height: '100%' }}
-          />
+        {/* Icon sized to fit inside character area without increasing wrapper width (#1, #2) */}
+        <div className="w-[0.7em] h-[0.7em] max-w-full max-h-full flex items-center justify-center">
+          {/* Unmount Lottie completely when in IDLE letter mode to prevent lingering instances (#7, #8) */}
+          {state !== 'IDLE' && (
+            <Lottie
+              lottieRef={lottieRef}
+              animationData={item.lottie}
+              loop={false}
+              autoplay={false}
+              onDOMLoaded={handleDOMLoaded}
+              onLoadedImages={handleDOMLoaded}
+              style={{ width: '100%', height: '100%' }}
+            />
+          )}
         </div>
       </motion.div>
     </span>
