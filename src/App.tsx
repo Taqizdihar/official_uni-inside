@@ -6,6 +6,7 @@ import { ContactSection } from './components/ContactSection';
 import { Footer } from './components/Footer';
 import { ScrollStory, ScrollStoryHandle } from './components/ScrollStory';
 import { HeroModel } from './components/HeroModel';
+import { HeroAnimatedHeading } from './components/HeroAnimatedHeading';
 import { type AppSectionId } from './components/ThemeController';
 
 import member1 from './assets/our-team/members/1 - April.jpg';
@@ -570,14 +571,7 @@ const PageContent = ({
             transition={{ duration: 0.7, ease: "easeOut", delay: 0.2 }}
             className="flex flex-col items-center lg:items-start text-center lg:text-left order-1 lg:order-2 gap-6 relative z-10 lg:pl-16"
           >
-            <h1 className="flex flex-col font-black uppercase w-full">
-              <span className="text-6xl sm:text-7xl lg:text-[110px]" style={textPopStyle}>
-                CREATIVE
-              </span>
-              <span className="text-6xl sm:text-7xl lg:text-[110px]" style={textPopStyle}>
-                STUDIO
-              </span>
-            </h1>
+            <HeroAnimatedHeading textPopStyle={textPopStyle} />
 
             <p className="text-xl text-white/90 font-medium tracking-tight mt-2">
               Creative Inside, Impact Outside
