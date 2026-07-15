@@ -67,6 +67,7 @@ export const AnimatedCharacter: React.FC<AnimatedCharacterProps> = React.memo(({
   const [state, setState] = useState<CharacterAnimationState>('IDLE');
   const stateRef = useRef<CharacterAnimationState>('IDLE');
   const lottieRef = useRef<LottieRefCurrentProps>(null);
+  const isDOMLoadedRef = useRef<boolean>(false);
 
   const staggerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const holdTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -102,19 +103,61 @@ export const AnimatedCharacter: React.FC<AnimatedCharacterProps> = React.memo(({
     }
   }, []);
 
-  // Lottie playback synchronization (#7)
-  useEffect(() => {
-    if (state === 'MORPH_TO_ICON') {
+  const handleDOMLoaded = useCallback(() => {
+    isDOMLoadedRef.current = true;
+    if (stateRef.current === 'MORPH_TO_ICON') {
       if (lottieRef.current) {
         lottieRef.current.setSpeed(1.0);
         lottieRef.current.goToAndPlay(0, true);
       }
+    }
+  }, []);
+
+  // Lottie playback synchronization (#7)
+  useEffect(() => {
+    if (state === 'MORPH_TO_ICON') {
+      if (lottieRef.current && isDOMLoadedRef.current) {
+        lottieRef.current.setSpeed(1.0);
+        lottieRef.current.goToAndPlay(0, true);
+      } else if (lottieRef.current) {
+        lottieRef.current.setSpeed(1.0);
+        lottieRef.current.goToAndPlay(0, true);
+      }
+
+      // Retry brief interval right after transitioning to MORPH_TO_ICON to ensure Lottie starts
+      // when SVG DOM finishes loading asynchronously on initial page refresh
+      let retries = 0;
+      const playRetryInterval = setInterval(() => {
+        if (stateRef.current === 'MORPH_TO_ICON' && lottieRef.current) {
+          if (!isDOMLoadedRef.current || retries === 0) {
+            lottieRef.current.setSpeed(1.0);
+            lottieRef.current.goToAndPlay(0, true);
+          }
+        }
+        if (++retries >= 6 || isDOMLoadedRef.current) {
+          clearInterval(playRetryInterval);
+        }
+      }, 40);
+
+      // Safety fallback completion in case onComplete event is missed during browser tab refresh/backgrounding
+      const durationSec = lottieRef.current?.getDuration(false) || 1.2;
+      const fallbackMs = Math.max(1000, durationSec * 1000 + 400);
+      const safetyCompleteTimeout = setTimeout(() => {
+        if (stateRef.current === 'MORPH_TO_ICON') {
+          handleLottieComplete();
+        }
+      }, fallbackMs);
+
+      return () => {
+        clearInterval(playRetryInterval);
+        clearTimeout(safetyCompleteTimeout);
+      };
     } else if (state === 'IDLE') {
       if (lottieRef.current) {
         lottieRef.current.stop();
       }
     }
-  }, [state]);
+  }, [state, handleLottieComplete]);
 
   // Lifecycle & run coordination (#6, #9, #10)
   useEffect(() => {
@@ -129,8 +172,13 @@ export const AnimatedCharacter: React.FC<AnimatedCharacterProps> = React.memo(({
     setState('IDLE');
     stateRef.current = 'IDLE';
 
-    // Sequential stagger: 60ms delay per character (#6)
-    const delay = charIndex * 60;
+    // On initial page load/refresh (runId === 1), the parent heading container in App.tsx
+    // has an entrance animation (delay: 0.2s + duration: 0.7s). We add 800ms base delay
+    // so the sequential wave starts right after the text becomes visible on page load (#9).
+    // On hover restart (runId > 1), baseDelay is 0ms (#10).
+    const baseDelay = runId === 1 ? 800 : 0;
+    const delay = baseDelay + charIndex * 60;
+
     staggerTimeoutRef.current = setTimeout(() => {
       setState('MORPH_TO_ICON');
       stateRef.current = 'MORPH_TO_ICON';
@@ -206,6 +254,8 @@ export const AnimatedCharacter: React.FC<AnimatedCharacterProps> = React.memo(({
             animationData={item.lottie}
             loop={false}
             autoplay={false}
+            onDOMLoaded={handleDOMLoaded}
+            onLoadedImages={handleDOMLoaded}
             onComplete={handleLottieComplete}
             style={{ width: '100%', height: '100%' }}
           />
