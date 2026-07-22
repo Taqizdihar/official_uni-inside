@@ -23,23 +23,11 @@ import logoDarkTheme from './assets/global/Logo - Dark Theme.png';
 import logoLightTheme from './assets/global/Logo - Light Theme.png';
 import craftsLogo from './assets/global/Uni-Inside Crafts.png';
 
-import partner1 from './assets/about-us/partners/GIAT.png';
-import partner2 from './assets/about-us/partners/JagoAI.png';
-import partner3 from './assets/about-us/partners/JagoFarm.png';
-import partner4 from './assets/about-us/partners/Ko+Lab.png';
-import partner5 from './assets/about-us/partners/Kroom Box.png';
-import partner6 from './assets/about-us/partners/Ngolab.png';
-import partner7 from './assets/about-us/partners/Sorgummi.png';
-
-const partnersList = [
-  { name: 'GIAT', image: partner1 },
-  { name: 'JagoAI', image: partner2 },
-  { name: 'JagoFarm', image: partner3 },
-  { name: 'Ko+Lab', image: partner4 },
-  { name: 'Kroom Box', image: partner5 },
-  { name: 'Ngolab', image: partner6 },
-  { name: 'Sorgummi', image: partner7 },
-];
+const PARTNER_MODULES = import.meta.glob('./assets/about-us/partners/*.{png,jpg,jpeg,svg,webp}', { eager: true, import: 'default' }) as Record<string, string>;
+const partnersList = Object.entries(PARTNER_MODULES).map(([path, image]) => {
+  const name = path.split('/').pop()?.split('.')[0] || 'Partner';
+  return { name, image };
+});
 
 const teamMembers = [
   { name: 'April', image: member1, role: 'Creative Director' },
