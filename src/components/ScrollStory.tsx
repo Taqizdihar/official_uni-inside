@@ -14,7 +14,7 @@ const PRODUCT_ASSETS = Object.values(PRODUCT_ASSET_MODULES);
 gsap.registerPlugin(ScrollTrigger);
 
 export interface ScrollStoryHandle {
-  scrollToScene: (scene: 'PRODUCTS' | 'SERVICES' | 'EVENTS') => void;
+  scrollToScene: (scene: 'PRODUCTS' | 'SERVICES' | 'EVENTS', behavior?: ScrollBehavior) => void;
   getContainer: () => HTMLDivElement | null;
 }
 
@@ -103,7 +103,7 @@ export const ScrollStory = forwardRef<ScrollStoryHandle, ScrollStoryProps>((
   };
 
   useImperativeHandle(ref, () => ({
-    scrollToScene: (scene: 'PRODUCTS' | 'SERVICES' | 'EVENTS') => {
+    scrollToScene: (scene: 'PRODUCTS' | 'SERVICES' | 'EVENTS', behavior: ScrollBehavior = 'smooth') => {
       if (!scrollTriggerRef.current) return;
       const st = scrollTriggerRef.current;
       let targetProgress = 0;
@@ -112,7 +112,7 @@ export const ScrollStory = forwardRef<ScrollStoryHandle, ScrollStoryProps>((
       else if (scene === 'EVENTS') targetProgress = 0.86;
 
       const targetY = st.start + targetProgress * (st.end - st.start);
-      window.scrollTo({ top: targetY, behavior: 'smooth' });
+      window.scrollTo({ top: targetY, behavior });
     },
     getContainer: () => containerRef.current
   }), []);

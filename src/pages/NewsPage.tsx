@@ -7,10 +7,11 @@ import { NewsGrid } from '../components/news/NewsGrid';
 import { NewsSidebar } from '../components/news/NewsSidebar';
 import { LoadMoreButton } from '../components/news/LoadMoreButton';
 import { mockNews } from '../data/mockNews';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import logoDarkTheme from '../assets/global/Logo - Dark Theme.png';
 
 export const NewsPage: React.FC = () => {
+  const navigate = useNavigate();
   const [activeCategory, setActiveCategory] = useState('All');
   const [visibleCount, setVisibleCount] = useState(6);
   const [isLoading, setIsLoading] = useState(false);
@@ -79,6 +80,20 @@ export const NewsPage: React.FC = () => {
           </button>
         </div>
       </nav>
+
+      {/* Floating Back Button */}
+      <div className="absolute top-32 left-6 sm:left-10 lg:left-12 z-[90]">
+        <button 
+          onClick={() => navigate('/', { state: { scrollToNews: true } })}
+          aria-label="Back to Landing Page"
+          className="group flex items-center bg-white rounded-full h-[46px] px-[22px] border border-[rgba(0,0,0,0.08)] shadow-[0_4px_12px_rgba(0,0,0,0.05)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.12)] transition-all duration-300 hover:-translate-x-1 focus:outline-none focus:ring-2 focus:ring-[#f9d02d]"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="mr-2 group-hover:-translate-x-1 transition-transform duration-300">
+            <path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          <span className="font-semibold text-sm text-[#202121]">Back</span>
+        </button>
+      </div>
 
       {/* Main Content */}
       <div className="flex-grow pb-24">

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, forwardRef } from 'react';
 import { motion, useMotionValue, useMotionTemplate, AnimatePresence, useAnimation, useInView, useScroll, useTransform, useMotionValueEvent, useSpring, useAnimationFrame, animate } from 'motion/react';
 import { ChevronRight, Sparkles, Camera, Video, Monitor, Image as ImageIcon, Scissors, Aperture, Smartphone, PenTool, Lightbulb, User, Twitter, Linkedin, Instagram } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import { AchievementsSection } from './components/AchievementsSection';
 import { ContactSection } from './components/ContactSection';
 import { Footer } from './components/Footer';
@@ -723,6 +724,7 @@ const useTransitionInterpolations = (
 };
 
 export default function App() {
+  const location = useLocation();
   const [iconIndex, setIconIndex] = useState(0);
   const [isInAboutUs, setIsInAboutUs] = useState(false);
   const [isHoveringClickable, setIsHoveringClickable] = useState(false);
@@ -744,6 +746,20 @@ export default function App() {
   const eventsRef = useRef<HTMLDivElement>(null);
   const achievementsRef = useRef<HTMLDivElement>(null);
   const contactRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (location.state?.scrollToNews) {
+      setTimeout(() => {
+        if (scrollStoryRef.current) {
+          scrollStoryRef.current.scrollToScene('EVENTS', 'instant');
+        } else if (eventsRef.current) {
+          eventsRef.current.scrollIntoView({ behavior: 'instant' });
+        }
+        // Update active section immediately
+        setActiveSection('events');
+      }, 50); // Small delay to allow DOM render and AnimatePresence mount
+    }
+  }, [location.state]);
 
   const heroTransitionRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress: heroTransitionProgress } = useScroll({

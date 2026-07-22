@@ -33,35 +33,65 @@ export const EventsSection = forwardRef<HTMLDivElement, {}>((props, ref) => {
     <div className="w-full flex flex-col px-8 lg:px-24">
       <div className="mb-6 sm:mb-8 flex items-center justify-between">
         <div>
-          <div className="group flex items-center cursor-pointer w-fit" onClick={() => navigate('/news')}>
+          <div 
+            className="group flex items-center cursor-pointer w-fit focus:outline-none focus-visible:ring-4 focus-visible:ring-[#f9d02d] rounded-2xl" 
+            onClick={() => navigate('/news')}
+            role="button"
+            aria-label="See More Articles"
+            tabIndex={0}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate('/news'); }}
+          >
             <h2 className="text-[44px] sm:text-[70px] lg:text-[95px] font-black uppercase text-[#202121] leading-none tracking-tight">
               NEWS
             </h2>
             <motion.div 
-              className="ml-6 sm:ml-10 flex items-center overflow-hidden"
+              className="ml-6 sm:ml-10 flex items-center gap-[12px]"
               initial="initial"
               whileHover="hover"
+              whileFocus="hover"
             >
               <motion.div
+                className="flex flex-shrink-0 items-center justify-center rounded-full border-2 border-[#1F1F1F] bg-transparent w-[42px] h-[42px] sm:w-[46px] sm:h-[46px] lg:w-[52px] lg:h-[52px]"
                 variants={{
-                  initial: { x: 0 },
-                  hover: { x: 10 }
+                  initial: { scale: 1, backgroundColor: 'transparent', borderColor: '#1F1F1F' },
+                  hover: { scale: 1.08, backgroundColor: '#000000', borderColor: 'transparent' }
                 }}
-                transition={{ duration: 0.3, ease: 'easeOut' }}
+                transition={{ duration: 0.25, ease: 'easeInOut' }}
               >
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-[#202121] w-12 h-12 sm:w-16 sm:h-16">
-                  <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
+                <motion.svg 
+                  width="22" 
+                  height="22" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  xmlns="http://www.w3.org/2000/svg"
+                  variants={{
+                    initial: { x: 0, stroke: '#000000' },
+                    hover: { x: 2, stroke: '#FFFFFF' }
+                  }}
+                  transition={{ duration: 0.25, ease: 'easeInOut' }}
+                >
+                  <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </motion.svg>
               </motion.div>
               <motion.span
                 variants={{
-                  initial: { opacity: 0, x: -20, width: 0 },
-                  hover: { opacity: 1, x: 10, width: 'auto' }
+                  initial: { opacity: 0, x: -8, width: 0 },
+                  hover: { opacity: 1, x: 0, width: 140 }
                 }}
-                transition={{ duration: 0.4, ease: 'easeOut' }}
-                className="text-[24px] sm:text-[32px] font-bold text-[#202121] whitespace-nowrap ml-2 overflow-hidden"
+                transition={{ duration: 0.25, ease: 'easeInOut' }}
+                className="text-[20px] sm:text-[24px] lg:text-[32px] font-bold text-[#202121] whitespace-nowrap overflow-hidden hidden sm:block"
               >
                 See More
+              </motion.span>
+              <motion.span
+                variants={{
+                  initial: { opacity: 0, x: -8, width: 0 },
+                  hover: { opacity: 1, x: 0, width: 60 }
+                }}
+                transition={{ duration: 0.25, ease: 'easeInOut' }}
+                className="text-[20px] font-bold text-[#202121] whitespace-nowrap overflow-hidden sm:hidden block"
+              >
+                More
               </motion.span>
             </motion.div>
           </div>
