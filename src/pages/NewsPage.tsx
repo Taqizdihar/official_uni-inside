@@ -8,7 +8,7 @@ import { NewsSidebar } from '../components/news/NewsSidebar';
 import { LoadMoreButton } from '../components/news/LoadMoreButton';
 import { mockNews } from '../data/mockNews';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import logoDarkTheme from '../assets/global/Logo - Dark Theme.png';
+import logoDarkTheme from '../assets/global/Logo - Dark Theme.svg';
 
 export const NewsPage: React.FC = () => {
   const navigate = useNavigate();

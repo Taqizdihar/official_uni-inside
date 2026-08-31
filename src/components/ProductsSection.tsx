@@ -1,6 +1,6 @@
 import React, { forwardRef } from 'react';
 import { motion } from 'motion/react';
-import craftsLogo from '../assets/global/Uni-Inside Crafts.png';
+import craftsLogo from '../assets/global/Uni-Inside Crafts.svg';
 
 export const OurProductsSection = forwardRef<HTMLDivElement, {}>((props, ref) => {
   return (

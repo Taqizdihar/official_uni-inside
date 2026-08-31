@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useAnimation, useMotionValue, useDragControls } from 'motion/react';
 import { FaWhatsapp, FaInstagram, FaTiktok, FaLinkedinIn } from 'react-icons/fa6';
-import craftsLogo from '../assets/global/Uni-Inside Crafts.png';
+import craftsLogo from '../assets/global/Uni-Inside Crafts.svg';
 import telephoneBody from '../assets/contact-us/Telephone Body.png';
 import telephoneHandset from '../assets/contact-us/Telephone Handset.png';
 import telephoneNote from '../assets/contact-us/Telephone Note.png';

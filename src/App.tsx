@@ -19,9 +19,9 @@ import member6 from './assets/our-team/members/6 - Naura.jpg';
 import member7 from './assets/our-team/members/7 - Anggi.jpg';
 import member8 from './assets/our-team/members/8 - Amany.jpg';
 import member9 from './assets/our-team/members/9 - Ropaldo.jpg';
-import logoDarkTheme from './assets/global/Logo - Dark Theme.png';
-import logoLightTheme from './assets/global/Logo - Light Theme.png';
-import craftsLogo from './assets/global/Uni-Inside Crafts.png';
+import logoDarkTheme from './assets/global/Logo - Dark Theme.svg';
+import logoLightTheme from './assets/global/Logo - Light Theme.svg';
+import craftsLogo from './assets/global/Uni-Inside Crafts.svg';
 
 const PARTNER_MODULES = import.meta.glob('./assets/about-us/partners/*.{png,jpg,jpeg,svg,webp}', { eager: true, import: 'default' }) as Record<string, string>;
 const partnersList = Object.entries(PARTNER_MODULES).map(([path, image]) => {

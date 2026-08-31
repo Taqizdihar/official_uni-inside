@@ -1,6 +1,6 @@
 import React from 'react';
 import { FaWhatsapp, FaInstagram, FaTiktok, FaLinkedinIn } from 'react-icons/fa6';
-import logoDarkTheme from '../assets/global/Logo - Dark Theme.png';
+import logoDarkTheme from '../assets/global/Logo - Dark Theme.svg';
 
 export const Footer = () => {
   const currentYear = new Date().getFullYear();
