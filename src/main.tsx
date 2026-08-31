@@ -1,10 +1,11 @@
-import { StrictMode } from 'react';
+import { StrictMode, lazy, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'motion/react';
 import App from './App.tsx';
-import { NewsPage } from './pages/NewsPage';
 import './index.css';
+
+const NewsPage = lazy(() => import('./pages/NewsPage').then(({ NewsPage: Page }) => ({ default: Page })));
 
 const AnimatedRoutes = () => {
   const location = useLocation();
@@ -12,7 +13,11 @@ const AnimatedRoutes = () => {
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
         <Route path="/" element={<App key="landing" />} />
-        <Route path="/news" element={<NewsPage key="news" />} />
+        <Route path="/news" element={
+          <Suspense fallback={<main aria-busy="true" aria-label="Loading news" className="w-full min-h-screen bg-[#f0f0f0]" />}>
+            <NewsPage key="news" />
+          </Suspense>
+        } />
       </Routes>
     </AnimatePresence>
   );

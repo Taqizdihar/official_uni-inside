@@ -14,6 +14,10 @@ export const mockCategories = [
   'All', 'Photography', 'Development', 'Events', 'Design', 'Creative', 'Technology', 'Video', 'Social Media'
 ];
 
+// The original /src paths are not public production assets. These are the
+// same fallback thumbnails the cards already used after those paths failed.
+const NEWS_FALLBACK_THUMBNAIL = 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?q=80&w=800&auto=format&fit=crop';
+
 export const mockNews: NewsArticle[] = [
   {
     id: '1',
@@ -22,7 +26,7 @@ export const mockNews: NewsArticle[] = [
     category: 'Design',
     author: 'April',
     date: 'July 15, 2026',
-    thumbnail: '/src/assets/news/article-01.jpg',
+    thumbnail: NEWS_FALLBACK_THUMBNAIL,
     readingTime: '5 min',
     featured: true
   },
@@ -33,7 +37,7 @@ export const mockNews: NewsArticle[] = [
     category: 'Photography',
     author: 'Dian',
     date: 'July 10, 2026',
-    thumbnail: '/src/assets/news/article-02.jpg',
+    thumbnail: NEWS_FALLBACK_THUMBNAIL,
     readingTime: '8 min',
     featured: true
   },
@@ -44,7 +48,7 @@ export const mockNews: NewsArticle[] = [
     category: 'Development',
     author: 'Taqi',
     date: 'July 05, 2026',
-    thumbnail: '/src/assets/news/article-03.jpg',
+    thumbnail: NEWS_FALLBACK_THUMBNAIL,
     readingTime: '6 min',
     featured: true
   },
@@ -55,7 +59,7 @@ export const mockNews: NewsArticle[] = [
     category: 'Events',
     author: 'Amadea',
     date: 'June 28, 2026',
-    thumbnail: '/src/assets/news/article-04.jpg',
+    thumbnail: NEWS_FALLBACK_THUMBNAIL,
     readingTime: '4 min',
     featured: false
   },
@@ -66,7 +70,7 @@ export const mockNews: NewsArticle[] = [
     category: 'Video',
     author: 'Nadine',
     date: 'June 20, 2026',
-    thumbnail: '/src/assets/news/article-05.jpg',
+    thumbnail: NEWS_FALLBACK_THUMBNAIL,
     readingTime: '7 min',
     featured: false
   },
@@ -77,7 +81,7 @@ export const mockNews: NewsArticle[] = [
     category: 'Social Media',
     author: 'Naura',
     date: 'June 15, 2026',
-    thumbnail: '/src/assets/news/article-06.jpg',
+    thumbnail: NEWS_FALLBACK_THUMBNAIL,
     readingTime: '10 min',
     featured: false
   },
@@ -88,7 +92,7 @@ export const mockNews: NewsArticle[] = [
     category: 'Development',
     author: 'Anggi',
     date: 'June 10, 2026',
-    thumbnail: '/src/assets/news/article-07.jpg',
+    thumbnail: NEWS_FALLBACK_THUMBNAIL,
     readingTime: '12 min',
     featured: false
   },
@@ -99,7 +103,7 @@ export const mockNews: NewsArticle[] = [
     category: 'Design',
     author: 'Amany',
     date: 'June 05, 2026',
-    thumbnail: '/src/assets/news/article-08.jpg',
+    thumbnail: NEWS_FALLBACK_THUMBNAIL,
     readingTime: '5 min',
     featured: false
   },
@@ -110,7 +114,7 @@ export const mockNews: NewsArticle[] = [
     category: 'Creative',
     author: 'Ropaldo',
     date: 'May 30, 2026',
-    thumbnail: '/src/assets/news/article-09.jpg',
+    thumbnail: NEWS_FALLBACK_THUMBNAIL,
     readingTime: '6 min',
     featured: false
   },
@@ -121,7 +125,7 @@ export const mockNews: NewsArticle[] = [
     category: 'Technology',
     author: 'April',
     date: 'May 25, 2026',
-    thumbnail: '/src/assets/news/article-10.jpg',
+    thumbnail: NEWS_FALLBACK_THUMBNAIL,
     readingTime: '8 min',
     featured: false
   },
@@ -132,7 +136,7 @@ export const mockNews: NewsArticle[] = [
     category: 'Photography',
     author: 'Dian',
     date: 'May 20, 2026',
-    thumbnail: '/src/assets/news/article-11.jpg',
+    thumbnail: NEWS_FALLBACK_THUMBNAIL,
     readingTime: '7 min',
     featured: false
   },
@@ -143,7 +147,7 @@ export const mockNews: NewsArticle[] = [
     category: 'Development',
     author: 'Taqi',
     date: 'May 15, 2026',
-    thumbnail: '/src/assets/news/article-12.jpg',
+    thumbnail: NEWS_FALLBACK_THUMBNAIL,
     readingTime: '9 min',
     featured: false
   },
@@ -154,7 +158,7 @@ export const mockNews: NewsArticle[] = [
     category: 'Events',
     author: 'Amadea',
     date: 'May 10, 2026',
-    thumbnail: '/src/assets/news/article-13.jpg',
+    thumbnail: NEWS_FALLBACK_THUMBNAIL,
     readingTime: '3 min',
     featured: false
   },
@@ -165,7 +169,7 @@ export const mockNews: NewsArticle[] = [
     category: 'Video',
     author: 'Nadine',
     date: 'May 05, 2026',
-    thumbnail: '/src/assets/news/article-14.jpg',
+    thumbnail: NEWS_FALLBACK_THUMBNAIL,
     readingTime: '6 min',
     featured: false
   },
@@ -176,7 +180,7 @@ export const mockNews: NewsArticle[] = [
     category: 'Design',
     author: 'Naura',
     date: 'May 01, 2026',
-    thumbnail: '/src/assets/news/article-15.jpg',
+    thumbnail: NEWS_FALLBACK_THUMBNAIL,
     readingTime: '8 min',
     featured: false
   }

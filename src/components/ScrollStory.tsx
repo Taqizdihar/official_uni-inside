@@ -7,6 +7,7 @@ import { EventsSection } from './EventsSection';
 import printerGif from '../assets/our-products/GIF Printer Transparent.gif';
 import { ShoppingCart } from 'lucide-react';
 import coinSoundUrl from '../assets/audio/our-products/Coin Sound.mp3';
+import { useElementVisibility } from '../hooks/useElementVisibility';
 
 const PRODUCT_ASSET_MODULES = import.meta.glob('../assets/our-products/3D Printer Products/*.png', { eager: true, import: 'default' }) as Record<string, string>;
 const PRODUCT_ASSETS = Object.values(PRODUCT_ASSET_MODULES);
@@ -91,6 +92,8 @@ export const ScrollStory = forwardRef<ScrollStoryHandle, ScrollStoryProps>((
   const lastCollectTimeRef = useRef<number>(0);
   const comboCountRef = useRef<number>(0);
   const activeTimelinesRef = useRef<Set<gsap.core.Timeline>>(new Set());
+  const { isVisible: isStoryNear, isPageVisible } = useElementVisibility(containerRef, '1200px 0px');
+  const isProductsActive = activeSection === 'products' && isStoryNear && isPageVisible;
 
   // Track the last reported scene so we only fire on real changes
   const lastReportedScene = useRef<'PRODUCTS' | 'SERVICES' | 'EVENTS' | null>(null);
@@ -254,8 +257,9 @@ export const ScrollStory = forwardRef<ScrollStoryHandle, ScrollStoryProps>((
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Printer random patrol animation
+  // Printer random patrol animation only needs to run while its scene can be seen.
   useEffect(() => {
+    if (!isProductsActive) return;
     const el = printerRef.current;
     if (!el) return;
 
@@ -300,20 +304,37 @@ export const ScrollStory = forwardRef<ScrollStoryHandle, ScrollStoryProps>((
       isActive = false;
       gsap.killTweensOf(el);
     };
-  }, []);
+  }, [isProductsActive]);
 
-  // Preload coin sound audio pool
-  useEffect(() => {
+  const ensureCoinAudioPool = () => {
+    if (coinAudioPoolRef.current.length > 0) return coinAudioPoolRef.current;
     coinAudioPoolRef.current = Array.from({ length: 5 }, () => {
       const audio = new Audio(coinSoundUrl);
       audio.preload = 'auto';
       audio.volume = 0.75;
       return audio;
     });
+    return coinAudioPoolRef.current;
+  };
+
+  // Preload the overlap-capable pool only shortly before the Products scene.
+  useEffect(() => {
+    if (!isStoryNear) return;
+    ensureCoinAudioPool();
+  }, [isStoryNear]);
+
+  useEffect(() => () => {
+    coinAudioPoolRef.current.forEach((audio) => {
+      audio.pause();
+      audio.currentTime = 0;
+      audio.removeAttribute('src');
+      audio.load();
+    });
+    coinAudioPoolRef.current = [];
   }, []);
 
   const playCoinSound = (combo: number) => {
-    const pool = coinAudioPoolRef.current;
+    const pool = ensureCoinAudioPool();
     if (!pool || pool.length === 0) return;
     const available = pool.find((a) => a.paused || a.ended) || pool[0];
     available.currentTime = 0;
@@ -398,7 +419,7 @@ export const ScrollStory = forwardRef<ScrollStoryHandle, ScrollStoryProps>((
 
   // Eject burst of 3 products every 2 seconds
   const emitBurst = () => {
-    if (document.hidden) return;
+    if (!isProductsActive) return;
     if (!printerRef.current || !particlesContainerRef.current) return;
     const layer = productsLayerRef.current;
     if (!layer || (gsap.getProperty(layer, 'opacity') as number) < 0.5) return;
@@ -497,11 +518,12 @@ export const ScrollStory = forwardRef<ScrollStoryHandle, ScrollStoryProps>((
   };
 
   useEffect(() => {
+    if (!isProductsActive) return;
     const interval = setInterval(() => {
       emitBurst();
     }, 2000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isProductsActive]);
 
   // Handle visibility state to pause and resume animations when tab changes
   useEffect(() => {
@@ -593,19 +615,22 @@ export const ScrollStory = forwardRef<ScrollStoryHandle, ScrollStoryProps>((
         {/* Products Scene */}
         <div
           ref={productsLayerRef}
-          className="absolute inset-0 flex flex-col justify-center will-change-transform"
+          className="absolute inset-0 flex flex-col justify-center"
           style={{
             transform: 'translate3d(0,0,0)',
             zIndex: 3,
+            willChange: isStoryNear && isPageVisible ? 'transform' : 'auto',
           }}
         >
           {/* Printer GIF Layer (Behind Products content) */}
           <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
              <div className="absolute bottom-0 left-0 w-full flex justify-center items-end m-0 p-0">
-                <div ref={printerRef} className="will-change-transform flex items-end m-0 p-0 leading-none">
-                   <img 
-                     src={printerGif} 
-                     alt="Autonomous Printer" 
+                <div ref={printerRef} className="flex items-end m-0 p-0 leading-none" style={{ willChange: isProductsActive ? 'transform' : 'auto' }}>
+                    <img
+                      src={isStoryNear ? printerGif : undefined}
+                      alt="Autonomous Printer"
+                      loading="lazy"
+                      decoding="async"
                      className="h-[20vh] sm:h-[25vh] max-h-[300px] w-auto object-contain opacity-95 drop-shadow-xl block m-0 p-0 align-bottom" 
                    />
                 </div>
@@ -629,10 +654,11 @@ export const ScrollStory = forwardRef<ScrollStoryHandle, ScrollStoryProps>((
         {/* Services Scene */}
         <div
           ref={servicesLayerRef}
-          className="absolute inset-0 flex items-center justify-center will-change-transform"
+          className="absolute inset-0 flex items-center justify-center"
           style={{
             transform: 'translate3d(0,0,0)',
             zIndex: 2,
+            willChange: isStoryNear && isPageVisible ? 'transform' : 'auto',
           }}
         >
            <div
@@ -650,10 +676,11 @@ export const ScrollStory = forwardRef<ScrollStoryHandle, ScrollStoryProps>((
         {/* Events Scene */}
         <div
           ref={eventsLayerRef}
-          className="absolute inset-0 flex flex-col items-center will-change-transform"
+          className="absolute inset-0 flex flex-col items-center"
           style={{
             transform: 'translate3d(0,0,0)',
             zIndex: 1,
+            willChange: isStoryNear && isPageVisible ? 'transform' : 'auto',
           }}
         >
            <div

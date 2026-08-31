@@ -20,6 +20,9 @@ export const NewsHero: React.FC = () => {
         <img 
           src="https://images.unsplash.com/photo-1499951360447-b19be8fe80f5?q=80&w=2000&auto=format&fit=crop" 
           alt="News Hero Background" 
+          loading="eager"
+          decoding="async"
+          fetchPriority="high"
           className="w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-[#202121] to-transparent opacity-80" />

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, forwardRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, forwardRef, lazy, Suspense } from 'react';
 import { motion, useMotionValue, useMotionTemplate, AnimatePresence, useAnimation, useInView, useScroll, useTransform, useMotionValueEvent, useSpring, useAnimationFrame, animate } from 'motion/react';
 import { ChevronRight, Sparkles, Camera, Video, Monitor, Image as ImageIcon, Scissors, Aperture, Smartphone, PenTool, Lightbulb, User, Twitter, Linkedin, Instagram } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
@@ -6,24 +6,25 @@ import { AchievementsSection } from './components/AchievementsSection';
 import { ContactSection } from './components/ContactSection';
 import { Footer } from './components/Footer';
 import { ScrollStory, ScrollStoryHandle } from './components/ScrollStory';
-import { HeroModel } from './components/HeroModel';
+import { HeroModelFrame } from './components/HeroModelFrame';
 import { HeroAnimatedHeading } from './components/HeroAnimatedHeading';
 import { type AppSectionId } from './components/ThemeController';
 
-import member1 from './assets/our-team/members/1 - April.jpg';
-import member2 from './assets/our-team/members/2 - Dian.jpg';
-import member3 from './assets/our-team/members/3 - Taqi.jpg';
-import member4 from './assets/our-team/members/4 - Amadea.jpg';
-import member5 from './assets/our-team/members/5 - Nadine.jpg';
-import member6 from './assets/our-team/members/6 - Naura.jpg';
-import member7 from './assets/our-team/members/7 - Anggi.jpg';
-import member8 from './assets/our-team/members/8 - Amany.jpg';
-import member9 from './assets/our-team/members/9 - Ropaldo.jpg';
+import member1 from './assets/our-team/members/1 - April.avif';
+import member2 from './assets/our-team/members/2 - Dian.avif';
+import member3 from './assets/our-team/members/3 - Taqi.avif';
+import member4 from './assets/our-team/members/4 - Amadea.avif';
+import member5 from './assets/our-team/members/5 - Nadine.avif';
+import member6 from './assets/our-team/members/6 - Naura.avif';
+import member7 from './assets/our-team/members/7 - Anggi.avif';
+import member8 from './assets/our-team/members/8 - Amany.avif';
+import member9 from './assets/our-team/members/9 - Ropaldo.avif';
 import logoDarkTheme from './assets/global/Logo - Dark Theme.svg';
 import logoLightTheme from './assets/global/Logo - Light Theme.svg';
 import craftsLogo from './assets/global/Uni-Inside Crafts.svg';
 
 const PARTNER_MODULES = import.meta.glob('./assets/about-us/partners/*.{png,jpg,jpeg,svg,webp}', { eager: true, import: 'default' }) as Record<string, string>;
+const LazyHeroModel = lazy(() => import('./components/HeroModel'));
 const partnersList = Object.entries(PARTNER_MODULES).map(([path, image]) => {
   const name = path.split('/').pop()?.split('.')[0] || 'Partner';
   return { name, image };
@@ -54,6 +55,8 @@ const FilmFrame: React.FC<{ partner: { name: string; image: string } }> = ({ par
       <img 
         src={partner.image} 
         alt={partner.name}
+        loading="lazy"
+        decoding="async"
         className="max-w-full max-h-full object-contain relative z-10" 
       />
     </div>
@@ -91,7 +94,7 @@ const FilmRollSection = ({ filmRollXVal, isCursor }: { filmRollXVal?: any, isCur
   }, [isInView, maxSpeed, isCursor]);
 
   useAnimationFrame((time, delta) => {
-    if (isCursor) return;
+    if (isCursor || !isInView) return;
     const decayFactor = Math.pow(0.996, delta);
     speedRef.current = normalSpeed + (speedRef.current - normalSpeed) * decayFactor;
 
@@ -200,6 +203,8 @@ const CardItem = React.memo(({
               <img 
                 src={teamMembers[index]?.image} 
                 alt={teamMembers[index]?.name}
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover"
               />
             </div>
@@ -229,6 +234,7 @@ const CardItem = React.memo(({
 
 const OurTeamSection = forwardRef<HTMLDivElement, {}>((props, ref) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const isTeamInView = useInView(containerRef, { once: false, amount: 0.1 });
   
   const setRefs = (node: HTMLDivElement) => {
     if (typeof ref === 'function') ref(node);
@@ -252,7 +258,7 @@ const OurTeamSection = forwardRef<HTMLDivElement, {}>((props, ref) => {
   const dynamicSpacing = useTransform(scrollYProgress, [0, 0.15], [10, 40]);
 
   useAnimationFrame((t, delta) => {
-    if (activeCard === null) {
+    if (isTeamInView && activeCard === null) {
       const spacing = dynamicSpacing.get();
       const shiftDelta = spacing > 0 ? (0.006 * delta) / spacing : 0;
       deckShift.set(deckShift.get() - shiftDelta);
@@ -464,6 +470,27 @@ const PageContent = ({
   eventsAchievementsTransitionRef?: React.RefObject<HTMLDivElement>,
   achievementsContactTransitionRef?: React.RefObject<HTMLDivElement>
 }) => {
+  const [shouldLoadHero, setShouldLoadHero] = useState(false);
+
+  useEffect(() => {
+    if (isCursor) return;
+    let cancelled = false;
+    const loadHero = () => {
+      if (!cancelled) setShouldLoadHero(true);
+    };
+    const windowWithIdle = window as Window & {
+      requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+    const idleId = windowWithIdle.requestIdleCallback?.(loadHero, { timeout: 150 });
+    const timeoutId = idleId === undefined ? window.setTimeout(loadHero, 0) : undefined;
+
+    return () => {
+      cancelled = true;
+      if (idleId !== undefined) windowWithIdle.cancelIdleCallback?.(idleId);
+      if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+    };
+  }, []);
   // Use progress for glow overlay fading
   const fallbackProgress = useMotionValue(0);
   const progress = heroTransitionProgress || fallbackProgress;
@@ -550,7 +577,11 @@ const PageContent = ({
           >
             <div className="relative group w-full max-w-[400px] lg:max-w-[500px]">
                <div className="absolute -inset-4 bg-white/5 blur-3xl rounded-full" />
-               <HeroModel />
+                {shouldLoadHero ? (
+                  <Suspense fallback={<HeroModelFrame />}>
+                    <LazyHeroModel />
+                  </Suspense>
+                ) : <HeroModelFrame />}
             </div>
           </motion.div>
 
@@ -1240,4 +1271,3 @@ export default function App() {
     </motion.div>
   );
 }
-

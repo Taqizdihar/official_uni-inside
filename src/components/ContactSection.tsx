@@ -3,12 +3,12 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useAnimation, useMotionValue, useDragControls } from 'motion/react';
 import { FaWhatsapp, FaInstagram, FaTiktok, FaLinkedinIn } from 'react-icons/fa6';
 import craftsLogo from '../assets/global/Uni-Inside Crafts.svg';
-import telephoneBody from '../assets/contact-us/Telephone Body.png';
-import telephoneHandset from '../assets/contact-us/Telephone Handset.png';
-import telephoneNote from '../assets/contact-us/Telephone Note.png';
-import noteDetail from '../assets/contact-us/Note Detail.png';
-import handImage from '../assets/contact-us/Hand.png';
-import handPhoneImage from '../assets/contact-us/Hand Phone.png';
+import telephoneBody from '../assets/contact-us/Telephone Body.avif';
+import telephoneHandset from '../assets/contact-us/Telephone Handset.avif';
+import telephoneNote from '../assets/contact-us/Telephone Note.avif';
+import noteDetail from '../assets/contact-us/Note Detail.avif';
+import handImage from '../assets/contact-us/Hand.avif';
+import handPhoneImage from '../assets/contact-us/Hand Phone.avif';
 import paperPickSound from '../assets/audio/contact-us/Paper Pick.mp3';
 import paperPutSound from '../assets/audio/contact-us/Paper Put.mp3';
 import manTalking1 from '../assets/audio/contact-us/Man Talking 1.mp3';
@@ -16,6 +16,7 @@ import manTalking2 from '../assets/audio/contact-us/Man Talking 2.mp3';
 import manTalking3 from '../assets/audio/contact-us/Man Talking 3.mp3';
 import phonePickSound from '../assets/audio/contact-us/Phone Pick.mp3';
 import phoneGrabSound from '../assets/audio/contact-us/Phone Grab.mp3';
+import { useElementVisibility } from '../hooks/useElementVisibility';
 
 const manTalkingSounds = [manTalking1, manTalking2, manTalking3];
 
@@ -64,7 +65,7 @@ const socials = [
 ];
 
 
-const RopeSimulation = ({ startRef, endRef, altEndRef, useAltEnd }: { startRef: React.RefObject<HTMLDivElement>, endRef: React.RefObject<HTMLDivElement>, altEndRef: React.RefObject<HTMLDivElement>, useAltEnd: boolean }) => {
+const RopeSimulation = ({ startRef, endRef, altEndRef, useAltEnd, isActive }: { startRef: React.RefObject<HTMLDivElement>, endRef: React.RefObject<HTMLDivElement>, altEndRef: React.RefObject<HTMLDivElement>, useAltEnd: boolean, isActive: boolean }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const useAltEndRef = useRef(useAltEnd);
 
@@ -73,6 +74,7 @@ const RopeSimulation = ({ startRef, endRef, altEndRef, useAltEnd }: { startRef: 
   }, [useAltEnd]);
 
   useEffect(() => {
+    if (!isActive) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -181,12 +183,14 @@ const RopeSimulation = ({ startRef, endRef, altEndRef, useAltEnd }: { startRef: 
       window.removeEventListener('resize', resize);
       cancelAnimationFrame(animationFrameId);
     };
-  }, []);
+  }, [altEndRef, endRef, isActive, startRef]);
 
   return <canvas ref={canvasRef} className="fixed inset-0 pointer-events-none z-0" />;
 };
 
 export const ContactSection = () => {
+  const contactRootRef = useRef<HTMLDivElement>(null);
+  const { isVisible: isContactNear, isPageVisible } = useElementVisibility(contactRootRef, '700px 0px');
   const [hoveredSocial, setHoveredSocial] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [hideSmallNote, setHideSmallNote] = useState(false);
@@ -210,6 +214,45 @@ export const ContactSection = () => {
   const physicsRef = useRef<number | null>(null);
   const handImageRef = useRef<HTMLImageElement>(null);
   const handPhoneAttachmentRef = useRef<HTMLDivElement>(null);
+  const audioPoolRef = useRef<Map<string, HTMLAudioElement[]>>(new Map());
+
+  const getAudio = (source: string, allowOverlap = false) => {
+    const pool = audioPoolRef.current.get(source) ?? [];
+    let audio = pool.find((item) => item.paused || item.ended);
+    if (!audio || allowOverlap) {
+      audio = new Audio(source);
+      audio.preload = 'auto';
+      pool.push(audio);
+      audioPoolRef.current.set(source, pool);
+    }
+    return audio;
+  };
+
+  const playAudio = (source: string, allowOverlap = false) => {
+    const audio = getAudio(source, allowOverlap);
+    audio.currentTime = 0;
+    void audio.play().catch(() => {});
+    return audio;
+  };
+
+  useEffect(() => {
+    if (!isContactNear) return;
+    [paperPickSound, paperPutSound, ...manTalkingSounds, phonePickSound, phoneGrabSound].forEach((source) => {
+      const audio = getAudio(source);
+      audio.preload = 'metadata';
+      audio.load();
+    });
+  }, [isContactNear]);
+
+  useEffect(() => () => {
+    audioPoolRef.current.forEach((pool) => pool.forEach((audio) => {
+      audio.pause();
+      audio.currentTime = 0;
+      audio.removeAttribute('src');
+      audio.load();
+    }));
+    audioPoolRef.current.clear();
+  }, []);
 
   const [chatBubbles, setChatBubbles] = useState<ChatBubbleData[]>([]);
 
@@ -218,7 +261,7 @@ export const ContactSection = () => {
     let slotCounter = 0;
     const recentIndices: number[] = [];
 
-    if (isHandHoldingPhone) {
+    if (isHandHoldingPhone && isContactNear && isPageVisible) {
       interval = setInterval(() => {
         let idx: number;
         do {
@@ -249,10 +292,10 @@ export const ContactSection = () => {
       setChatBubbles([]);
     }
     return () => clearInterval(interval);
-  }, [isHandHoldingPhone]);
+  }, [isContactNear, isHandHoldingPhone, isPageVisible]);
 
   useEffect(() => {
-    if (!isHandHoldingPhone) return;
+    if (!isHandHoldingPhone || !isContactNear || !isPageVisible) return;
 
     let isCancelled = false;
     let currentAudio: HTMLAudioElement | null = null;
@@ -273,7 +316,7 @@ export const ContactSection = () => {
         playlist = shuffleIndices();
       }
       const nextIdx = playlist.pop()!;
-      const audio = new Audio(manTalkingSounds[nextIdx]);
+      const audio = getAudio(manTalkingSounds[nextIdx]);
       currentAudio = audio;
 
       audio.onended = () => {
@@ -285,7 +328,7 @@ export const ContactSection = () => {
       audio.play().catch(() => {});
     };
 
-    const grabAudio = new Audio(phoneGrabSound);
+    const grabAudio = getAudio(phoneGrabSound);
     currentAudio = grabAudio;
     grabAudio.onended = () => {
       if (!isCancelled) {
@@ -305,7 +348,7 @@ export const ContactSection = () => {
         currentAudio.currentTime = 0;
       }
     };
-  }, [isHandHoldingPhone]);
+  }, [isContactNear, isHandHoldingPhone, isPageVisible]);
   
 
   const ringingAnimation = {
@@ -331,8 +374,7 @@ export const ContactSection = () => {
   };
 
   const resetHandset = () => {
-    const audio = new Audio(phonePickSound);
-    audio.play().catch(() => {});
+    playAudio(phonePickSound);
     stopPhysics();
     setIsDropped(false);
     setIsPickedUp(false);
@@ -528,7 +570,7 @@ export const ContactSection = () => {
   const activeSocial = hoveredSocial || 'whatsapp';
 
   return (
-    <div className="w-full flex-grow flex flex-col items-center justify-between px-8 lg:px-24">
+    <div ref={contactRootRef} className="w-full flex-grow flex flex-col items-center justify-between px-8 lg:px-24">
       <div className="text-center z-20 flex flex-col items-center mt-auto mb-auto">
         <motion.h2 
           initial={{ opacity: 0, y: 30 }}
@@ -574,11 +616,12 @@ export const ContactSection = () => {
                   paddingRight: isExpanded ? "24px" : "0px",
                 }}
                 transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                className={`flex items-center h-[52px] rounded-full overflow-hidden will-change-transform cursor-pointer ${
+                className={`flex items-center h-[52px] rounded-full overflow-hidden cursor-pointer ${
                   social.id === 'whatsapp'
                     ? 'bg-[#58d374] text-white border-[2.5px] border-transparent'
                     : 'bg-transparent text-[#202121] border-[2.5px] border-[#202121]'
                 }`}
+                style={{ willChange: hoveredSocial === social.id ? 'transform' : 'auto' }}
               >
                 <motion.div 
                   layout 
@@ -611,7 +654,7 @@ export const ContactSection = () => {
       </div>
 
       <div className="w-full flex justify-center relative pointer-events-none mt-32">
-        <RopeSimulation startRef={bodyAttachmentRef} endRef={handsetAttachmentRef} altEndRef={handPhoneAttachmentRef} useAltEnd={isHandHoldingPhone} />
+        <RopeSimulation startRef={bodyAttachmentRef} endRef={handsetAttachmentRef} altEndRef={handPhoneAttachmentRef} useAltEnd={isHandHoldingPhone} isActive={isContactNear && isPageVisible} />
         <div className="relative w-[300px] md:w-[420px] flex justify-center">
           
           {/* Telephone Handset — draggable, dynamic z-index */}
@@ -640,8 +683,7 @@ export const ContactSection = () => {
               dragElastic={0}
               onDragStart={() => {
                 if (!isDropped && !hasHandAppeared) {
-                  const audio = new Audio(phonePickSound);
-                  audio.play().catch(() => {});
+                  playAudio(phonePickSound);
                 }
                 stopPhysics();
                 setIsPickedUp(true);
@@ -671,7 +713,7 @@ export const ContactSection = () => {
                 pointerEvents: isHandHoldingPhone ? 'none' : 'auto'
               }}
             >
-              <img src={telephoneHandset} alt="Telephone Handset" className="w-full h-auto object-contain drop-shadow-lg pointer-events-none select-none" draggable={false} />
+              <img src={telephoneHandset} alt="Telephone Handset" loading="lazy" decoding="async" className="w-full h-auto object-contain drop-shadow-lg pointer-events-none select-none" draggable={false} />
               {/* Handset Attachment Point */}
               <div ref={handsetAttachmentRef} className="absolute left-[8%] bottom-[20%] w-1 h-1" />
             </motion.div>
@@ -682,6 +724,8 @@ export const ContactSection = () => {
             <img 
               src={telephoneBody} 
               alt="Telephone Body"
+              loading="lazy"
+              decoding="async"
               className="w-full object-contain drop-shadow-2xl pointer-events-auto"
             />
             {/* Body Attachment Point */}
@@ -693,11 +737,12 @@ export const ContactSection = () => {
             <motion.img 
               src={telephoneNote} 
               alt="Telephone Note"
+              loading="lazy"
+              decoding="async"
               animate={{ rotate: [-33, -27, -33] }}
               transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
               onClick={() => {
-                const pickAudio = new Audio(paperPickSound);
-                pickAudio.play().catch(() => {});
+                playAudio(paperPickSound);
                 setHideSmallNote(true);
                 setIsModalOpen(true);
               }}
@@ -733,12 +778,16 @@ export const ContactSection = () => {
               ref={handImageRef}
               src={handImage} 
               alt="Hand"
+              loading="lazy"
+              decoding="async"
               className={`w-full h-auto pointer-events-auto select-none ${isHandHoldingPhone ? 'hidden' : 'block'}`}
               draggable={false}
             />
             <img 
               src={handPhoneImage} 
               alt="Hand holding phone"
+              loading="lazy"
+              decoding="async"
               className={`w-full h-auto pointer-events-auto select-none cursor-grab ${isHandHoldingPhone ? 'block' : 'hidden'}`}
               draggable={false}
               onPointerDown={(e) => {
@@ -811,8 +860,7 @@ export const ContactSection = () => {
       {createPortal(
         <AnimatePresence onExitComplete={() => {
           setHideSmallNote(false);
-          const putAudio = new Audio(paperPutSound);
-          putAudio.play().catch(() => {});
+          playAudio(paperPutSound);
         }}>
           {isModalOpen && (
             <motion.div
@@ -837,6 +885,8 @@ export const ContactSection = () => {
                 <motion.img
                   src={noteDetail}
                   alt="Note Detail"
+                  loading="lazy"
+                  decoding="async"
                   animate={{ rotate: [-2, 2, -2] }}
                   transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
                   className="w-full h-auto object-contain"

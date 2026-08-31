@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import cameramanImg from '../assets/our-services/Cameraman.png';
-import dronemanImg from '../assets/our-services/Droneman.png';
-import programmerImg from '../assets/our-services/Programmer.png';
+import cameramanImg from '../assets/our-services/Cameraman.avif';
+import dronemanImg from '../assets/our-services/Droneman.avif';
+import programmerImg from '../assets/our-services/Programmer.avif';
+import { useElementVisibility } from '../hooks/useElementVisibility';
 
 const servicesData = [
   { id: 'capture', text: "Capture", img: cameramanImg },
@@ -77,6 +78,8 @@ const getSlotProps = (slot: number, isMobile: boolean) => {
 };
 
 export const ServicesCarousel = () => {
+  const sectionRef = useRef<HTMLDivElement>(null);
+  const { isVisible, isPageVisible } = useElementVisibility(sectionRef, '600px 0px');
   const [activeIndex, setActiveIndex] = useState(0); 
   const [isMobile, setIsMobile] = useState(false);
 
@@ -109,18 +112,19 @@ export const ServicesCarousel = () => {
   }, []);
 
   useEffect(() => {
+    if (!isVisible || !isPageVisible) return;
     const interval = setInterval(() => {
       setActiveIndex((prev) => (prev + 1) % 6);
     }, 2000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isPageVisible, isVisible]);
 
   const getSlot = (itemIndex: number) => {
     return (itemIndex - activeIndex + 6) % 6;
   };
 
   return (
-    <div className="w-full h-full relative">
+    <div ref={sectionRef} className="w-full h-full relative">
       {/* Hidden measuring elements for exact, responsive layout mapping */}
       <div className="absolute opacity-0 pointer-events-none flex select-none text-[clamp(32px,4.2vw,64px)] font-black leading-none" style={{ top: -9999, left: -9999 }}>
         <span ref={captureRef} style={{ whiteSpace: 'nowrap' }}>Capture</span>
@@ -213,6 +217,8 @@ export const ServicesCarousel = () => {
               <img
                 src={service.img}
                 alt={service.text}
+                loading="lazy"
+                decoding="async"
                 className="h-full w-auto object-contain block drop-shadow-2xl select-none"
               />
             </motion.div>

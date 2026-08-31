@@ -4,9 +4,8 @@ import { PerspectiveCamera, useGLTF, Environment, OrbitControls } from '@react-t
 import * as THREE from 'three';
 import heroModelUrl from '../assets/hero/hero-model.glb';
 import studioSoftHdr from '../assets/hdri/studio-soft.hdr';
-
-// PART 2: Preload GLB asset early in lifecycle
-useGLTF.preload(heroModelUrl);
+import { HeroModelFrame } from './HeroModelFrame';
+import { useElementVisibility } from '../hooks/useElementVisibility';
 
 /**
  * Shared context to coordinate interaction state between OrbitControls and IdleAnimation.
@@ -218,15 +217,20 @@ HeroModelMesh.displayName = 'HeroModelMesh';
  * Dedicated HeroModel Component
  */
 export const HeroModel: React.FC = React.memo(() => {
+  const frameRef = useRef<HTMLDivElement>(null);
+  const { isVisible, isPageVisible } = useElementVisibility(frameRef, '300px 0px');
+  const isRendering = isVisible && isPageVisible;
+
   return (
-    <div className="relative w-[210%] sm:w-[250%] lg:w-[275%] h-[690px] sm:h-[870px] lg:h-[1080px] -ml-[55%] sm:-ml-[75%] lg:-ml-[87.5%] flex items-center justify-center select-none cursor-grab active:cursor-grabbing">
+    <HeroModelFrame ref={frameRef}>
       <Canvas
         gl={{
           antialias: true,
           alpha: true,
           powerPreference: 'high-performance',
         }}
-        dpr={[1, 2]}
+        dpr={[1, 1.5]}
+        frameloop={isRendering ? 'always' : 'never'}
         className="w-full h-full"
       >
         <PerspectiveCamera makeDefault fov={45} />
@@ -240,7 +244,7 @@ export const HeroModel: React.FC = React.memo(() => {
           </Suspense>
         </IdleInteractionProvider>
       </Canvas>
-    </div>
+    </HeroModelFrame>
   );
 });
 HeroModel.displayName = 'HeroModel';
