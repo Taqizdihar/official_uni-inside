@@ -80,7 +80,7 @@ const HeroLoadingIndicator: React.FC = () => {
           animationData={animationData}
           autoplay
           loop
-          className="w-28 h-28 sm:w-36 sm:h-36 lg:w-44 lg:h-44 max-w-[42vw] max-h-[42vw]"
+          className="w-28 h-28 sm:w-36 sm:h-36 lg:w-44 lg:h-44 max-w-[42vw] max-h-[42vw] scale-[3.5]"
         />
       ) : null}
     </div>
