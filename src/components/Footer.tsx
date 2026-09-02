@@ -1,8 +1,10 @@
 import React from 'react';
 import { FaWhatsapp, FaInstagram, FaTiktok, FaLinkedinIn } from 'react-icons/fa6';
+import { Link, useLocation } from 'react-router-dom';
 import logoDarkTheme from '../assets/global/Logo - Dark Theme.svg';
 
 export const Footer = () => {
+  const { pathname } = useLocation();
   const currentYear = new Date().getFullYear();
   const navigationLinks = ['ABOUT US', 'OUR TEAM', 'PRODUCTS', 'SERVICES', 'NEWS', 'ACHIEVEMENTS', 'CONTACT US'];
   const socialLinks = [
@@ -48,24 +50,37 @@ export const Footer = () => {
             <div className="w-full max-w-[150px]">
               <h4 className="text-white font-bold tracking-widest uppercase mb-6 text-sm">Navigation</h4>
               <ul className="space-y-4">
-                {navigationLinks.map((link) => (
-                  <li key={link}>
-                    <a 
-                      href={`#${link.toLowerCase().replace(/\s+/g, '-')}`}
-                      onClick={(e) => {
-                        const targetId = link.toLowerCase().replace(/\s+/g, '-');
-                        const el = document.getElementById(targetId);
-                        if (el) {
-                          e.preventDefault();
-                          el.scrollIntoView({ behavior: 'smooth' });
-                        }
-                      }}
-                      className="text-gray-400 hover:text-[#f9d02d] text-sm font-semibold tracking-wider transition-colors duration-200"
-                    >
-                      {link}
-                    </a>
-                  </li>
-                ))}
+                {navigationLinks.map((link) => {
+                  const targetId = link.toLowerCase().replace(/\s+/g, '-');
+                  const destination = link === 'NEWS' ? '/news' : `/#${targetId}`;
+
+                  return (
+                    <li key={link}>
+                      {pathname === '/' ? (
+                        <a
+                          href={`#${targetId}`}
+                          onClick={(e) => {
+                            const el = document.getElementById(targetId);
+                            if (el) {
+                              e.preventDefault();
+                              el.scrollIntoView({ behavior: 'smooth' });
+                            }
+                          }}
+                          className="text-gray-400 hover:text-[#f9d02d] text-sm font-semibold tracking-wider transition-colors duration-200"
+                        >
+                          {link}
+                        </a>
+                      ) : (
+                        <Link
+                          to={destination}
+                          className="text-gray-400 hover:text-[#f9d02d] text-sm font-semibold tracking-wider transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f9d02d]"
+                        >
+                          {link}
+                        </Link>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           </div>

@@ -75,9 +75,9 @@ export const NewsPage: React.FC = () => {
           })}
         </div>
         <div className="hidden sm:block">
-          <button className="bg-[#f9d02d] text-[#202121] font-extrabold px-6 py-2.5 rounded-full text-xs uppercase tracking-wider hover:brightness-110 transition-all shadow-md cursor-pointer">
+          <Link to="/media-kit" className="bg-[#f9d02d] text-[#202121] font-extrabold px-6 py-2.5 rounded-full text-xs uppercase tracking-wider hover:brightness-110 transition-all shadow-md cursor-pointer">
             Media Kit
-          </button>
+          </Link>
         </div>
       </nav>
 

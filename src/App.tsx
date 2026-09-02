@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback, forwardRef, lazy, Suspense } from 'react';
 import { motion, useMotionValue, useMotionTemplate, AnimatePresence, useAnimation, useInView, useScroll, useTransform, useMotionValueEvent, useSpring, useAnimationFrame, animate } from 'motion/react';
 import { ChevronRight, Sparkles, Camera, Video, Monitor, Image as ImageIcon, Scissors, Aperture, Smartphone, PenTool, Lightbulb, User, Twitter, Linkedin, Instagram } from 'lucide-react';
-import { useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
+import Lottie from 'lottie-react';
 import { AchievementsSection } from './components/AchievementsSection';
 import { ContactSection } from './components/ContactSection';
 import { Footer } from './components/Footer';
@@ -22,6 +23,7 @@ import member9 from './assets/our-team/members/9 - Ropaldo.avif';
 import logoDarkTheme from './assets/global/Logo - Dark Theme.svg';
 import logoLightTheme from './assets/global/Logo - Light Theme.svg';
 import craftsLogo from './assets/global/Uni-Inside Crafts.svg';
+import heroLoadingUrl from './assets/lottie/creative/hero-loading.json?url';
 
 const PARTNER_MODULES = import.meta.glob('./assets/about-us/partners/*.{png,jpg,jpeg,svg,webp}', { eager: true, import: 'default' }) as Record<string, string>;
 const LazyHeroModel = lazy(() => import('./components/HeroModel'));
@@ -41,6 +43,49 @@ const teamMembers = [
   { name: 'Amany', image: member8, role: 'Creative Director' },
   { name: 'Ropaldo', image: member9, role: 'Creative Director' },
 ];
+
+const HeroLoadingIndicator: React.FC = () => {
+  const [animationData, setAnimationData] = useState<unknown>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    void fetch(heroLoadingUrl, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) throw new Error('Unable to load the Hero animation.');
+        return response.json() as Promise<unknown>;
+      })
+      .then((data: unknown) => {
+        if (!controller.signal.aborted) setAnimationData(data);
+      })
+      .catch((error: unknown) => {
+        if (!(error instanceof DOMException && error.name === 'AbortError')) {
+          // The status region remains available if the asset cannot be requested.
+          setAnimationData(null);
+        }
+      });
+
+    return () => controller.abort();
+  }, []);
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none overflow-hidden"
+    >
+      <span className="sr-only">Loading 3D model</span>
+      {animationData ? (
+        <Lottie
+          animationData={animationData}
+          autoplay
+          loop
+          className="w-28 h-28 sm:w-36 sm:h-36 lg:w-44 lg:h-44 max-w-[42vw] max-h-[42vw]"
+        />
+      ) : null}
+    </div>
+  );
+};
 
 const iconsList = [Camera, Video, Monitor, Sparkles, ImageIcon, Scissors, Aperture, Smartphone, PenTool, Lightbulb];
 
@@ -471,6 +516,11 @@ const PageContent = ({
   achievementsContactTransitionRef?: React.RefObject<HTMLDivElement>
 }) => {
   const [shouldLoadHero, setShouldLoadHero] = useState(false);
+  const [isHeroReady, setIsHeroReady] = useState(false);
+
+  const handleHeroReady = useCallback(() => {
+    setIsHeroReady((ready) => ready || true);
+  }, []);
 
   useEffect(() => {
     if (isCursor) return;
@@ -579,9 +629,23 @@ const PageContent = ({
                <div className="absolute -inset-4 bg-white/5 blur-3xl rounded-full" />
                 {shouldLoadHero ? (
                   <Suspense fallback={<HeroModelFrame />}>
-                    <LazyHeroModel />
+                    <LazyHeroModel isReady={isHeroReady} onReady={handleHeroReady} />
                   </Suspense>
                 ) : <HeroModelFrame />}
+                <AnimatePresence>
+                  {!isHeroReady && (
+                    <motion.div
+                      key="hero-loading"
+                      initial={{ opacity: 1, scale: 1 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.94 }}
+                      transition={{ duration: 0.28, ease: 'easeOut' }}
+                      className="absolute inset-0 z-20"
+                    >
+                      <HeroLoadingIndicator />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
             </div>
           </motion.div>
 
@@ -598,15 +662,15 @@ const PageContent = ({
             </p>
 
             <div className="flex flex-wrap justify-center lg:justify-start gap-4 mt-4">
-              <button className="bg-[#f9d02d] text-[#202121] font-bold text-sm px-8 py-3.5 rounded-full uppercase tracking-wide hover:scale-105 transition-transform cursor-pointer">
+              <Link to="/media-kit" className="bg-[#f9d02d] text-[#202121] font-bold text-sm px-8 py-3.5 rounded-full uppercase tracking-wide hover:scale-105 transition-transform cursor-pointer">
                 Media Kit
-              </button>
-              <button className="bg-transparent border-2 border-white text-white font-bold text-sm px-8 py-3.5 rounded-full uppercase tracking-wide hover:bg-white hover:text-[#202121] transition-all cursor-pointer">
+              </Link>
+              <Link to="/products" className="bg-transparent border-2 border-white text-white font-bold text-sm px-8 py-3.5 rounded-full uppercase tracking-wide hover:bg-white hover:text-[#202121] transition-all cursor-pointer">
                 Products
-              </button>
-              <button className="bg-transparent border-2 border-white text-white font-bold text-sm px-8 py-3.5 rounded-full uppercase tracking-wide hover:bg-white hover:text-[#202121] transition-all cursor-pointer">
+              </Link>
+              <Link to="/services" className="bg-transparent border-2 border-white text-white font-bold text-sm px-8 py-3.5 rounded-full uppercase tracking-wide hover:bg-white hover:text-[#202121] transition-all cursor-pointer">
                 Services
-              </button>
+              </Link>
             </div>
           </motion.div>
         </div>
@@ -779,6 +843,27 @@ export default function App() {
       }, 50); // Small delay to allow DOM render and AnimatePresence mount
     }
   }, [location.state]);
+
+  useEffect(() => {
+    const targetId = location.hash.slice(1);
+    if (!targetId) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      if (targetId === 'products') {
+        scrollStoryRef.current?.scrollToScene('PRODUCTS', 'auto');
+        return;
+      }
+
+      if (targetId === 'services') {
+        scrollStoryRef.current?.scrollToScene('SERVICES', 'auto');
+        return;
+      }
+
+      document.getElementById(targetId)?.scrollIntoView({ behavior: 'auto' });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [location.hash]);
 
   const heroTransitionRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress: heroTransitionProgress } = useScroll({
@@ -1187,9 +1272,9 @@ export default function App() {
         </div>
 
         <div className="hidden sm:block">
-          <button className="bg-[#f9d02d] text-[#202121] font-extrabold px-6 py-2.5 rounded-full text-xs uppercase tracking-wider hover:brightness-110 transition-all shadow-md cursor-pointer">
+          <Link to="/media-kit" className="bg-[#f9d02d] text-[#202121] font-extrabold px-6 py-2.5 rounded-full text-xs uppercase tracking-wider hover:brightness-110 transition-all shadow-md cursor-pointer">
             Media Kit
-          </button>
+          </Link>
         </div>
       </motion.nav>
 

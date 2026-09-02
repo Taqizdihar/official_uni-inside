@@ -213,10 +213,78 @@ const HeroModelMesh: React.FC = React.memo(() => {
 });
 HeroModelMesh.displayName = 'HeroModelMesh';
 
+interface HeroModelProps {
+  isReady: boolean;
+  onReady?: () => void;
+}
+
+const INITIAL_REVEAL_SCALE = 0.82;
+
+/**
+ * Keeps the entrance transform separate from the idle rotation and camera controls.
+ * Once complete, it stops doing entrance-animation work and leaves the final scale exact.
+ */
+const HeroRevealGroup: React.FC<{ isReady: boolean; children: React.ReactNode }> = React.memo(({
+  isReady,
+  children,
+}) => {
+  const groupRef = useRef<THREE.Group>(null);
+  const hasFinishedRef = useRef(false);
+  const prefersReducedMotion = typeof window !== 'undefined'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  useFrame((_, delta) => {
+    const group = groupRef.current;
+    if (!group) return;
+
+    if (!isReady) {
+      group.scale.setScalar(INITIAL_REVEAL_SCALE);
+      return;
+    }
+
+    if (hasFinishedRef.current) return;
+
+    if (prefersReducedMotion) {
+      group.scale.setScalar(1);
+      hasFinishedRef.current = true;
+      return;
+    }
+
+    const nextScale = THREE.MathUtils.damp(group.scale.x, 1, 7.5, delta);
+    if (Math.abs(1 - nextScale) < 0.002) {
+      group.scale.setScalar(1);
+      hasFinishedRef.current = true;
+      return;
+    }
+
+    group.scale.setScalar(nextScale);
+  });
+
+  return <group ref={groupRef}>{children}</group>;
+});
+HeroRevealGroup.displayName = 'HeroRevealGroup';
+
+/**
+ * This mounts only after the GLB and HDR-owning descendants have resolved.
+ * useFrame then ensures the scene has participated in an actual R3F frame.
+ */
+const HeroSceneReady: React.FC<{ onReady?: () => void }> = React.memo(({ onReady }) => {
+  const hasReportedReadyRef = useRef(false);
+
+  useFrame(() => {
+    if (hasReportedReadyRef.current) return;
+    hasReportedReadyRef.current = true;
+    onReady?.();
+  });
+
+  return null;
+});
+HeroSceneReady.displayName = 'HeroSceneReady';
+
 /**
  * Dedicated HeroModel Component
  */
-export const HeroModel: React.FC = React.memo(() => {
+export const HeroModel: React.FC<HeroModelProps> = React.memo(({ isReady, onReady }) => {
   const frameRef = useRef<HTMLDivElement>(null);
   const { isVisible, isPageVisible } = useElementVisibility(frameRef, '300px 0px');
   const isRendering = isVisible && isPageVisible;
@@ -238,9 +306,12 @@ export const HeroModel: React.FC = React.memo(() => {
           <HeroControls />
           <Suspense fallback={null}>
             <HeroLights />
-            <IdleAnimation>
-              <HeroModelMesh />
-            </IdleAnimation>
+            <HeroRevealGroup isReady={isReady}>
+              <IdleAnimation>
+                <HeroModelMesh />
+              </IdleAnimation>
+            </HeroRevealGroup>
+            <HeroSceneReady onReady={onReady} />
           </Suspense>
         </IdleInteractionProvider>
       </Canvas>

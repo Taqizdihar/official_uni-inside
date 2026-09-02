@@ -1,15 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import cameramanImg from '../assets/our-services/Cameraman.avif';
-import dronemanImg from '../assets/our-services/Droneman.avif';
-import programmerImg from '../assets/our-services/Programmer.avif';
 import { useElementVisibility } from '../hooks/useElementVisibility';
-
-const servicesData = [
-  { id: 'capture', text: "Capture", img: cameramanImg },
-  { id: 'drone', text: "Drone", img: dronemanImg },
-  { id: 'code', text: "Code", img: programmerImg }
-];
+import { servicesData } from '../data/services';
 
 const extendedServices = [
   ...servicesData.map(s => ({ ...s, uniqueId: s.id + '-1' })),
