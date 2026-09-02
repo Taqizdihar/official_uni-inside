@@ -95,6 +95,8 @@ const RopeSimulation = ({ startRef, endRef, altEndRef, useAltEnd, isActive }: { 
 
     let animationFrameId: number;
     let isInitialized = false;
+    // The canvas is `fixed inset-0`; its box can only change when the viewport does.
+    let canvasRect = canvas.getBoundingClientRect();
 
     const update = () => {
       // Use altEndRef if its element exists, otherwise fall back to endRef
@@ -106,7 +108,6 @@ const RopeSimulation = ({ startRef, endRef, altEndRef, useAltEnd, isActive }: { 
       
       const startRect = startRef.current.getBoundingClientRect();
       const endRect = activeEndRef.current.getBoundingClientRect();
-      const canvasRect = canvas.getBoundingClientRect();
 
       const sx = startRect.left - canvasRect.left + startRect.width / 2;
       const sy = startRect.top - canvasRect.top + startRect.height / 2;
@@ -174,12 +175,16 @@ const RopeSimulation = ({ startRef, endRef, altEndRef, useAltEnd, isActive }: { 
     const resize = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
+      canvasRect = canvas.getBoundingClientRect();
     };
+    const observer = new ResizeObserver(resize);
+    observer.observe(canvas);
     window.addEventListener('resize', resize);
     resize();
     update();
 
     return () => {
+      observer.disconnect();
       window.removeEventListener('resize', resize);
       cancelAnimationFrame(animationFrameId);
     };
@@ -212,6 +217,9 @@ export const ContactSection = () => {
   const handsetDragRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const physicsRef = useRef<number | null>(null);
+  const releaseBoundsListenersRef = useRef<(() => void) | null>(null);
+  const transientTimeoutsRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+  const pointerUpCleanupRef = useRef<(() => void) | null>(null);
   const handImageRef = useRef<HTMLImageElement>(null);
   const handPhoneAttachmentRef = useRef<HTMLDivElement>(null);
   const audioPoolRef = useRef<Map<string, HTMLAudioElement[]>>(new Map());
@@ -284,9 +292,11 @@ export const ContactSection = () => {
           return next.length > 3 ? next.slice(next.length - 3) : next;
         });
 
-        setTimeout(() => {
+        const removal = setTimeout(() => {
+          transientTimeoutsRef.current.delete(removal);
           setChatBubbles(prev => prev.filter(b => b.id !== newBubble.id));
         }, 3500);
+        transientTimeoutsRef.current.add(removal);
       }, 2000);
     } else {
       setChatBubbles([]);
@@ -371,6 +381,8 @@ export const ContactSection = () => {
       cancelAnimationFrame(physicsRef.current);
       physicsRef.current = null;
     }
+    releaseBoundsListenersRef.current?.();
+    releaseBoundsListenersRef.current = null;
   };
 
   const resetHandset = () => {
@@ -409,15 +421,35 @@ export const ContactSection = () => {
     let angularVel = rotVel;
     let lastTime = performance.now();
 
-    const getFloorY = (currentAngle: number): number => {
-      // Find the footer's top edge in screen coords
-      const footer = document.querySelector('footer');
-      const wrapper = handsetWrapperRef.current;
-      const dragEl = handsetDragRef.current;
-      if (!footer || !wrapper || !dragEl) return 600;
+    // The footer element and the collision boxes are resolved once per throw
+    // instead of on every animation frame, and invalidated whenever the page
+    // scrolls or the layout changes underneath the fall.
+    const footer = document.querySelector('footer');
+    let cachedFooterTop = 0;
+    let cachedWrapperRect: DOMRect | null = null;
+    let boundsAreStale = true;
 
-      const footerRect = footer.getBoundingClientRect();
-      const wrapperRect = wrapper.getBoundingClientRect();
+    const invalidateBounds = () => { boundsAreStale = true; };
+
+    const refreshBounds = () => {
+      const wrapper = handsetWrapperRef.current;
+      if (!footer || !wrapper) return;
+      cachedFooterTop = footer.getBoundingClientRect().top;
+      cachedWrapperRect = wrapper.getBoundingClientRect();
+      boundsAreStale = false;
+    };
+
+    const releaseBoundsListeners = () => {
+      window.removeEventListener('scroll', invalidateBounds);
+      window.removeEventListener('resize', invalidateBounds);
+    };
+
+    const getFloorY = (currentAngle: number): number => {
+      const dragEl = handsetDragRef.current;
+      const wrapperRect = cachedWrapperRect;
+      if (!footer || !wrapperRect || !dragEl) return 600;
+
+      const footerRect = { top: cachedFooterTop };
       
       const w = dragEl.offsetWidth || 300;
       const h = dragEl.offsetHeight || 150;
@@ -433,6 +465,8 @@ export const ContactSection = () => {
     const tick = (now: number) => {
       const dt = Math.min((now - lastTime) / 1000, 0.05);
       lastTime = now;
+
+      if (boundsAreStale) refreshBounds();
 
       // Gravity
       vy += GRAVITY * dt;
@@ -461,10 +495,9 @@ export const ContactSection = () => {
       }
 
       // Viewport boundary clamping
-      const wrapper = handsetWrapperRef.current;
+      const wRect = cachedWrapperRect;
       const dragEl = handsetDragRef.current;
-      if (wrapper && dragEl) {
-        const wRect = wrapper.getBoundingClientRect();
+      if (wRect && dragEl) {
         const elW = dragEl.offsetWidth;
         const elH = dragEl.offsetHeight;
         const minX = -(wRect.left + elW * 0.5);
@@ -486,8 +519,19 @@ export const ContactSection = () => {
 
       if (!isSettled) {
         physicsRef.current = requestAnimationFrame(tick);
+      } else {
+        // Settled: the loop sleeps until a real interaction wakes it again.
+        releaseBoundsListeners();
+        releaseBoundsListenersRef.current = null;
+        physicsRef.current = null;
       }
     };
+
+    releaseBoundsListenersRef.current?.();
+    releaseBoundsListenersRef.current = releaseBoundsListeners;
+    window.addEventListener('scroll', invalidateBounds, { passive: true });
+    window.addEventListener('resize', invalidateBounds);
+    refreshBounds();
 
     physicsRef.current = requestAnimationFrame(tick);
   };
@@ -563,7 +607,14 @@ export const ContactSection = () => {
 
   // Cleanup on unmount
   useEffect(() => {
-    return () => stopPhysics();
+    const transientTimeouts = transientTimeoutsRef.current;
+    return () => {
+      stopPhysics();
+      transientTimeouts.forEach((timeout) => clearTimeout(timeout));
+      transientTimeouts.clear();
+      pointerUpCleanupRef.current?.();
+      pointerUpCleanupRef.current = null;
+    };
   }, []);
 
   // Default to whatsapp if nothing is hovered
@@ -799,15 +850,19 @@ export const ContactSection = () => {
 
                   const handleUp = () => {
                     window.removeEventListener('pointerup', handleUp);
+                    pointerUpCleanupRef.current = null;
                     if (Date.now() - pointerDownTimeRef.current < 250) {
-                      setTimeout(() => {
+                      const drop = setTimeout(() => {
+                        transientTimeoutsRef.current.delete(drop);
                         setIsPickedUp(false);
                         setIsDropped(true);
                         startFallPhysics(0, 0, 0);
                       }, 50);
+                      transientTimeoutsRef.current.add(drop);
                     }
                   };
                   window.addEventListener('pointerup', handleUp);
+                  pointerUpCleanupRef.current = () => window.removeEventListener('pointerup', handleUp);
                 }
               }}
             />

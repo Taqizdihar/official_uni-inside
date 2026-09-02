@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useRef, useCallback, forwardRef, lazy, Suspense } from 'react';
 import { motion, useMotionValue, useMotionTemplate, AnimatePresence, useAnimation, useInView, useScroll, useTransform, useMotionValueEvent, useSpring, useAnimationFrame, animate } from 'motion/react';
-import { ChevronRight, Sparkles, Camera, Video, Monitor, Image as ImageIcon, Scissors, Aperture, Smartphone, PenTool, Lightbulb, User, Twitter, Linkedin, Instagram } from 'lucide-react';
+import { ChevronRight, Twitter, Linkedin, Instagram } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import Lottie from 'lottie-react';
 import { AchievementsSection } from './components/AchievementsSection';
-import { ContactSection } from './components/ContactSection';
 import { Footer } from './components/Footer';
-import { ScrollStory, ScrollStoryHandle } from './components/ScrollStory';
+import { ScrollStorySection, type ScrollStorySectionHandle } from './components/ScrollStorySection';
 import { HeroModelFrame } from './components/HeroModelFrame';
 import { HeroAnimatedHeading } from './components/HeroAnimatedHeading';
+import { AboutRotatingIcon } from './components/AboutRotatingIcon';
+import { useNearViewportOnce } from './hooks/useNearViewportOnce';
 import { type AppSectionId } from './components/ThemeController';
 
 import member1 from './assets/our-team/members/1 - April.avif';
@@ -27,10 +28,14 @@ import heroLoadingUrl from './assets/lottie/creative/hero-loading.json?url';
 
 const PARTNER_MODULES = import.meta.glob('./assets/about-us/partners/*.{png,jpg,jpeg,svg,webp}', { eager: true, import: 'default' }) as Record<string, string>;
 const LazyHeroModel = lazy(() => import('./components/HeroModel'));
+const LazyContactSection = lazy(() => import('./components/ContactSection').then(({ ContactSection }) => ({ default: ContactSection })));
 const partnersList = Object.entries(PARTNER_MODULES).map(([path, image]) => {
   const name = path.split('/').pop()?.split('.')[0] || 'Partner';
   return { name, image };
 });
+const PARTNER_SET_COUNT = 5;
+const duplicatedPartners = Array(PARTNER_SET_COUNT).fill(partnersList).flat() as { name: string; image: string }[];
+const TEAM_CARD_INDICES = [0, 1, 2, 3, 4, 5, 6, 7, 8];
 
 const teamMembers = [
   { name: 'April', image: member1, role: 'Creative Director' },
@@ -87,8 +92,6 @@ const HeroLoadingIndicator: React.FC = () => {
   );
 };
 
-const iconsList = [Camera, Video, Monitor, Sparkles, ImageIcon, Scissors, Aperture, Smartphone, PenTool, Lightbulb];
-
 const FilmFrame: React.FC<{ partner: { name: string; image: string } }> = ({ partner }) => (
   <div className="w-[280px] sm:w-[320px] h-[220px] flex flex-col justify-between bg-[#111] p-2 flex-shrink-0 border-r border-black/50">
     <div className="h-4 w-full flex justify-around items-center">
@@ -121,9 +124,7 @@ const FilmRollSection = ({ filmRollXVal, isCursor }: { filmRollXVal?: any, isCur
   const xVal = filmRollXVal || fallbackXVal;
   const xPercent = useTransform(xVal, (v: any) => `${v}%`);
 
-  const setsCount = 5;
-  const duplicatedPartners = Array(setsCount).fill(partnersList).flat();
-  const percentPerSet = 100 / setsCount;
+  const percentPerSet = 100 / PARTNER_SET_COUNT;
 
   const normalSpeed = percentPerSet / 20000; // 20s per set
   const maxSpeed = normalSpeed * 40; // 40x speed
@@ -175,7 +176,8 @@ const CardItem = React.memo(({
   isFlipped, 
   dynamicSpacing, 
   deckShift,
-  dynamicTransformOrigin
+  dynamicTransformOrigin,
+  isDeckAnimating
 }: {
   index: number;
   activeCard: number | null;
@@ -184,8 +186,12 @@ const CardItem = React.memo(({
   dynamicSpacing: any;
   deckShift: any;
   dynamicTransformOrigin: any;
+  isDeckAnimating: boolean;
 }) => {
   const isActive = activeCard === index;
+  // A promoted layer is only worth its memory while that layer is moving.
+  const deckWillChange = isDeckAnimating || isActive ? 'transform' : 'auto';
+  const activeWillChange = isActive ? 'transform' : 'auto';
   
   const cardAngle = useTransform(() => {
     const spacing = dynamicSpacing.get();
@@ -208,21 +214,22 @@ const CardItem = React.memo(({
 
   return (
     <motion.div
-      className="absolute pointer-events-none will-change-transform"
+      className="absolute pointer-events-none"
       style={{
         left: '-180px',
         top: '0px',
         transformOrigin: dynamicTransformOrigin,
         rotate: cardAngle,
         zIndex: cardZIndex,
-        transform: 'translateZ(0)'
+        transform: 'translateZ(0)',
+        willChange: deckWillChange
       }}
     >
       <motion.div
         animate={isActive ? { scale: 0.99, y: -250 } : { scale: 1, y: 0 }}
         transition={{ scale: { duration: 0.6, ease: "backOut" }, y: { duration: 0.6, ease: "backOut" } }}
-        className="relative w-[360px] h-[450px] cursor-pointer pointer-events-auto will-change-transform"
-        style={{ perspective: 1200, rotate: inverseRotation, transform: 'translateZ(0)' }}
+        className="relative w-[360px] h-[450px] cursor-pointer pointer-events-auto"
+        style={{ perspective: 1200, rotate: inverseRotation, transform: 'translateZ(0)', willChange: activeWillChange }}
         onClick={(e) => {
           e.stopPropagation();
           handleCardClick(index);
@@ -231,18 +238,18 @@ const CardItem = React.memo(({
         <motion.div
           animate={isActive ? { y: [-10, 10, -10] } : { y: 0 }}
           transition={isActive ? { repeat: Infinity, duration: 3, ease: "easeInOut" } : {}}
-          className="w-full h-full will-change-transform"
-          style={{ transform: 'translateZ(0)' }}
+          className="w-full h-full"
+          style={{ transform: 'translateZ(0)', willChange: activeWillChange }}
         >
           <motion.div
-            className="w-full h-full relative will-change-transform"
+            className="w-full h-full relative"
             animate={{ rotateY: isActive && isFlipped ? 180 : 0 }}
             transition={{ duration: 0.7, ease: "easeInOut" }}
-            style={{ transformStyle: 'preserve-3d', transform: 'translateZ(0)' }}
+            style={{ transformStyle: 'preserve-3d', transform: 'translateZ(0)', willChange: activeWillChange }}
           >
             {/* Front */}
             <div 
-              className="absolute inset-0 bg-[#202121] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] border-[4px] border-white overflow-hidden flex items-center justify-center will-change-transform"
+              className="absolute inset-0 bg-[#202121] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] border-[4px] border-white overflow-hidden flex items-center justify-center"
               style={{ backfaceVisibility: 'hidden', transform: 'translateZ(0)' }}
             >
               <img 
@@ -256,7 +263,7 @@ const CardItem = React.memo(({
             
             {/* Back */}
             <div 
-              className="absolute inset-0 bg-[#202121] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] border-[4px] border-[#f9d02d] flex flex-col items-center p-6 text-center overflow-hidden will-change-transform"
+              className="absolute inset-0 bg-[#202121] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] border-[4px] border-[#f9d02d] flex flex-col items-center p-6 text-center overflow-hidden"
               style={{ transform: 'rotateY(180deg) translateZ(1px)', backfaceVisibility: 'hidden' }}
             >
               <h3 className="text-white font-black text-2xl mb-1 uppercase tracking-wider mt-4">{teamMembers[index]?.name}</h3>
@@ -357,8 +364,6 @@ const OurTeamSection = forwardRef<HTMLDivElement, {}>((props, ref) => {
     }
   };
 
-  const indices = [0, 1, 2, 3, 4, 5, 6, 7, 8];
-
   const dynamicRadius = useTransform(scrollYProgress, [0, 0.5, 1], [1000, 700, 1000]);
   const dynamicTransformOrigin = useTransform(dynamicRadius, (r) => `50% ${r}px`);
   const badgeY = useTransform(dynamicRadius, (r) => r - 180);
@@ -441,7 +446,7 @@ const OurTeamSection = forwardRef<HTMLDivElement, {}>((props, ref) => {
             </motion.div>
           </motion.div>
 
-          {indices.map((index) => (
+          {TEAM_CARD_INDICES.map((index) => (
             <CardItem 
               key={index} 
               index={index} 
@@ -451,6 +456,7 @@ const OurTeamSection = forwardRef<HTMLDivElement, {}>((props, ref) => {
               dynamicSpacing={dynamicSpacing}
               deckShift={deckShift}
               dynamicTransformOrigin={dynamicTransformOrigin}
+              isDeckAnimating={isTeamInView}
             />
           ))}
         </motion.div>
@@ -471,7 +477,6 @@ OurTeamSection.displayName = 'OurTeamSection';
 
 
 const PageContent = ({ 
-  iconIndex, 
   setIsInAboutUs,
   isInAboutUs,
   aboutRef,
@@ -491,9 +496,9 @@ const PageContent = ({
   aboutTeamTransitionRef,
   teamProductsTransitionRef,
   eventsAchievementsTransitionRef,
-  achievementsContactTransitionRef
+  achievementsContactTransitionRef,
+  shouldMountContact
 }: { 
-  iconIndex: number, 
   setIsInAboutUs?: (v: boolean) => void,
   isInAboutUs?: boolean,
   aboutRef?: React.RefObject<HTMLDivElement>,
@@ -505,7 +510,7 @@ const PageContent = ({
   contactRef?: React.RefObject<HTMLDivElement>,
   filmRollXVal?: any,
   isCursor?: boolean,
-  scrollStoryRef?: React.RefObject<ScrollStoryHandle | null>,
+  scrollStoryRef?: React.RefObject<ScrollStorySectionHandle | null>,
   onSceneChange?: (scene: 'PRODUCTS' | 'SERVICES' | 'EVENTS' | null) => void,
   activeSection?: AppSectionId,
   heroTransitionRef?: React.RefObject<HTMLDivElement>,
@@ -513,7 +518,8 @@ const PageContent = ({
   aboutTeamTransitionRef?: React.RefObject<HTMLDivElement>,
   teamProductsTransitionRef?: React.RefObject<HTMLDivElement>,
   eventsAchievementsTransitionRef?: React.RefObject<HTMLDivElement>,
-  achievementsContactTransitionRef?: React.RefObject<HTMLDivElement>
+  achievementsContactTransitionRef?: React.RefObject<HTMLDivElement>,
+  shouldMountContact?: boolean
 }) => {
   const [shouldLoadHero, setShouldLoadHero] = useState(false);
   const [isHeroReady, setIsHeroReady] = useState(false);
@@ -546,8 +552,6 @@ const PageContent = ({
   const progress = heroTransitionProgress || fallbackProgress;
   const glowOpacity = useTransform(progress, [0, 1], [0.5, 0]);
 
-  const CurrentIcon = iconsList[iconIndex];
-
   const textPopStyle = {
     color: '#ffffff',
     lineHeight: 0.9,
@@ -568,20 +572,7 @@ const PageContent = ({
               <div className="flex items-center mt-2">
                 <h2 className="text-[80px] sm:text-[100px] lg:text-[130px] font-black leading-[0.9] uppercase text-[#202121] mr-4">US</h2>
                 
-                <div className="relative w-20 h-20 sm:w-24 sm:h-24 lg:w-28 lg:h-28 overflow-hidden mx-4 flex-shrink-0">
-                  <AnimatePresence mode="popLayout">
-                    <motion.div
-                      key={iconIndex}
-                      initial={{ y: '100%', opacity: 0 }}
-                      animate={{ y: '0%', opacity: 1 }}
-                      exit={{ y: '-100%', opacity: 0 }}
-                      transition={{ duration: 0.6, ease: "backOut" }}
-                      className="absolute inset-0 flex items-center justify-center"
-                    >
-                      <CurrentIcon className="w-14 h-14 sm:w-16 sm:h-16 lg:w-20 lg:h-20 text-[#202121]" strokeWidth={2.5} />
-                    </motion.div>
-                  </AnimatePresence>
-                </div>
+                <AboutRotatingIcon />
 
                 <motion.div
                   animate={{ x: [0, 15, 0] }}
@@ -697,20 +688,7 @@ const PageContent = ({
               <div className="flex items-center mt-2">
                 <h2 className="text-[80px] sm:text-[100px] lg:text-[130px] font-black leading-[0.9] uppercase text-[#202121] mr-4">US</h2>
                 
-                <div className="relative w-20 h-20 sm:w-24 sm:h-24 lg:w-28 lg:h-28 overflow-hidden mx-4 flex-shrink-0">
-                  <AnimatePresence mode="popLayout">
-                    <motion.div
-                      key={iconIndex}
-                      initial={{ y: '100%', opacity: 0 }}
-                      animate={{ y: '0%', opacity: 1 }}
-                      exit={{ y: '-100%', opacity: 0 }}
-                      transition={{ duration: 0.6, ease: "backOut" }}
-                      className="absolute inset-0 flex items-center justify-center"
-                    >
-                      <CurrentIcon className="w-14 h-14 sm:w-16 sm:h-16 lg:w-20 lg:h-20 text-[#202121]" strokeWidth={2.5} />
-                    </motion.div>
-                  </AnimatePresence>
-                </div>
+                <AboutRotatingIcon />
 
                 <motion.div
                   animate={{ x: [0, 15, 0] }}
@@ -751,7 +729,7 @@ const PageContent = ({
       <div ref={teamProductsTransitionRef} className="w-full min-h-[60vh]" />
 
       {/* Scroll Story: Products -> Services -> Events */}
-      <ScrollStory 
+      <ScrollStorySection 
         ref={scrollStoryRef}
         productsRef={productsRef} 
         servicesRef={servicesRef} 
@@ -770,8 +748,14 @@ const PageContent = ({
       {/* Spacer for Breathing Room */}
       <div ref={achievementsContactTransitionRef} className="w-full min-h-[50vh]" />
 
+      {/* The wrapper reserves the section's full height on its own, so the lazy
+          implementation never shifts layout. */}
       <div ref={contactRef} id="contact-us" className="w-full min-h-screen pt-32 pb-0 flex flex-col relative z-10">
-        <ContactSection />
+        {shouldMountContact ? (
+          <Suspense fallback={null}>
+            <LazyContactSection />
+          </Suspense>
+        ) : null}
       </div>
 
       <Footer />
@@ -808,11 +792,10 @@ const useTransitionInterpolations = (
 
 export default function App() {
   const location = useLocation();
-  const [iconIndex, setIconIndex] = useState(0);
   const [isInAboutUs, setIsInAboutUs] = useState(false);
   const [isHoveringClickable, setIsHoveringClickable] = useState(false);
   const [activeSection, setActiveSection] = useState<AppSectionId>('hero');
-  const scrollStoryRef = useRef<ScrollStoryHandle | null>(null);
+  const scrollStoryRef = useRef<ScrollStorySectionHandle | null>(null);
   // True while the viewport is inside ScrollStory — suppresses the normal scroll observer
   const isInScrollStoryRef = useRef(false);
 
@@ -829,6 +812,10 @@ export default function App() {
   const eventsRef = useRef<HTMLDivElement>(null);
   const achievementsRef = useRef<HTMLDivElement>(null);
   const contactRef = useRef<HTMLDivElement>(null);
+  // Load the Contact implementation well before it can be reached so its audio
+  // and rope physics are ready by the time the section is interactive. The
+  // latch keeps it mounted afterwards so no state is ever thrown away.
+  const shouldMountContact = useNearViewportOnce(contactRef, '1500px 0px');
 
   useEffect(() => {
     const targetId = location.hash.slice(1);
@@ -882,30 +869,51 @@ export default function App() {
   });
 
   const [isMagnifierActive, setIsMagnifierActive] = useState(false);
+  // The magnifier is a pointer affordance; touch-only devices never see it.
+  const [hasFinePointer, setHasFinePointer] = useState(() =>
+    typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia('(pointer: fine)').matches
+      : false,
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    const query = window.matchMedia('(pointer: fine)');
+    const sync = () => setHasFinePointer(query.matches);
+    sync();
+    query.addEventListener('change', sync);
+    return () => query.removeEventListener('change', sync);
+  }, []);
+
+  // Mounted a little before it can become visible so the magnified copy never
+  // has to lay out during the fade-in.
+  const isMagnifierMounted = hasFinePointer && (activeSection === 'about' || activeSection === 'team');
 
   useEffect(() => {
     const atp = aboutTeamTransitionProgress.get();
-    const active = (activeSection === 'about' || (activeSection === 'team' && atp < 0.75)) && isInAboutUs;
+    const active = isMagnifierMounted && (activeSection === 'about' || (activeSection === 'team' && atp < 0.75)) && isInAboutUs;
     setIsMagnifierActive(active);
-  }, [activeSection, isInAboutUs, aboutTeamTransitionProgress]);
+  }, [activeSection, isInAboutUs, isMagnifierMounted, aboutTeamTransitionProgress]);
 
   useMotionValueEvent(aboutTeamTransitionProgress, "change", (latest) => {
-    const active = (activeSection === 'about' || (activeSection === 'team' && latest < 0.75)) && isInAboutUs;
+    const active = isMagnifierMounted && (activeSection === 'about' || (activeSection === 'team' && latest < 0.75)) && isInAboutUs;
     setIsMagnifierActive(active);
   });
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setIconIndex((prev) => (prev + 1) % iconsList.length);
-    }, 2000);
-    return () => clearInterval(interval);
-  }, []);
+  // Cursor position keeps being tracked wherever a fine pointer exists, so the
+  // magnifier is never shown at a stale location. The hover test that drives a
+  // React state update runs only while the magnifier is mounted.
+  const isMagnifierMountedRef = useRef(false);
+  isMagnifierMountedRef.current = isMagnifierMounted;
 
   useEffect(() => {
+    if (!hasFinePointer) return;
+
     const moveCursor = (e: MouseEvent) => {
       cursorX.set(e.clientX);
       cursorY.set(e.clientY);
-      
+
+      if (!isMagnifierMountedRef.current) return;
       const target = e.target as HTMLElement;
       const isClickable = target.closest('a, button, [class*="cursor-pointer"]');
       setIsHoveringClickable(!!isClickable);
@@ -913,10 +921,43 @@ export default function App() {
 
     window.addEventListener('mousemove', moveCursor, { passive: true });
     return () => window.removeEventListener('mousemove', moveCursor);
-  }, [cursorX, cursorY]);
+  }, [cursorX, cursorY, hasFinePointer]);
 
+  // Section geometry is measured on layout changes and cached in document
+  // space, so an animation frame during scrolling reads `scrollY` only and
+  // never forces a synchronous layout of four large sections.
   useEffect(() => {
     let frame = 0;
+    let remeasureTimeout = 0;
+    let storyBounds: { top: number; height: number } | null = null;
+    let sectionBounds: { id: AppSectionId; top: number; bottom: number }[] = [];
+
+    const sectionRefs = [
+      { id: 'about' as AppSectionId, ref: aboutRef },
+      { id: 'team' as AppSectionId, ref: teamRef },
+      { id: 'achievements' as AppSectionId, ref: achievementsRef },
+      { id: 'contact' as AppSectionId, ref: contactRef },
+    ];
+
+    const measure = () => {
+      const scrollTop = window.scrollY;
+
+      const container = scrollStoryRef.current?.getContainer();
+      if (container) {
+        const rect = container.getBoundingClientRect();
+        storyBounds = { top: rect.top + scrollTop, height: rect.height };
+      } else {
+        storyBounds = null;
+      }
+
+      sectionBounds = [];
+      for (const { id, ref } of sectionRefs) {
+        const element = ref.current;
+        if (!element) continue;
+        const rect = element.getBoundingClientRect();
+        sectionBounds.push({ id, top: rect.top + scrollTop, bottom: rect.bottom + scrollTop });
+      }
+    };
 
     const updateActiveSection = () => {
       // While ScrollStory owns the state, the normal observer must not interfere
@@ -927,13 +968,12 @@ export default function App() {
         return;
       }
 
-      const viewportMid = window.innerHeight * 0.35;
-      
-      const scrollStoryContainer = scrollStoryRef.current?.getContainer();
-      if (scrollStoryContainer) {
-        const rect = scrollStoryContainer.getBoundingClientRect();
-        if (rect.top <= viewportMid && rect.bottom >= viewportMid) {
-          const progress = (viewportMid - rect.top) / rect.height;
+      const viewportMid = window.scrollY + window.innerHeight * 0.35;
+
+      if (storyBounds && storyBounds.height > 0) {
+        const { top, height } = storyBounds;
+        if (top <= viewportMid && top + height >= viewportMid) {
+          const progress = (viewportMid - top) / height;
           if (progress >= 0.664) {
             setActiveSection('events');
           } else if (progress >= 0.312) {
@@ -945,35 +985,18 @@ export default function App() {
         }
       }
 
-      const sectionRefs = [
-        { id: 'about' as AppSectionId, ref: aboutRef },
-        { id: 'team' as AppSectionId, ref: teamRef },
-        { id: 'achievements' as AppSectionId, ref: achievementsRef },
-        { id: 'contact' as AppSectionId, ref: contactRef },
-      ];
+      if (sectionBounds.length === 0) return;
 
-      const candidates = sectionRefs
-        .map(({ id, ref }) => {
-          const element = ref.current;
-          if (!element) return null;
-          const rect = element.getBoundingClientRect();
+      const candidates = sectionBounds.map(({ id, top, bottom }) => {
+        const containsMid = top <= viewportMid && bottom >= viewportMid;
 
-          const containsMid = rect.top <= viewportMid && rect.bottom >= viewportMid;
+        let distance = 0;
+        if (!containsMid) {
+          distance = top > viewportMid ? top - viewportMid : viewportMid - bottom;
+        }
 
-          let distance = 0;
-          if (!containsMid) {
-            if (rect.top > viewportMid) {
-              distance = rect.top - viewportMid;
-            } else {
-              distance = viewportMid - rect.bottom;
-            }
-          }
-
-          return { id, distance, containsMid };
-        })
-        .filter((item): item is { id: AppSectionId; distance: number; containsMid: boolean } => Boolean(item));
-
-      if (candidates.length === 0) return;
+        return { id, distance, containsMid };
+      });
 
       const best = candidates.reduce((best, current) => {
         if (current.containsMid && !best.containsMid) return current;
@@ -984,20 +1007,37 @@ export default function App() {
       setActiveSection((prev) => (prev === best.id ? prev : best.id));
     };
 
+    const remeasureAndUpdate = () => {
+      measure();
+      updateActiveSection();
+    };
+
+    measure();
     updateActiveSection();
 
     const handleScroll = () => {
       if (frame) cancelAnimationFrame(frame);
       frame = requestAnimationFrame(updateActiveSection);
+      // One cheap correction once the gesture stops, instead of per frame.
+      window.clearTimeout(remeasureTimeout);
+      remeasureTimeout = window.setTimeout(remeasureAndUpdate, 150);
     };
 
+    const observer = new ResizeObserver(remeasureAndUpdate);
+    observer.observe(document.documentElement);
+    sectionRefs.forEach(({ ref }) => { if (ref.current) observer.observe(ref.current); });
+
     window.addEventListener('scroll', handleScroll, { passive: true });
-    window.addEventListener('resize', handleScroll);
+    window.addEventListener('resize', remeasureAndUpdate);
+    window.addEventListener('orientationchange', remeasureAndUpdate);
 
     return () => {
       if (frame) cancelAnimationFrame(frame);
+      window.clearTimeout(remeasureTimeout);
+      observer.disconnect();
       window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('resize', handleScroll);
+      window.removeEventListener('resize', remeasureAndUpdate);
+      window.removeEventListener('orientationchange', remeasureAndUpdate);
     };
   }, []);
 
@@ -1150,9 +1190,6 @@ export default function App() {
     document.documentElement.style.setProperty('--scrollbar-thumb', isDark ? '#f0f0f0' : '#202121');
   }, [activeSection]);
 
-  const cursorScale = isHoveringClickable ? [1, 1.25, 1] : 1;
-  const cursorTransition = { repeat: isHoveringClickable ? Infinity : 0, duration: 0.8, ease: "easeInOut" };
-
   const magX = useMotionTemplate`calc(-1 * ${cursorX}px + 75px)`;
   const magY = useMotionTemplate`calc(-1 * ${cursorY}px + 75px)`;
   const magTransformOrigin = useMotionTemplate`${cursorX}px ${cursorY}px`;
@@ -1172,6 +1209,7 @@ export default function App() {
   };
 
   const activeHighlight = getActiveNavHighlight();
+  const preloadStory = useCallback(() => scrollStoryRef.current?.preload(), []);
 
   return (
     <div className="w-full relative font-sans overflow-hidden min-h-screen">
@@ -1220,10 +1258,14 @@ export default function App() {
         <div className="hidden lg:flex items-center gap-5 xl:gap-8">
           {['ABOUT US', 'OUR TEAM', 'PRODUCTS', 'SERVICES', 'NEWS', 'ACHIEVEMENTS', 'CONTACT US'].map((link) => {
             const isHighlightActive = activeHighlight === link;
+            const isStoryLink = link === 'PRODUCTS' || link === 'SERVICES' || link === 'NEWS';
             return (
               <motion.a
                 key={link}
                 href={`#${link.toLowerCase().replace(/\s+/g, '-')}`}
+                onMouseEnter={isStoryLink ? preloadStory : undefined}
+                onFocus={isStoryLink ? preloadStory : undefined}
+                onTouchStart={isStoryLink ? preloadStory : undefined}
                 onClick={(e) => {
                   if (link === 'PRODUCTS' || link === 'SERVICES' || link === 'NEWS') {
                     e.preventDefault();
@@ -1261,7 +1303,6 @@ export default function App() {
 
       {/* Main Page Content */}
       <PageContent 
-        iconIndex={iconIndex} 
         setIsInAboutUs={setIsInAboutUs} 
         isInAboutUs={isInAboutUs}
         aboutRef={aboutRef}
@@ -1282,9 +1323,11 @@ export default function App() {
         teamProductsTransitionRef={teamProductsTransitionRef}
         eventsAchievementsTransitionRef={eventsAchievementsTransitionRef}
         achievementsContactTransitionRef={achievementsContactTransitionRef}
+        shouldMountContact={shouldMountContact}
       />
 
       {/* Custom Magnifying Glass Cursor — visibility controlled by activeSection and hover bounds */}
+      {isMagnifierMounted && (
       <motion.div
         animate={{
           opacity: isMagnifierActive ? 1 : 0,
@@ -1327,13 +1370,14 @@ export default function App() {
                 y: magScrollY,
               }}
             >
-              <PageContent iconIndex={iconIndex} filmRollXVal={filmRollXVal} isCursor={true} activeSection={activeSection} />
+              <PageContent filmRollXVal={filmRollXVal} isCursor={true} activeSection={activeSection} />
             </motion.div>
           </motion.div>
         </div>
         {/* The Handle */}
         <div className="absolute w-[48px] h-[16px] bg-[#202121] rounded-full shadow-lg" style={{ bottom: -12, right: -12, transform: 'rotate(45deg)' }} />
       </motion.div>
+      )}
     </div>
   );
 }

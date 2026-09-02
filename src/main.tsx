@@ -49,6 +49,7 @@ const RouteDocumentState = () => {
   const navigationType = useNavigationType();
   const { enteredRouteKey } = useRouteTransition();
   const previousPathnameRef = useRef<string | null>(null);
+  const entryScrollRef = useRef<{ key: string; savedForEntry: number | undefined; lastLandingScroll: number } | null>(null);
 
   useEffect(() => {
     if ('scrollRestoration' in window.history) window.history.scrollRestoration = 'manual';
@@ -57,6 +58,18 @@ const RouteDocumentState = () => {
   useEffect(() => {
     document.title = routeTitles[location.pathname] ?? 'Official Uni-Inside';
   }, [location.pathname]);
+
+  // The saved position is read the moment the route commits, before the tracker
+  // below re-arms and overwrites it with the outgoing route's scroll offset.
+  // Restoration itself has to wait for the exit animation, which is far too late
+  // to read it then.
+  useLayoutEffect(() => {
+    entryScrollRef.current = {
+      key: location.key,
+      savedForEntry: landingScrollPositions.get(location.key),
+      lastLandingScroll,
+    };
+  }, [location.key]);
 
   useEffect(() => {
     if (location.pathname !== '/') return;
@@ -76,12 +89,14 @@ const RouteDocumentState = () => {
   useLayoutEffect(() => {
     if (enteredRouteKey !== location.key) return;
     const wasOnLanding = previousPathnameRef.current === '/';
-    const savedForEntry = landingScrollPositions.get(location.key);
+    const entry = entryScrollRef.current?.key === location.key ? entryScrollRef.current : null;
+    const savedForEntry = entry ? entry.savedForEntry : landingScrollPositions.get(location.key);
+    const previousLandingScroll = entry ? entry.lastLandingScroll : lastLandingScroll;
     const target = location.pathname === '/'
       ? navigationType === 'POP'
         ? savedForEntry ?? 0
-        : !wasOnLanding && lastLandingScroll > 0
-          ? lastLandingScroll
+        : !wasOnLanding && previousLandingScroll > 0
+          ? previousLandingScroll
           : 0
       : 0;
     previousPathnameRef.current = location.pathname;

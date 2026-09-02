@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, useInView } from 'motion/react';
 import Lottie, { type LottieRefCurrentProps } from 'lottie-react';
+import { useElementVisibility } from '../hooks/useElementVisibility';
 
 // Import all 14 Lottie JSON files exactly once at module level (#15)
 import print3dData from '../assets/lottie/creative/3d-print.json';
@@ -49,8 +50,7 @@ type CharacterAnimationState = 'IDLE' | 'MORPH_TO_ICON' | 'PLAYING' | 'HOLD' | '
 
 interface AnimatedCharacterProps {
   item: CharacterItem;
-  charIndex: number;
-  runId: number;
+  state: CharacterAnimationState;
   textPopStyle?: React.CSSProperties;
 }
 
@@ -59,149 +59,77 @@ const MORPH_IN_MS = 350;
 const PLAY_MS = 850;
 const HOLD_MS = 200; // PLAY_MS + HOLD_MS = 1050ms total icon visibility (#4)
 const MORPH_OUT_MS = 350;
+const STAGGER_MS = 60; // 60ms sequential stagger per character (#5)
+const INITIAL_RUN_DELAY_MS = 800; // accounts for the parent entrance animation on refresh
+const LOOP_GAP_MS = 300;
+
+const TOTAL_CHARACTERS = charactersRow1.length + charactersRow2.length;
+const IDLE_PHASES: CharacterAnimationState[] = Array.from({ length: TOTAL_CHARACTERS }, () => 'IDLE');
+
+interface TimelineEvent {
+  at: number;
+  index: number;
+  phase: CharacterAnimationState;
+}
+
+/**
+ * The whole heading sequence as one ordered event list.
+ *
+ * Every character keeps its original stagger and phase durations, but the
+ * schedule is owned by the parent instead of by dozens of per-letter timers and
+ * Lottie retry intervals.
+ */
+const buildTimeline = (baseDelay: number): TimelineEvent[] => {
+  const events: TimelineEvent[] = [];
+  for (let index = 0; index < TOTAL_CHARACTERS; index += 1) {
+    const delay = baseDelay + index * STAGGER_MS;
+    events.push({ at: delay, index, phase: 'MORPH_TO_ICON' });
+    events.push({ at: delay + MORPH_IN_MS, index, phase: 'PLAYING' });
+    events.push({ at: delay + MORPH_IN_MS + PLAY_MS, index, phase: 'HOLD' });
+    events.push({ at: delay + MORPH_IN_MS + PLAY_MS + HOLD_MS, index, phase: 'MORPH_TO_LETTER' });
+    events.push({ at: delay + MORPH_IN_MS + PLAY_MS + HOLD_MS + MORPH_OUT_MS, index, phase: 'IDLE' });
+  }
+  return events.sort((first, second) => first.at - second.at);
+};
+
+const cycleDuration = (baseDelay: number) =>
+  baseDelay + (TOTAL_CHARACTERS - 1) * STAGGER_MS + MORPH_IN_MS + PLAY_MS + HOLD_MS + MORPH_OUT_MS + LOOP_GAP_MS;
 
 /**
  * Memoized individual character component.
- * Manages exact deterministic global timing schedule, rotational card-flip 3D morphing,
- * natural typography width, and clean Lottie lifecycle (#1, #2, #3, #4, #5, #6, #7, #8).
+ * Purely presentational: rotational card-flip 3D morphing, natural typography
+ * width, and clean Lottie lifecycle (#1, #2, #3, #6, #7, #8).
  */
 export const AnimatedCharacter: React.FC<AnimatedCharacterProps> = React.memo(({
   item,
-  charIndex,
-  runId,
+  state,
   textPopStyle,
 }) => {
-  const [state, setState] = useState<CharacterAnimationState>('IDLE');
-  const stateRef = useRef<CharacterAnimationState>('IDLE');
+  const stateRef = useRef<CharacterAnimationState>(state);
+  stateRef.current = state;
   const lottieRef = useRef<LottieRefCurrentProps>(null);
-  const isDOMLoadedRef = useRef<boolean>(false);
-
-  const staggerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const playTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const holdTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const returnTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const idleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Synchronize stateRef with state
-  useEffect(() => {
-    stateRef.current = state;
-  }, [state]);
 
   const handleDOMLoaded = useCallback(() => {
-    isDOMLoadedRef.current = true;
     if (stateRef.current === 'MORPH_TO_ICON' || stateRef.current === 'PLAYING') {
-      if (lottieRef.current) {
-        lottieRef.current.setSpeed(1.0);
-        lottieRef.current.goToAndPlay(0, true);
-      }
+      lottieRef.current?.setSpeed(1.0);
+      lottieRef.current?.goToAndPlay(0, true);
     }
   }, []);
 
   // Lottie playback & clipping synchronization (#4, #6, #8)
   useEffect(() => {
     if (state === 'MORPH_TO_ICON' || state === 'PLAYING') {
-      if (lottieRef.current && isDOMLoadedRef.current) {
-        lottieRef.current.setSpeed(1.0);
-        lottieRef.current.goToAndPlay(0, true);
-      } else if (lottieRef.current) {
-        lottieRef.current.setSpeed(1.0);
-        lottieRef.current.goToAndPlay(0, true);
-      }
-
-      // Retry interval right after transitioning to MORPH_TO_ICON/PLAYING to ensure Lottie starts
-      // when SVG DOM finishes loading asynchronously
-      let retries = 0;
-      const playRetryInterval = setInterval(() => {
-        if ((stateRef.current === 'MORPH_TO_ICON' || stateRef.current === 'PLAYING') && lottieRef.current) {
-          if (!isDOMLoadedRef.current || retries === 0) {
-            lottieRef.current.setSpeed(1.0);
-            lottieRef.current.goToAndPlay(0, true);
-          }
-        }
-        if (++retries >= 6 || isDOMLoadedRef.current) {
-          clearInterval(playRetryInterval);
-        }
-      }, 40);
-
-      return () => {
-        clearInterval(playRetryInterval);
-      };
-    } else if (state === 'HOLD' || state === 'MORPH_TO_LETTER' || state === 'IDLE') {
-      // Clip and pause Lottie playback after scheduled play duration
-      if (lottieRef.current) {
-        lottieRef.current.pause();
-      }
+      lottieRef.current?.setSpeed(1.0);
+      lottieRef.current?.goToAndPlay(0, true);
+    } else {
+      lottieRef.current?.pause();
     }
   }, [state]);
 
-  // Global deterministic timeline schedule (#4, #5, #6)
-  useEffect(() => {
-    if (staggerTimeoutRef.current) clearTimeout(staggerTimeoutRef.current);
-    if (playTimeoutRef.current) clearTimeout(playTimeoutRef.current);
-    if (holdTimeoutRef.current) clearTimeout(holdTimeoutRef.current);
-    if (returnTimeoutRef.current) clearTimeout(returnTimeoutRef.current);
-    if (idleTimeoutRef.current) clearTimeout(idleTimeoutRef.current);
-
-    if (lottieRef.current) {
-      lottieRef.current.stop();
-    }
-
-    setState('IDLE');
-    stateRef.current = 'IDLE';
-
-    // Base delay accounting for initial parent entrance animation on refresh
-    const baseDelay = runId === 1 ? 800 : 0;
-    const delay = baseDelay + charIndex * 60; // 60ms sequential stagger per character (#5)
-
-    // 1. Morph in begins (rotates 0deg -> 180deg over 350ms)
-    staggerTimeoutRef.current = setTimeout(() => {
-      setState('MORPH_TO_ICON');
-      stateRef.current = 'MORPH_TO_ICON';
-    }, delay);
-
-    // 2. Play icon phase begins (MORPH_IN_MS after morph start)
-    playTimeoutRef.current = setTimeout(() => {
-      if (stateRef.current !== 'IDLE') {
-        setState('PLAYING');
-        stateRef.current = 'PLAYING';
-      }
-    }, delay + MORPH_IN_MS);
-
-    // 3. Hold phase begins (MORPH_IN_MS + PLAY_MS after morph start)
-    holdTimeoutRef.current = setTimeout(() => {
-      if (stateRef.current !== 'IDLE') {
-        setState('HOLD');
-        stateRef.current = 'HOLD';
-      }
-    }, delay + MORPH_IN_MS + PLAY_MS);
-
-    // 4. Morph out begins (MORPH_IN_MS + PLAY_MS + HOLD_MS after morph start)
-    returnTimeoutRef.current = setTimeout(() => {
-      if (stateRef.current !== 'IDLE') {
-        setState('MORPH_TO_LETTER');
-        stateRef.current = 'MORPH_TO_LETTER';
-      }
-    }, delay + MORPH_IN_MS + PLAY_MS + HOLD_MS);
-
-    // 5. Sequence completes and returns to clean LETTER MODE
-    idleTimeoutRef.current = setTimeout(() => {
-      if (stateRef.current !== 'IDLE') {
-        setState('IDLE');
-        stateRef.current = 'IDLE';
-      }
-    }, delay + MORPH_IN_MS + PLAY_MS + HOLD_MS + MORPH_OUT_MS);
-
-    return () => {
-      if (staggerTimeoutRef.current) clearTimeout(staggerTimeoutRef.current);
-      if (playTimeoutRef.current) clearTimeout(playTimeoutRef.current);
-      if (holdTimeoutRef.current) clearTimeout(holdTimeoutRef.current);
-      if (returnTimeoutRef.current) clearTimeout(returnTimeoutRef.current);
-      if (idleTimeoutRef.current) clearTimeout(idleTimeoutRef.current);
-    };
-  }, [runId, charIndex]);
-
   const isIconActive = state === 'MORPH_TO_ICON' || state === 'PLAYING' || state === 'HOLD';
-  const isMorphingBack = state === 'MORPH_TO_LETTER';
+  const isIdle = state === 'IDLE';
+  // Only promote a character while it is actually flipping.
+  const willChange = isIdle ? 'auto' : 'transform';
 
   // Character cell preserving natural typography dimensions with 3D perspective (#1, #2, #8)
   return (
@@ -225,7 +153,7 @@ export const AnimatedCharacter: React.FC<AnimatedCharacterProps> = React.memo(({
           backfaceVisibility: 'hidden',
           WebkitBackfaceVisibility: 'hidden',
           transformStyle: 'preserve-3d',
-          willChange: 'transform',
+          willChange,
         }}
         initial={false}
         animate={{
@@ -253,7 +181,7 @@ export const AnimatedCharacter: React.FC<AnimatedCharacterProps> = React.memo(({
           backfaceVisibility: 'hidden',
           WebkitBackfaceVisibility: 'hidden',
           transformStyle: 'preserve-3d',
-          willChange: 'transform',
+          willChange,
         }}
         initial={false}
         animate={{
@@ -277,11 +205,11 @@ export const AnimatedCharacter: React.FC<AnimatedCharacterProps> = React.memo(({
           style={{
             transform: item.scale && item.scale !== 1 ? `scale(${item.scale}) translateZ(0)` : 'translateZ(0)',
             transformOrigin: 'center center',
-            willChange: 'transform',
+            willChange,
           }}
         >
           {/* Unmount Lottie completely when in IDLE letter mode to prevent lingering instances */}
-          {state !== 'IDLE' && (
+          {!isIdle && (
             <Lottie
               lottieRef={lottieRef}
               animationData={item.lottie}
@@ -311,35 +239,82 @@ export interface HeroAnimatedHeadingProps {
  */
 export const HeroAnimatedHeading: React.FC<HeroAnimatedHeadingProps> = React.memo(({ textPopStyle }) => {
   const [runId, setRunId] = useState<number>(1);
+  const [phases, setPhases] = useState<CharacterAnimationState[]>(IDLE_PHASES);
   const containerRef = useRef<HTMLHeadingElement>(null);
   const isInView = useInView(containerRef, { amount: 0.15 });
+  const { isVisible: isNearViewport, isPageVisible } = useElementVisibility(containerRef, '300px 0px');
+  const canRun = isNearViewport && isPageVisible;
   const prevInViewRef = useRef<boolean>(true);
   const isHoveredRef = useRef<boolean>(false);
   const isPlayingRef = useRef<boolean>(true); // True initially for runId === 1
-  const loopTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Track sequence cycle completion and repeat if still hovered without interruption (#7)
+  const timeline = useMemo(() => buildTimeline(runId === 1 ? INITIAL_RUN_DELAY_MS : 0), [runId]);
+  const totalCycleDuration = useMemo(() => cycleDuration(runId === 1 ? INITIAL_RUN_DELAY_MS : 0), [runId]);
+
+  // One parent-owned schedule drives every character: a single chained timer,
+  // no per-character timeouts and no per-character retry intervals (#4, #5, #6).
   useEffect(() => {
+    setPhases(IDLE_PHASES);
     isPlayingRef.current = true;
-    if (loopTimeoutRef.current) clearTimeout(loopTimeoutRef.current);
+  }, [runId]);
 
-    const baseDelay = runId === 1 ? 800 : 0;
-    // Total cycle: last char (index 13) starts at baseDelay + 13 * 60 = baseDelay + 780ms.
-    // Last char finishes at baseDelay + 780 + 1750 = baseDelay + 2530ms.
-    const totalCycleDuration = baseDelay + 13 * 60 + MORPH_IN_MS + PLAY_MS + HOLD_MS + MORPH_OUT_MS;
+  const cursorRef = useRef(0);
+  const elapsedRef = useRef(0);
 
-    loopTimeoutRef.current = setTimeout(() => {
-      isPlayingRef.current = false;
-      // If still hovered when cycle completes, wait slightly and repeat naturally (#7)
-      if (isHoveredRef.current) {
-        setRunId((prev) => prev + 1);
+  useEffect(() => {
+    cursorRef.current = 0;
+    elapsedRef.current = 0;
+  }, [runId]);
+
+  useEffect(() => {
+    if (!canRun) return;
+
+    let timer = 0;
+    let startedAt = performance.now() - elapsedRef.current;
+    let cancelled = false;
+
+    const step = () => {
+      if (cancelled) return;
+      const elapsed = performance.now() - startedAt;
+      elapsedRef.current = elapsed;
+
+      const due: TimelineEvent[] = [];
+      while (cursorRef.current < timeline.length && timeline[cursorRef.current].at <= elapsed + 1) {
+        due.push(timeline[cursorRef.current]);
+        cursorRef.current += 1;
       }
-    }, totalCycleDuration + 300);
+
+      if (due.length > 0) {
+        setPhases((previous) => {
+          const next = previous.slice();
+          due.forEach((event) => { next[event.index] = event.phase; });
+          return next;
+        });
+      }
+
+      if (cursorRef.current < timeline.length) {
+        timer = window.setTimeout(step, Math.max(0, timeline[cursorRef.current].at - elapsed));
+        return;
+      }
+
+      if (elapsed + 1 >= totalCycleDuration) {
+        isPlayingRef.current = false;
+        // If still hovered when the cycle completes, repeat naturally (#7)
+        if (isHoveredRef.current) setRunId((previous) => previous + 1);
+        return;
+      }
+      timer = window.setTimeout(step, Math.max(0, totalCycleDuration - elapsed));
+    };
+
+    step();
 
     return () => {
-      if (loopTimeoutRef.current) clearTimeout(loopTimeoutRef.current);
+      cancelled = true;
+      window.clearTimeout(timer);
+      // Remember how far the sequence got so a resume never skips or repeats a stage.
+      elapsedRef.current = performance.now() - startedAt;
     };
-  }, [runId]);
+  }, [canRun, timeline, totalCycleDuration]);
 
   // Replay sequence whenever heading reappears in the viewport after leaving it
   useEffect(() => {
@@ -383,8 +358,7 @@ export const HeroAnimatedHeading: React.FC<HeroAnimatedHeadingProps> = React.mem
           <AnimatedCharacter
             key={`row1-${item.char}-${index}`}
             item={item}
-            charIndex={index}
-            runId={runId}
+            state={phases[index]}
             textPopStyle={textPopStyle}
           />
         ))}
@@ -400,8 +374,7 @@ export const HeroAnimatedHeading: React.FC<HeroAnimatedHeadingProps> = React.mem
           <AnimatedCharacter
             key={`row2-${item.char}-${index}`}
             item={item}
-            charIndex={index + 8} // Account for Row 1 + space (#3)
-            runId={runId}
+            state={phases[index + 8]} // Account for Row 1 + space (#3)
             textPopStyle={textPopStyle}
           />
         ))}

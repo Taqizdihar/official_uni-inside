@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
+import React, { useRef, useEffect, useCallback, useImperativeHandle, forwardRef } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { OurProductsSection } from './ProductsSection';
@@ -8,6 +8,8 @@ import printerGif from '../assets/our-products/GIF Printer Transparent.gif';
 import { ShoppingCart } from 'lucide-react';
 import coinSoundUrl from '../assets/audio/our-products/Coin Sound.mp3';
 import { useElementVisibility } from '../hooks/useElementVisibility';
+import { getPageVisibility, subscribeToPageVisibility } from '../hooks/usePageVisibility';
+import { SCROLL_STORY_HEIGHT } from './scrollStoryLayout';
 
 const PRODUCT_ASSET_MODULES = import.meta.glob('../assets/our-products/3D Printer Products/*.png', { eager: true, import: 'default' }) as Record<string, string>;
 const PRODUCT_ASSETS = Object.values(PRODUCT_ASSET_MODULES);
@@ -17,6 +19,8 @@ gsap.registerPlugin(ScrollTrigger);
 export interface ScrollStoryHandle {
   scrollToScene: (scene: 'PRODUCTS' | 'SERVICES' | 'EVENTS', behavior?: ScrollBehavior) => void;
   getContainer: () => HTMLDivElement | null;
+  /** True once the ScrollTrigger exists and scene positions can be resolved. */
+  isReady: () => boolean;
 }
 
 export interface ScrollStoryProps {
@@ -117,7 +121,13 @@ export const ScrollStory = forwardRef<ScrollStoryHandle, ScrollStoryProps>((
       const targetY = st.start + targetProgress * (st.end - st.start);
       window.scrollTo({ top: targetY, behavior });
     },
-    getContainer: () => containerRef.current
+    getContainer: () => containerRef.current,
+    // A trigger whose range has not been measured yet would resolve every
+    // scene to scroll position 0.
+    isReady: () => {
+      const trigger = scrollTriggerRef.current;
+      return trigger !== null && trigger.end > trigger.start;
+    },
   }), []);
 
   useEffect(() => {
@@ -249,7 +259,12 @@ export const ScrollStory = forwardRef<ScrollStoryHandle, ScrollStoryProps>((
 
     }, containerRef);
 
+    // The section can mount long after first paint; one refresh measures the
+    // pin and the scene range against the settled layout.
+    const refreshFrame = requestAnimationFrame(() => ScrollTrigger.refresh());
+
     return () => {
+      cancelAnimationFrame(refreshFrame);
       // Ensure we release control when this component unmounts
       reportScene(null);
       ctx.revert();
@@ -464,8 +479,9 @@ export const ScrollStory = forwardRef<ScrollStoryHandle, ScrollStoryProps>((
       particle.style.top = `${originY}px`;
       particle.style.transform = 'translate(-50%, -50%)';
 
+      // `pointerenter` covers mouse, pen and touch; the old duplicate
+      // `mouseenter` listener called the same guarded handler a second time.
       particle.addEventListener('pointerenter', () => collectProduct(particle));
-      particle.addEventListener('mouseenter', () => collectProduct(particle));
 
       particlesContainerRef.current?.appendChild(particle);
       activeParticlesRef.current.add(particle);
@@ -517,6 +533,16 @@ export const ScrollStory = forwardRef<ScrollStoryHandle, ScrollStoryProps>((
     });
   };
 
+  const releaseProducts = useCallback(() => {
+    activeTimelinesRef.current.forEach((timeline) => timeline.kill());
+    activeTimelinesRef.current.clear();
+    activeParticlesRef.current.forEach((particle) => {
+      gsap.killTweensOf(particle);
+      particle.remove();
+    });
+    activeParticlesRef.current.clear();
+  }, []);
+
   useEffect(() => {
     if (!isProductsActive) return;
     const interval = setInterval(() => {
@@ -525,10 +551,19 @@ export const ScrollStory = forwardRef<ScrollStoryHandle, ScrollStoryProps>((
     return () => clearInterval(interval);
   }, [isProductsActive]);
 
+  // Once the scene is well outside the viewport nothing can be seen falling, so
+  // transient nodes and their tweens are released rather than left running.
+  useEffect(() => {
+    if (isStoryNear) return;
+    releaseProducts();
+  }, [isStoryNear, releaseProducts]);
+
+  useEffect(() => () => releaseProducts(), [releaseProducts]);
+
   // Handle visibility state to pause and resume animations when tab changes
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.hidden) {
+      if (!getPageVisibility()) {
         activeTimelinesRef.current.forEach((tl) => tl.pause());
         activeParticlesRef.current.forEach((particle) => {
           gsap.getTweensOf(particle).forEach((t) => t.pause());
@@ -541,10 +576,7 @@ export const ScrollStory = forwardRef<ScrollStoryHandle, ScrollStoryProps>((
       }
     };
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
+    return subscribeToPageVisibility(handleVisibilityChange);
   }, []);
 
   // Visibility control based strictly on active section
@@ -572,8 +604,13 @@ export const ScrollStory = forwardRef<ScrollStoryHandle, ScrollStoryProps>((
     }
   }, [activeSection]);
 
-  // Shopping cart cursor tracking & instant touch collection tracking
+  // Shopping cart cursor tracking & instant touch collection tracking.
+  // The listener exists only while the story is near the viewport, so the cart
+  // cursor is already tracking before Products activates while ordinary pointer
+  // movement anywhere else on the page costs nothing.
   useEffect(() => {
+    if (!isStoryNear || !isPageVisible) return;
+
     const handlePointerMove = (e: PointerEvent | MouseEvent) => {
       cursorPosRef.current = { x: e.clientX, y: e.clientY };
 
@@ -599,11 +636,11 @@ export const ScrollStory = forwardRef<ScrollStoryHandle, ScrollStoryProps>((
 
     window.addEventListener('pointermove', handlePointerMove, { passive: true });
     return () => window.removeEventListener('pointermove', handlePointerMove);
-  }, [activeSection]);
+  }, [activeSection, isPageVisible, isStoryNear]);
 
 
   return (
-    <div ref={containerRef} className="w-full relative" style={{ height: '550vh' }}>
+    <div ref={containerRef} className="w-full relative" style={{ height: SCROLL_STORY_HEIGHT }}>
       <div
         ref={stickyRef}
         className="top-0 left-0 w-full overflow-hidden"
