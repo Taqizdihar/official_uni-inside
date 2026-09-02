@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import React, { useState } from 'react';
 import { Footer } from '../components/Footer';
 import { NewsHero } from '../components/news/NewsHero';
 import { CategoryFilter } from '../components/news/CategoryFilter';
@@ -7,19 +6,13 @@ import { NewsGrid } from '../components/news/NewsGrid';
 import { NewsSidebar } from '../components/news/NewsSidebar';
 import { LoadMoreButton } from '../components/news/LoadMoreButton';
 import { mockNews } from '../data/mockNews';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import logoDarkTheme from '../assets/global/Logo - Dark Theme.svg';
 
 export const NewsPage: React.FC = () => {
-  const navigate = useNavigate();
   const [activeCategory, setActiveCategory] = useState('All');
   const [visibleCount, setVisibleCount] = useState(6);
   const [isLoading, setIsLoading] = useState(false);
-  const { pathname } = useLocation();
-
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [pathname]);
 
   const filteredNews = mockNews.filter(
     article => activeCategory === 'All' || article.category === activeCategory
@@ -37,13 +30,7 @@ export const NewsPage: React.FC = () => {
   };
 
   return (
-    <motion.div 
-      initial={{ y: '100%', opacity: 1 }}
-      animate={{ y: 0, opacity: 1 }}
-      exit={{ y: '100%', opacity: 1 }}
-      transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-      className="w-full min-h-screen bg-[#f0f0f0] relative z-50 flex flex-col"
-    >
+    <div className="w-full min-h-screen bg-[#f0f0f0] relative z-50 flex flex-col">
       {/* Navbar (Static version for News Page) */}
       <nav 
         className="fixed top-0 left-0 w-full flex justify-between items-center px-8 lg:px-12 py-8 z-[100]"
@@ -83,8 +70,8 @@ export const NewsPage: React.FC = () => {
 
       {/* Floating Back Button */}
       <div className="absolute top-32 left-6 sm:left-10 lg:left-12 z-[90]">
-        <button 
-          onClick={() => navigate('/', { state: { scrollToNews: true } })}
+        <Link
+          to="/"
           aria-label="Back to Landing Page"
           className="group flex items-center bg-white rounded-full h-[46px] px-[22px] border border-[rgba(0,0,0,0.08)] shadow-[0_4px_12px_rgba(0,0,0,0.05)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.12)] transition-all duration-300 hover:-translate-x-1 focus:outline-none focus:ring-2 focus:ring-[#f9d02d]"
         >
@@ -92,7 +79,7 @@ export const NewsPage: React.FC = () => {
             <path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
           <span className="font-semibold text-sm text-[#202121]">Back</span>
-        </button>
+        </Link>
       </div>
 
       {/* Main Content */}
@@ -127,6 +114,6 @@ export const NewsPage: React.FC = () => {
       </div>
 
       <Footer />
-    </motion.div>
+    </div>
   );
 };

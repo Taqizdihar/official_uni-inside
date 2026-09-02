@@ -1,289 +1,277 @@
-import React, { Suspense, useMemo, useRef, useEffect, useCallback, createContext, useContext } from 'react';
+import React, { Suspense, createContext, useCallback, useContext, useEffect, useMemo, useRef } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { PerspectiveCamera, useGLTF, Environment, OrbitControls } from '@react-three/drei';
+import { Environment, OrbitControls, PerspectiveCamera, useGLTF } from '@react-three/drei';
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
+import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import * as THREE from 'three';
 import heroModelUrl from '../assets/hero/hero-model.glb';
 import studioSoftHdr from '../assets/hdri/studio-soft.hdr';
 import { HeroModelFrame } from './HeroModelFrame';
 import { useElementVisibility } from '../hooks/useElementVisibility';
 
-/**
- * Shared context to coordinate interaction state between OrbitControls and IdleAnimation.
- */
-interface IdleInteractionContextType {
+const MAX_FRAME_DELTA = 1 / 30;
+const INITIAL_REVEAL_SCALE = 0.82;
+
+interface SceneLifecycle {
+  isActive: boolean;
+  consumeDelta: (delta: number) => number;
   isInteractingRef: React.MutableRefObject<boolean>;
 }
-const IdleInteractionContext = createContext<IdleInteractionContextType | null>(null);
 
-const IdleInteractionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const isInteractingRef = useRef<boolean>(false);
+const SceneLifecycleContext = createContext<SceneLifecycle | null>(null);
+
+const SceneLifecycleProvider: React.FC<{ isActive: boolean; children: React.ReactNode }> = ({ isActive, children }) => {
+  const skipNextFrameRef = useRef(true);
+  const isInteractingRef = useRef(false);
+
+  useEffect(() => {
+    if (!isActive) {
+      // The next rendered frame must never apply elapsed offscreen time.
+      skipNextFrameRef.current = true;
+      isInteractingRef.current = false;
+    }
+  }, [isActive]);
+
+  const consumeDelta = useCallback((delta: number) => {
+    if (!isActive || skipNextFrameRef.current) {
+      skipNextFrameRef.current = false;
+      return 0;
+    }
+    return Math.min(Math.max(delta, 0), MAX_FRAME_DELTA);
+  }, [isActive]);
+
   return (
-    <IdleInteractionContext.Provider value={{ isInteractingRef }}>
+    <SceneLifecycleContext.Provider value={{ isActive, consumeDelta, isInteractingRef }}>
       {children}
-    </IdleInteractionContext.Provider>
+    </SceneLifecycleContext.Provider>
   );
 };
 
-/**
- * Modern Premium Lighting Component
- */
-const HeroLights: React.FC = React.memo(() => {
-  return (
-    <>
-      <ambientLight intensity={0.4} />
-      <hemisphereLight
-        groundColor={new THREE.Color('#202121')}
-        color={new THREE.Color('#ffffff')}
-        intensity={0.4}
-      />
-      <directionalLight position={[5, 8, 5]} intensity={0.8} />
-      <directionalLight position={[-5, -2, -5]} intensity={0.3} color="#f9d02d" />
-      <Environment 
-        files={studioSoftHdr} 
-        background={false} 
-        environmentIntensity={0.8}
-        environmentRotation={[0, Math.PI / 4, 0]} 
-      />
-    </>
-  );
-});
+const useSceneLifecycle = () => {
+  const lifecycle = useContext(SceneLifecycleContext);
+  if (!lifecycle) throw new Error('Hero scene components must be rendered inside SceneLifecycleProvider.');
+  return lifecycle;
+};
+
+const HeroLights: React.FC = React.memo(() => (
+  <>
+    <ambientLight intensity={0.4} />
+    <hemisphereLight groundColor="#202121" color="#ffffff" intensity={0.4} />
+    <directionalLight position={[5, 8, 5]} intensity={0.8} />
+    <directionalLight position={[-5, -2, -5]} intensity={0.3} color="#f9d02d" />
+    <Environment files={studioSoftHdr} background={false} environmentIntensity={0.8} environmentRotation={[0, Math.PI / 4, 0]} />
+  </>
+));
 HeroLights.displayName = 'HeroLights';
 
-/**
- * Controlled Interaction via OrbitControls
- * Allows smooth 360° horizontal rotation with damping, limits vertical polar angles,
- * disables zoom & pan, and notifies IdleAnimation on start/end.
- */
+/** OrbitControls owns camera interaction only; model groups never receive pointer translation. */
 const HeroControls: React.FC = React.memo(() => {
-  const context = useContext(IdleInteractionContext);
-  const resumeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const handleStart = useCallback(() => {
-    if (resumeTimeoutRef.current) {
-      clearTimeout(resumeTimeoutRef.current);
-      resumeTimeoutRef.current = null;
-    }
-    if (context) {
-      context.isInteractingRef.current = true;
-    }
-  }, [context]);
-
-  const handleEnd = useCallback(() => {
-    if (resumeTimeoutRef.current) {
-      clearTimeout(resumeTimeoutRef.current);
-    }
-    resumeTimeoutRef.current = setTimeout(() => {
-      if (context) {
-        context.isInteractingRef.current = false;
-      }
-    }, 2500);
-  }, [context]);
+  const controlsRef = useRef<OrbitControlsImpl>(null);
+  const { isActive, isInteractingRef } = useSceneLifecycle();
+  const clearInteraction = useCallback(() => { isInteractingRef.current = false; }, [isInteractingRef]);
 
   useEffect(() => {
+    const controls = controlsRef.current;
+    if (!controls || isActive) return;
+
+    clearInteraction();
+    // Public OrbitControls API: clear residual damping before the canvas pauses.
+    const wasDampingEnabled = controls.enableDamping;
+    controls.enableDamping = false;
+    controls.update();
+    controls.enableDamping = wasDampingEnabled;
+  }, [clearInteraction, isActive]);
+
+  useEffect(() => {
+    const clear = () => clearInteraction();
+    window.addEventListener('pointerup', clear, { passive: true });
+    window.addEventListener('pointercancel', clear, { passive: true });
+    window.addEventListener('lostpointercapture', clear, { passive: true });
+    window.addEventListener('blur', clear);
+    document.addEventListener('visibilitychange', clear);
     return () => {
-      if (resumeTimeoutRef.current) clearTimeout(resumeTimeoutRef.current);
+      window.removeEventListener('pointerup', clear);
+      window.removeEventListener('pointercancel', clear);
+      window.removeEventListener('lostpointercapture', clear);
+      window.removeEventListener('blur', clear);
+      document.removeEventListener('visibilitychange', clear);
+      clear();
     };
-  }, []);
+  }, [clearInteraction]);
 
   return (
     <OrbitControls
+      ref={controlsRef}
       makeDefault
-      enableRotate={true}
+      enabled={isActive}
+      enableRotate
       enableZoom={false}
       enablePan={false}
-      enableDamping={true}
+      enableDamping
       dampingFactor={0.05}
       minPolarAngle={Math.PI / 2 - 0.35}
       maxPolarAngle={Math.PI / 2 + 0.15}
-      onStart={handleStart}
-      onEnd={handleEnd}
+      onStart={() => { isInteractingRef.current = true; }}
+      onEnd={clearInteraction}
     />
   );
 });
 HeroControls.displayName = 'HeroControls';
 
-/**
- * Subtle Idle Floating & Rotation Animation Component
- */
+/** The only runtime writer for the rotation/float group. */
 const IdleAnimation: React.FC<{ children: React.ReactNode }> = React.memo(({ children }) => {
   const groupRef = useRef<THREE.Group>(null);
-  const context = useContext(IdleInteractionContext);
-  const blendRef = useRef<number>(1);
+  const elapsedRef = useRef(0);
+  const blendRef = useRef(1);
+  const { consumeDelta, isInteractingRef } = useSceneLifecycle();
 
-  useFrame((state, delta) => {
-    if (!groupRef.current) return;
-    const isInteracting = context?.isInteractingRef.current ?? false;
+  useFrame((_, delta) => {
+    const group = groupRef.current;
+    if (!group) return;
+    const safeDelta = consumeDelta(delta);
+    if (safeDelta === 0) return;
 
-    const targetBlend = isInteracting ? 0 : 1;
-    const lerpSpeed = isInteracting ? 10 : 2.5;
-    blendRef.current = THREE.MathUtils.lerp(blendRef.current, targetBlend, delta * lerpSpeed);
-
+    elapsedRef.current += safeDelta;
+    const isInteracting = isInteractingRef.current;
+    blendRef.current = THREE.MathUtils.lerp(blendRef.current, isInteracting ? 0 : 1, safeDelta * (isInteracting ? 10 : 2.5));
     const blend = blendRef.current;
-    const t = state.clock.getElapsedTime();
-
-    groupRef.current.rotation.y += delta * 0.2 * blend;
-
-    groupRef.current.position.y = THREE.MathUtils.lerp(
-      groupRef.current.position.y,
-      Math.sin(t * 1.2) * 0.08 * blend,
-      delta * 5
-    );
-    groupRef.current.rotation.x = THREE.MathUtils.lerp(
-      groupRef.current.rotation.x,
-      Math.sin(t * 0.8) * 0.04 * blend,
-      delta * 5
-    );
+    group.rotation.y += safeDelta * 0.2 * blend;
+    group.position.y = THREE.MathUtils.lerp(group.position.y, Math.sin(elapsedRef.current * 1.2) * 0.08 * blend, safeDelta * 5);
+    group.rotation.x = THREE.MathUtils.lerp(group.rotation.x, Math.sin(elapsedRef.current * 0.8) * 0.04 * blend, safeDelta * 5);
   });
 
-  return <group ref={groupRef}>{children}</group>;
+  return <group ref={groupRef} position={[0, 0, 0]} rotation={[0, 0, 0]}>{children}</group>;
 });
 IdleAnimation.displayName = 'IdleAnimation';
 
-/**
- * Dedicated Camera Framing Lifecycle Component (ISSUE 1 Fix)
- * Synchronizes camera position, aspect, and projection matrix after layout or resize changes
- * without allowing scroll re-renders to override camera scale.
- */
+/** Sets canonical framing once per Canvas mount; resizes only refresh projection. */
 const HeroCameraManager: React.FC<{ scaledRadius: number }> = React.memo(({ scaledRadius }) => {
-  const { camera, size: canvasSize, invalidate } = useThree();
+  const { camera, size, invalidate } = useThree();
+  const hasFramedRef = useRef(false);
 
   useEffect(() => {
-    const perspectiveCam = camera as THREE.PerspectiveCamera;
-    if (!perspectiveCam || !perspectiveCam.isPerspectiveCamera) return;
+    const perspectiveCamera = camera as THREE.PerspectiveCamera;
+    if (!perspectiveCamera.isPerspectiveCamera || size.width <= 0 || size.height <= 0) return;
 
-    const fovRad = THREE.MathUtils.degToRad(perspectiveCam.fov || 45);
-    const distVert = scaledRadius / Math.sin(fovRad / 2);
-    const aspect = canvasSize.width / Math.max(1, canvasSize.height);
-    const distHoriz = distVert / Math.min(1, aspect);
-    const computedDistance = Math.max(distVert, distHoriz) * 0.95;
+    if (!hasFramedRef.current) {
+      const fovRadians = THREE.MathUtils.degToRad(perspectiveCamera.fov || 45);
+      const verticalDistance = scaledRadius / Math.sin(fovRadians / 2);
+      const horizontalDistance = verticalDistance / Math.min(1, size.width / size.height);
+      const distance = Math.max(verticalDistance, horizontalDistance) * 0.95;
+      perspectiveCamera.position.set(0, 0, distance);
+      perspectiveCamera.near = distance / 100;
+      perspectiveCamera.far = distance * 100;
+      hasFramedRef.current = true;
+    }
 
-    perspectiveCam.position.set(0, 0, computedDistance);
-    perspectiveCam.near = computedDistance / 100;
-    perspectiveCam.far = computedDistance * 100;
-    perspectiveCam.updateProjectionMatrix();
+    perspectiveCamera.aspect = size.width / size.height;
+    perspectiveCamera.updateProjectionMatrix();
     invalidate();
-  }, [camera, canvasSize.width, canvasSize.height, scaledRadius, invalidate]);
+  }, [camera, invalidate, scaledRadius, size.height, size.width]);
 
   return null;
 });
 HeroCameraManager.displayName = 'HeroCameraManager';
 
-/**
- * Model-Independent Mesh Loader
- * Computes bounding box, origin centering, and normalization strictly once when loaded.
- */
-const HeroModelMesh: React.FC = React.memo(() => {
-  const { scene } = useGLTF(heroModelUrl);
-
-  // Compute center, scale, and bounding sphere radius strictly once per loaded scene
-  const { center, normalizedScale, scaledRadius } = useMemo(() => {
-    scene.updateMatrixWorld(true);
-
-    const box = new THREE.Box3().setFromObject(scene);
-    const size = box.getSize(new THREE.Vector3());
-    const boxCenter = box.getCenter(new THREE.Vector3());
-    const boundingSphere = box.getBoundingSphere(new THREE.Sphere());
-
-    const TARGET_SIZE = 5.4;
-    const maxDim = Math.max(size.x, size.y, size.z);
-    const scale = maxDim > 0 ? TARGET_SIZE / maxDim : 1;
-    const radius = (boundingSphere.radius || maxDim * 0.5 || 1.4) * scale;
-
-    return { center: boxCenter, normalizedScale: scale, scaledRadius: radius };
-  }, [scene]);
+const ResumeInvalidator: React.FC = () => {
+  const { invalidate, size } = useThree();
+  const { isActive } = useSceneLifecycle();
 
   useEffect(() => {
-    scene.traverse((child) => {
+    if (!isActive || size.width <= 0 || size.height <= 0) return;
+    const frame = window.requestAnimationFrame(() => invalidate());
+    return () => window.cancelAnimationFrame(frame);
+  }, [invalidate, isActive, size.height, size.width]);
+
+  return null;
+};
+
+/** Cached GLTF data is cloned once per Hero mount below fresh transform wrappers. */
+const HeroModelMesh: React.FC = React.memo(() => {
+  const { scene } = useGLTF(heroModelUrl);
+  const model = useMemo(() => clone(scene), [scene]);
+  const { center, normalizedScale, scaledRadius } = useMemo(() => {
+    const box = new THREE.Box3().setFromObject(model);
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    const sphere = box.getBoundingSphere(new THREE.Sphere());
+    const maxDimension = Math.max(size.x, size.y, size.z);
+    const normalizedScale = maxDimension > 0 ? 5.4 / maxDimension : 1;
+    return { center, normalizedScale, scaledRadius: (sphere.radius || maxDimension * 0.5 || 1.4) * normalizedScale };
+  }, [model]);
+
+  useEffect(() => {
+    model.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
         child.frustumCulled = true;
         child.castShadow = false;
         child.receiveShadow = false;
       }
     });
-  }, [scene]);
+  }, [model]);
 
   return (
     <>
       <HeroCameraManager scaledRadius={scaledRadius} />
-      <group scale={normalizedScale}>
-        <primitive object={scene} position={[-center.x, -center.y, -center.z]} dispose={null} />
+      <group position={[0, 0, 0]} rotation={[0, 0, 0]} scale={[1, 1, 1]}>
+        <group scale={normalizedScale}>
+          <primitive object={model} position={[-center.x, -center.y, -center.z]} dispose={null} />
+        </group>
       </group>
     </>
   );
 });
 HeroModelMesh.displayName = 'HeroModelMesh';
 
-interface HeroModelProps {
-  isReady: boolean;
-  onReady?: () => void;
-}
-
-const INITIAL_REVEAL_SCALE = 0.82;
-
-/**
- * Keeps the entrance transform separate from the idle rotation and camera controls.
- * Once complete, it stops doing entrance-animation work and leaves the final scale exact.
- */
-const HeroRevealGroup: React.FC<{ isReady: boolean; children: React.ReactNode }> = React.memo(({
-  isReady,
-  children,
-}) => {
+const HeroRevealGroup: React.FC<{ isReady: boolean; children: React.ReactNode }> = React.memo(({ isReady, children }) => {
   const groupRef = useRef<THREE.Group>(null);
   const hasFinishedRef = useRef(false);
-  const prefersReducedMotion = typeof window !== 'undefined'
-    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const { consumeDelta } = useSceneLifecycle();
+  const prefersReducedMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   useFrame((_, delta) => {
     const group = groupRef.current;
-    if (!group) return;
-
+    if (!group || hasFinishedRef.current) return;
     if (!isReady) {
       group.scale.setScalar(INITIAL_REVEAL_SCALE);
       return;
     }
-
-    if (hasFinishedRef.current) return;
-
     if (prefersReducedMotion) {
       group.scale.setScalar(1);
       hasFinishedRef.current = true;
       return;
     }
-
-    const nextScale = THREE.MathUtils.damp(group.scale.x, 1, 7.5, delta);
+    const safeDelta = consumeDelta(delta);
+    if (safeDelta === 0) return;
+    const nextScale = THREE.MathUtils.damp(group.scale.x, 1, 7.5, safeDelta);
     if (Math.abs(1 - nextScale) < 0.002) {
       group.scale.setScalar(1);
       hasFinishedRef.current = true;
-      return;
+    } else {
+      group.scale.setScalar(nextScale);
     }
-
-    group.scale.setScalar(nextScale);
   });
 
-  return <group ref={groupRef}>{children}</group>;
+  return <group ref={groupRef} scale={[INITIAL_REVEAL_SCALE, INITIAL_REVEAL_SCALE, INITIAL_REVEAL_SCALE]}>{children}</group>;
 });
 HeroRevealGroup.displayName = 'HeroRevealGroup';
 
-/**
- * This mounts only after the GLB and HDR-owning descendants have resolved.
- * useFrame then ensures the scene has participated in an actual R3F frame.
- */
 const HeroSceneReady: React.FC<{ onReady?: () => void }> = React.memo(({ onReady }) => {
-  const hasReportedReadyRef = useRef(false);
-
+  const reportedRef = useRef(false);
   useFrame(() => {
-    if (hasReportedReadyRef.current) return;
-    hasReportedReadyRef.current = true;
-    onReady?.();
+    if (!reportedRef.current) {
+      reportedRef.current = true;
+      onReady?.();
+    }
   });
-
   return null;
 });
-HeroSceneReady.displayName = 'HeroSceneReady';
 
-/**
- * Dedicated HeroModel Component
- */
+interface HeroModelProps {
+  isReady: boolean;
+  onReady?: () => void;
+}
+
 export const HeroModel: React.FC<HeroModelProps> = React.memo(({ isReady, onReady }) => {
   const frameRef = useRef<HTMLDivElement>(null);
   const { isVisible, isPageVisible } = useElementVisibility(frameRef, '300px 0px');
@@ -291,29 +279,17 @@ export const HeroModel: React.FC<HeroModelProps> = React.memo(({ isReady, onRead
 
   return (
     <HeroModelFrame ref={frameRef}>
-      <Canvas
-        gl={{
-          antialias: true,
-          alpha: true,
-          powerPreference: 'high-performance',
-        }}
-        dpr={[1, 1.5]}
-        frameloop={isRendering ? 'always' : 'never'}
-        className="w-full h-full"
-      >
+      <Canvas gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }} dpr={[1, 1.5]} frameloop={isRendering ? 'always' : 'never'} className="h-full w-full">
         <PerspectiveCamera makeDefault fov={45} />
-        <IdleInteractionProvider>
+        <SceneLifecycleProvider isActive={isRendering}>
+          <ResumeInvalidator />
           <HeroControls />
           <Suspense fallback={null}>
             <HeroLights />
-            <HeroRevealGroup isReady={isReady}>
-              <IdleAnimation>
-                <HeroModelMesh />
-              </IdleAnimation>
-            </HeroRevealGroup>
+            <HeroRevealGroup isReady={isReady}><IdleAnimation><HeroModelMesh /></IdleAnimation></HeroRevealGroup>
             <HeroSceneReady onReady={onReady} />
           </Suspense>
-        </IdleInteractionProvider>
+        </SceneLifecycleProvider>
       </Canvas>
     </HeroModelFrame>
   );

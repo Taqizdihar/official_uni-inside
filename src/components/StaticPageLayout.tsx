@@ -1,5 +1,4 @@
 import type { PropsWithChildren } from 'react';
-import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { Footer } from './Footer';
 import logoDarkTheme from '../assets/global/Logo - Dark Theme.svg';
@@ -31,13 +30,7 @@ export const BackToLandingLink = () => (
 );
 
 export const StaticPageLayout: React.FC<StaticPageLayoutProps> = ({ activePage, children }) => (
-  <motion.div
-    initial={{ y: '100%', opacity: 1 }}
-    animate={{ y: 0, opacity: 1 }}
-    exit={{ y: '100%', opacity: 1 }}
-    transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-    className="relative z-50 flex min-h-screen w-screen max-w-screen min-w-0 flex-col overflow-x-hidden bg-[#f0f0f0]"
-  >
+  <div className="relative z-50 flex min-h-screen w-screen max-w-screen min-w-0 flex-col overflow-x-hidden bg-[#f0f0f0]">
     <nav
       aria-label="Primary navigation"
       className="fixed top-0 left-0 z-[100] flex w-full items-center justify-between px-8 py-8 lg:px-12"
@@ -85,5 +78,5 @@ export const StaticPageLayout: React.FC<StaticPageLayoutProps> = ({ activePage, 
     </main>
 
     <Footer />
-  </motion.div>
+  </div>
 );
