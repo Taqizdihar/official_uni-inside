@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, forwardRef, lazy, Suspense } from 'react';
 import { motion, useMotionValue, useMotionTemplate, AnimatePresence, useAnimation, useInView, useScroll, useTransform, useMotionValueEvent, useSpring, useAnimationFrame, animate } from 'motion/react';
-import { ChevronRight, Twitter, Linkedin, Instagram } from 'lucide-react';
+import { Twitter, Linkedin, Instagram } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import Lottie from 'lottie-react';
 import { AchievementsSection } from './components/AchievementsSection';
@@ -8,7 +8,7 @@ import { Footer } from './components/Footer';
 import { ScrollStorySection, type ScrollStorySectionHandle } from './components/ScrollStorySection';
 import { HeroModelFrame } from './components/HeroModelFrame';
 import { HeroAnimatedHeading } from './components/HeroAnimatedHeading';
-import { AboutRotatingIcon } from './components/AboutRotatingIcon';
+import { AboutIntro, AboutIntroPresentation, AboutVisionMissionStory, AboutVisionMissionStoryPreview } from './components/AboutPresentation';
 import { useNearViewportOnce } from './hooks/useNearViewportOnce';
 import { type AppSectionId } from './components/ThemeController';
 
@@ -566,30 +566,8 @@ const PageContent = ({
         
         {/* About Us Section */}
         <div className="w-full flex flex-col z-10">
-          <div className="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center px-8 lg:px-12 py-32 min-h-screen">
-            <div className="flex flex-col">
-              <h2 className="text-[80px] sm:text-[100px] lg:text-[130px] font-black leading-[0.9] uppercase text-[#202121]">ABOUT</h2>
-              <div className="flex items-center mt-2">
-                <h2 className="text-[80px] sm:text-[100px] lg:text-[130px] font-black leading-[0.9] uppercase text-[#202121] mr-4">US</h2>
-                
-                <AboutRotatingIcon />
-
-                <motion.div
-                  animate={{ x: [0, 15, 0] }}
-                  transition={{ repeat: Infinity, duration: 1, ease: "easeInOut" }}
-                  className="flex-shrink-0"
-                >
-                  <ChevronRight className="w-14 h-14 sm:w-16 sm:h-16 lg:w-20 lg:h-20 text-[#202121]" strokeWidth={4} />
-                </motion.div>
-              </div>
-            </div>
-            
-            <div className="flex items-center h-full">
-              <p className="text-2xl sm:text-3xl lg:text-4xl leading-relaxed text-[#202121]">
-                <span className="font-bold">Uni-Inside</span> is a creative studio that focuses on creativity and dedicated <span className="font-bold">collaboration</span> to create wonderful piece of works.
-              </p>
-            </div>
-          </div>
+          <AboutIntroPresentation />
+          <AboutVisionMissionStoryPreview />
           <FilmRollSection filmRollXVal={filmRollXVal} isCursor={true} />
         </div>
       </div>
@@ -682,36 +660,8 @@ const PageContent = ({
           id="about-us"
           className="w-full flex flex-col"
         >
-          <div className="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center px-8 lg:px-12 py-32 min-h-screen">
-            <div className="flex flex-col">
-              <h2 className="text-[80px] sm:text-[100px] lg:text-[130px] font-black leading-[0.9] uppercase text-[#202121]">ABOUT</h2>
-              <div className="flex items-center mt-2">
-                <h2 className="text-[80px] sm:text-[100px] lg:text-[130px] font-black leading-[0.9] uppercase text-[#202121] mr-4">US</h2>
-                
-                <AboutRotatingIcon />
-
-                <motion.div
-                  animate={{ x: [0, 15, 0] }}
-                  transition={{ repeat: Infinity, duration: 1, ease: "easeInOut" }}
-                  className="flex-shrink-0"
-                >
-                  <ChevronRight className="w-14 h-14 sm:w-16 sm:h-16 lg:w-20 lg:h-20 text-[#202121]" strokeWidth={4} />
-                </motion.div>
-              </div>
-            </div>
-            
-            <motion.div 
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-100px" }}
-              transition={{ duration: 0.8, delay: 0.2 }}
-              className="flex items-center h-full"
-            >
-              <p className="text-2xl sm:text-3xl lg:text-4xl leading-relaxed text-[#202121]">
-                <span className="font-bold">Uni-Inside</span> is a creative studio that focuses on creativity and dedicated <span className="font-bold">collaboration</span> to create wonderful piece of works.
-              </p>
-            </motion.div>
-          </div>
+          <AboutIntro />
+          <AboutVisionMissionStory />
           <FilmRollSection filmRollXVal={filmRollXVal} isCursor={isCursor} />
         </div>
 
@@ -1185,11 +1135,6 @@ export default function App() {
   });
 
 
-  useEffect(() => {
-    const isDark = SECTION_LOGO_DARK[activeSection] === 1;
-    document.documentElement.style.setProperty('--scrollbar-thumb', isDark ? '#f0f0f0' : '#202121');
-  }, [activeSection]);
-
   const magX = useMotionTemplate`calc(-1 * ${cursorX}px + 75px)`;
   const magY = useMotionTemplate`calc(-1 * ${cursorY}px + 75px)`;
   const magTransformOrigin = useMotionTemplate`${cursorX}px ${cursorY}px`;
@@ -1354,6 +1299,7 @@ export default function App() {
         {/* The Glass */}
         <div className="absolute inset-0 rounded-full overflow-hidden border-8 border-[#202121] shadow-2xl">
           <motion.div
+            aria-hidden="true"
             style={{
               position: 'absolute',
               left: 0, top: 0,

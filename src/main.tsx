@@ -4,6 +4,7 @@ import { BrowserRouter, Route, Routes, useLocation, useNavigationType } from 're
 import { AnimatePresence, motion } from 'motion/react';
 import App from './App.tsx';
 import './index.css';
+import { AboutStoryProvider } from './components/AboutStoryProvider.tsx';
 
 const NewsPage = lazy(() => import('./pages/NewsPage').then(({ NewsPage: Page }) => ({ default: Page })));
 const MediaKitPage = lazy(() => import('./pages/MediaKitPage').then(({ MediaKitPage: Page }) => ({ default: Page })));
@@ -158,8 +159,10 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
       <RouteTransitionProvider>
-        <RouteDocumentState />
-        <AnimatedRoutes />
+        <AboutStoryProvider>
+          <RouteDocumentState />
+          <AnimatedRoutes />
+        </AboutStoryProvider>
       </RouteTransitionProvider>
     </BrowserRouter>
   </StrictMode>,
