@@ -8,10 +8,12 @@ import { AboutStoryProvider } from './components/AboutStoryProvider.tsx';
 
 const NewsPage = lazy(() => import('./pages/NewsPage').then(({ NewsPage: Page }) => ({ default: Page })));
 const MediaKitPage = lazy(() => import('./pages/MediaKitPage').then(({ MediaKitPage: Page }) => ({ default: Page })));
+const PromptGalleryPage = lazy(() => import('./pages/PromptGalleryPage').then(({ PromptGalleryPage: Page }) => ({ default: Page })));
 const ProductsPage = lazy(() => import('./pages/ProductsPage').then(({ ProductsPage: Page }) => ({ default: Page })));
 const ServicesPage = lazy(() => import('./pages/ServicesPage').then(({ ServicesPage: Page }) => ({ default: Page })));
 
 const routeTitles: Record<string, string> = {
+  '/prompt-gallery': 'Prompt Gallery | Uni-Inside',
   '/media-kit': 'Media Kit | Uni-Inside',
   '/products': 'Products | Uni-Inside',
   '/services': 'Services | Uni-Inside',
@@ -143,6 +145,7 @@ const AnimatedRoutes = () => {
           <Suspense fallback={<RouteFallback />}>
             <Routes location={location}>
               <Route path="/" element={<App />} />
+              <Route path="/prompt-gallery" element={<PromptGalleryPage />} />
               <Route path="/news" element={<NewsPage />} />
               <Route path="/media-kit" element={<MediaKitPage />} />
               <Route path="/products" element={<ProductsPage />} />

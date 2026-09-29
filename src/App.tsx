@@ -4,6 +4,7 @@ import { Twitter, Linkedin, Instagram } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import Lottie from 'lottie-react';
 import { AchievementsSection } from './components/AchievementsSection';
+import { PromptGalleryTeaser } from './components/PromptGalleryTeaser';
 import { Footer } from './components/Footer';
 import { ScrollStorySection, type ScrollStorySectionHandle } from './components/ScrollStorySection';
 import { HeroModelFrame } from './components/HeroModelFrame';
@@ -485,6 +486,7 @@ const PageContent = ({
   servicesRef,
   eventsRef,
   achievementsRef,
+  promptGalleryRef,
   contactRef,
   filmRollXVal,
   isCursor,
@@ -507,6 +509,7 @@ const PageContent = ({
   servicesRef?: React.RefObject<HTMLDivElement>,
   eventsRef?: React.RefObject<HTMLDivElement>,
   achievementsRef?: React.RefObject<HTMLDivElement>,
+  promptGalleryRef?: React.RefObject<HTMLDivElement>,
   contactRef?: React.RefObject<HTMLDivElement>,
   filmRollXVal?: any,
   isCursor?: boolean,
@@ -631,10 +634,7 @@ const PageContent = ({
             </p>
 
             <div className="flex flex-wrap justify-center lg:justify-start gap-4 mt-4">
-              <Link to="/media-kit" className="bg-[#f9d02d] text-[#202121] font-bold text-sm px-8 py-3.5 rounded-full uppercase tracking-wide hover:scale-105 transition-transform cursor-pointer">
-                Media Kit
-              </Link>
-              <Link to="/products" className="bg-transparent border-2 border-white text-white font-bold text-sm px-8 py-3.5 rounded-full uppercase tracking-wide hover:bg-white hover:text-[#202121] transition-all cursor-pointer">
+              <Link to="/products" className="bg-[#f9d02d] text-[#202121] font-bold text-sm px-8 py-3.5 rounded-full uppercase tracking-wide hover:scale-105 transition-transform cursor-pointer">
                 Products
               </Link>
               <Link to="/services" className="bg-transparent border-2 border-white text-white font-bold text-sm px-8 py-3.5 rounded-full uppercase tracking-wide hover:bg-white hover:text-[#202121] transition-all cursor-pointer">
@@ -695,8 +695,13 @@ const PageContent = ({
         <AchievementsSection />
       </div>
 
+      {/* Prompt Gallery Section */}
+      <div ref={promptGalleryRef} id="prompt-gallery" className="w-full relative z-10">
+        <PromptGalleryTeaser />
+      </div>
+
       {/* Spacer for Breathing Room */}
-      <div ref={achievementsContactTransitionRef} className="w-full min-h-[50vh]" />
+      <div ref={achievementsContactTransitionRef} className="w-full min-h-[30vh]" />
 
       {/* The wrapper reserves the section's full height on its own, so the lazy
           implementation never shifts layout. */}
@@ -761,6 +766,7 @@ export default function App() {
   const servicesRef = useRef<HTMLDivElement>(null);
   const eventsRef = useRef<HTMLDivElement>(null);
   const achievementsRef = useRef<HTMLDivElement>(null);
+  const promptGalleryRef = useRef<HTMLDivElement>(null);
   const contactRef = useRef<HTMLDivElement>(null);
   // Load the Contact implementation well before it can be reached so its audio
   // and rope physics are ready by the time the section is interactive. The
@@ -886,6 +892,7 @@ export default function App() {
       { id: 'about' as AppSectionId, ref: aboutRef },
       { id: 'team' as AppSectionId, ref: teamRef },
       { id: 'achievements' as AppSectionId, ref: achievementsRef },
+      { id: 'prompt-gallery' as AppSectionId, ref: promptGalleryRef },
       { id: 'contact' as AppSectionId, ref: contactRef },
     ];
 
@@ -1021,22 +1028,22 @@ export default function App() {
   const SECTION_BG: Record<string, string> = {
     hero: '#202121', about: '#f0f0f0', team: '#202121',
     products: '#f0f0f0', services: '#202121', events: '#f0f0f0',
-    achievements: '#202121', contact: '#f0f0f0',
+    achievements: '#202121', 'prompt-gallery': '#121212', contact: '#f0f0f0',
   };
   const SECTION_NAV_BG: Record<string, string> = {
     hero: 'rgba(32,33,33,0.85)', about: 'rgba(240,240,240,0.85)', team: 'rgba(32,33,33,0.85)',
     products: 'rgba(240,240,240,0.85)', services: 'rgba(32,33,33,0.85)', events: 'rgba(240,240,240,0.85)',
-    achievements: 'rgba(32,33,33,0.85)', contact: 'rgba(240,240,240,0.85)',
+    achievements: 'rgba(32,33,33,0.85)', 'prompt-gallery': 'rgba(18,18,18,0.85)', contact: 'rgba(240,240,240,0.85)',
   };
   const SECTION_NAV_TEXT: Record<string, string> = {
     hero: '#ffffff', about: '#202121', team: '#ffffff',
     products: '#202121', services: '#ffffff', events: '#202121',
-    achievements: '#ffffff', contact: '#202121',
+    achievements: '#ffffff', 'prompt-gallery': '#ffffff', contact: '#202121',
   };
   const SECTION_LOGO_DARK: Record<string, number> = {
     hero: 1, about: 0, team: 1,
     products: 0, services: 1, events: 0,
-    achievements: 1, contact: 0,
+    achievements: 1, 'prompt-gallery': 1, contact: 0,
   };
 
   const finalBg = useTransform(() => {
@@ -1147,8 +1154,9 @@ export default function App() {
       case 'products':     return 'PRODUCTS';
       case 'services':     return 'SERVICES';
       case 'events':       return 'NEWS';
-      case 'achievements': return 'ACHIEVEMENTS';
-      case 'contact':      return 'CONTACT US';
+      case 'achievements':   return 'ACHIEVEMENTS';
+      case 'prompt-gallery': return 'PROMPT GALLERY';
+      case 'contact':        return 'CONTACT US';
       default:             return null;
     }
   };
@@ -1176,14 +1184,14 @@ export default function App() {
 
       {/* Fixed Navbar */}
       <motion.nav 
-        className="fixed top-0 left-0 w-full flex justify-between items-center px-8 lg:px-12 py-8 z-[100]"
+        className="fixed top-0 left-0 w-full flex justify-center items-center px-8 lg:px-12 py-8 z-[100]"
         style={{
           backgroundColor: finalNavBg,
           backdropFilter: 'blur(12px)',
           WebkitBackdropFilter: 'blur(12px)'
         }}
       >
-        <a href="#" className="flex items-center gap-3 flex-shrink-0 cursor-pointer">
+        <a href="#" className="absolute left-8 lg:left-12 flex items-center gap-3 flex-shrink-0 cursor-pointer">
           <div className="relative w-[60px] h-[60px] sm:w-[66px] sm:h-[66px] flex items-center justify-center">
             <motion.img
               src={logoDarkTheme}
@@ -1200,8 +1208,8 @@ export default function App() {
           </div>
         </a>
 
-        <div className="hidden lg:flex items-center gap-5 xl:gap-8">
-          {['ABOUT US', 'OUR TEAM', 'PRODUCTS', 'SERVICES', 'NEWS', 'ACHIEVEMENTS', 'CONTACT US'].map((link) => {
+        <div className="hidden lg:flex items-center gap-4 xl:gap-6">
+          {['ABOUT US', 'OUR TEAM', 'PRODUCTS', 'SERVICES', 'NEWS', 'ACHIEVEMENTS', 'PROMPT GALLERY', 'CONTACT US'].map((link) => {
             const isHighlightActive = activeHighlight === link;
             const isStoryLink = link === 'PRODUCTS' || link === 'SERVICES' || link === 'NEWS';
             return (
@@ -1225,7 +1233,7 @@ export default function App() {
                     }
                   }
                 }}
-                className={`text-[12px] xl:text-[14px] font-[800] uppercase tracking-[0.12em] cursor-pointer transition-colors ${
+                className={`text-[15px] xl:text-[17px] font-[800] uppercase tracking-[0.12em] cursor-pointer transition-colors ${
                   isHighlightActive ? '!text-[#f9d02d]' : 'hover:!text-[#f9d02d]'
                 }`}
                 style={{
@@ -1239,11 +1247,24 @@ export default function App() {
           })}
         </div>
 
-        <div className="hidden sm:block">
-          <Link to="/media-kit" className="bg-[#f9d02d] text-[#202121] font-extrabold px-6 py-2.5 rounded-full text-xs uppercase tracking-wider hover:brightness-110 transition-all shadow-md cursor-pointer">
-            Media Kit
-          </Link>
-        </div>
+        {/* Media Kit Button */}
+        <motion.a
+          href="#media-kit"
+          className="absolute right-8 lg:right-12 hidden lg:flex items-center gap-2 px-5 py-2.5 rounded-full text-[13px] xl:text-[14px] font-[700] uppercase tracking-[0.1em] cursor-pointer transition-all duration-300 border border-white/30 hover:border-[#f9d02d] hover:bg-[#f9d02d]/10"
+          style={{
+            color: finalNavText,
+          }}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.97 }}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Media Kit
+        </motion.a>
+
       </motion.nav>
 
       {/* Main Page Content */}
@@ -1256,6 +1277,7 @@ export default function App() {
         servicesRef={servicesRef}
         eventsRef={eventsRef}
         achievementsRef={achievementsRef}
+        promptGalleryRef={promptGalleryRef}
         contactRef={contactRef}
         filmRollXVal={filmRollXVal}
         isCursor={false}

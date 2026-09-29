@@ -14,6 +14,7 @@ const navigation = [
   { label: 'SERVICES', to: '/services' },
   { label: 'NEWS', to: '/news' },
   { label: 'ACHIEVEMENTS', to: '/#achievements' },
+  { label: 'PROMPT GALLERY', to: '/prompt-gallery' },
   { label: 'CONTACT US', to: '/#contact-us' },
 ] as const;
 
@@ -63,14 +64,7 @@ export const StaticPageLayout: React.FC<StaticPageLayoutProps> = ({ activePage, 
         })}
       </div>
 
-      <Link
-        to="/media-kit"
-        className={`hidden rounded-full px-6 py-2.5 text-xs font-extrabold uppercase tracking-wider shadow-md transition-all hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f9d02d] focus-visible:ring-offset-2 focus-visible:ring-offset-[#202121] sm:block ${
-          activePage === 'MEDIA KIT' ? 'bg-white text-[#202121]' : 'bg-[#f9d02d] text-[#202121]'
-        }`}
-      >
-        Media Kit
-      </Link>
+
     </nav>
 
     <main id="main-content" tabIndex={-1} className="min-w-0 max-w-full flex-grow outline-none">
