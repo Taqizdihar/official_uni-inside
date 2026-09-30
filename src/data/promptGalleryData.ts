@@ -17,6 +17,64 @@ export interface PromptGalleryItem {
 
 export const promptGalleryData: PromptGalleryItem[] = [
   {
+    id: 'pg-fruit-aesthetic',
+    title: 'Foto Buah Estetik',
+    category: 'Commercial & Food Photography',
+    type: 'photo',
+    orientation: 'portrait',
+    aspectRatio: '9:16',
+    prompt: `Foto studio komersial Ultra HD super tajam (8k resolution, extreme crisp detail) berdasarkan buah pada gambar terlampir. Pertahankan warna kulit, serat, dan bentuk asli buah secara 100% akurat.
+
+Rasio & Orientasi: Potret vertikal 9:16.
+
+TATA LETAK SUBJEK & PIRING:
+- Piring Utama: Piring keramik putih bundar berukuran sedang, diletakkan tepat di tengah bingkai (centered composition), memenuhi sepertiga area bawah foto.
+- Isian Piring: Di dalam piring berisi kombinasi 1 buah utuh dan beberapa irisan buah segar yang tertata rapi menumpuk estetik.
+- Serbet/Kain: Piring dialasi kain serbet motif kotak-kotak (gingham napkin) yang terlipat sedikit acak-alami di bawah piring. Warna motif kotak-kotak otomatis serasi dengan warna buah.
+- Hiasan: Di luar piring bagian depan, ada 1 tangkai kecil daun hijau segar di atas permukaan latar putih.
+
+LATAR BELAKANG & PENCAHAYAAN:
+- Latar Belakang: Latar putih bertekstur kain/kertas halus yang sangat bersih.
+- Pencahayaan: High-key studio lighting yang terang, menonjolkan tekstur basah daging buah tanpa bayangan gelap.
+
+SPESIFIKASI KAMERA & KUALITAS HD:
+- Shot on Hasselblad H6D-100c, lensa 120mm f/4 Macro, sudut 45 derajat (high-angle close-up).
+- Fokus ultra-tajam, High Definition (HD crisp micro-details), serat daging buah sangat jelas, pore-level texture, kilap embun air realistis, tanpa efek CGI/plastik AI. --ar 9:16 --v 6.1 --style raw`,
+    negativePrompt: 'blurry, low quality, dark shadows, heavy contrast, plastic look, CGI render, cartoon, extra objects, oversaturated, deformed plate, dirty background, watermark',
+    model: 'Hasselblad Macro / Midjourney v6.1',
+    seed: '782194031',
+    src: '/images/buah-naga-estetik.jpg',
+    tags: ['Foto Buah Estetik', 'Buah Naga', 'Food Photography', 'Commercial Studio', '9:16', 'Hasselblad'],
+  },
+  {
+    id: 'pg-parfum-miss-dior',
+    title: 'Foto Studio Parfum',
+    category: 'Luxury Product',
+    type: 'photo',
+    orientation: 'portrait',
+    aspectRatio: '3:4',
+    prompt: `Foto studio komersial produk parfum profesional Ultra HD 8K super tajam (hyper-detailed, crisp focus, extreme clarity) yang mengunci 100% presisi produk dari gambar terlampir. DILARANG MENGUBAH ATAU MENGMODIFIKASI bentuk botol, tekstur kaca bening, warna cairan di dalam botol, warna dan bentuk tutup botol, serta posisi selang penyemprot dari foto referensi.
+
+RASIO & BINGKAI:
+- Orientasi Potret Vertikal Rasio 3:4.
+- Komposisi Simetris: Botol parfum diletakkan tepat di titik pusat bingkai (dead center) pada jarak menengah (medium shot), berdiri tegak lurus secara vertikal.
+
+SUBJEK UTAMA & DEKORASI TERKUNCI:
+- Botol Parfum Utama: Terletak di tengah, terbuat dari kaca tebal transparan dengan kilauan alami, berisi cairan parfum sesuai foto referensi.
+- Alas Kain Sutra: Botol berdiri di atas lipatan kain sutra satin halus yang mengalir secara alami. Warna kain DILOCK serasi dengan warna cairan parfum pada gambar terlampir (tone-on-tone matching).
+- Bunga & Aksesoris: Ditata secara simetris di sisi kiri dan kanan botol—terdiri dari bunga peoni/mawar putih yang mekar dan tangkai bunga baby's breath kecil di sampingnya. Tidak ada objek lain yang berceceran.
+
+PENCAHAYAAN & TEKSTUR (CAMERA LOOK):
+- Pencahayaan: High-key studio lighting dipadu dengan arah cahaya matahari alami dari jendela samping (side sunlight), membentuk pola bayangan lembut dan pantulan cahaya bening pada permukaan kaca botol.
+- Kualitas HD & Ketajaman: Ketajaman mikroskopis pada sudut kaca botol, kilap cairan, serat kelopak bunga, dan tekstur kain sutra.
+- Spesifikasi Kamera: Shot on Hasselblad H6D-100c, lensa Macro 120mm f/4, eye-level straight-on angle, f/8 aperture untuk memastikan seluruh area botol hingga bunga di sekitarnya dalam fokus tajam. Tanpa efek CGI, tanpa tekstur plastik buatan AI, murni estetika foto kamera asli (raw photo aesthetic). --ar 3:4 --v 6.1 --style raw`,
+    negativePrompt: 'blurry, low quality, dark shadows, plastic look, CGI render, cartoon, extra objects, deformed bottle, modified bow, altered typography, watermark',
+    model: 'Hasselblad Macro / Midjourney v6.1',
+    seed: '891240162',
+    src: '/images/parfum-miss-dior.jpg',
+    tags: ['Foto Studio Parfum', 'Miss Dior', 'Parfum Estetik', 'Luxury Product', '3:4', 'Hasselblad'],
+  },
+  {
     id: 'pg-1',
     title: 'Neon Cyberpunk Samurai in Neo-Tokyo',
     category: 'Character & Sci-Fi',

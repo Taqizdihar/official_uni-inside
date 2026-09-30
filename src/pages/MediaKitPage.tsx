@@ -1,5 +1,4 @@
 import { BackToLandingLink, StaticPageLayout } from '../components/StaticPageLayout';
-import { PromptGalleryGrid } from '../components/PromptGalleryGrid';
 import logoDarkTheme from '../assets/global/Logo - Dark Theme.svg';
 import logoLightTheme from '../assets/global/Logo - Light Theme.svg';
 
@@ -47,21 +46,6 @@ export const MediaKitPage = () => (
 
       <div className="flex min-h-80 items-center justify-center rounded-[2rem] bg-white p-12 shadow-[0_20px_50px_rgba(0,0,0,0.08)] sm:min-h-96">
         <img src={logoLightTheme} alt="Uni-Inside logo on a light background" width="1095" height="1095" className="h-52 w-52 max-w-full object-contain sm:h-64 sm:w-64" />
-      </div>
-    </section>
-
-    {/* Interactive Prompt Gallery & Media Hub */}
-    <section id="gallery-hub" className="bg-[#f0f0f0] border-t border-black/5 px-6 py-20 sm:px-10 lg:px-12 lg:py-28">
-      <div className="mx-auto max-w-7xl">
-        <div className="mb-12 text-center max-w-3xl mx-auto">
-          <p className="text-sm font-extrabold uppercase tracking-[0.2em] text-[#202121]/60">Interactive Gallery & Media Assets</p>
-          <h2 className="mt-3 text-4xl font-black text-[#202121] sm:text-6xl">Prompt & Media Hub</h2>
-          <p className="mt-4 text-base sm:text-lg text-[#202121]/75 leading-relaxed">
-            Eksplorasi koleksi visual resmi Uni-Inside. Pilih antara format Foto, Video, Potret (9:16/3:4), dan Landscape (16:9) dengan UI adaptif dan parameter prompt yang siap disalin.
-          </p>
-        </div>
-
-        <PromptGalleryGrid />
       </div>
     </section>
 

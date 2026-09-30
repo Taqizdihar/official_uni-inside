@@ -1208,7 +1208,7 @@ export default function App() {
           </div>
         </a>
 
-        <div className="hidden lg:flex items-center gap-4 xl:gap-6">
+        <div className="hidden lg:flex items-center gap-5 xl:gap-7">
           {['ABOUT US', 'OUR TEAM', 'PRODUCTS', 'SERVICES', 'NEWS', 'ACHIEVEMENTS', 'PROMPT GALLERY', 'CONTACT US'].map((link) => {
             const isHighlightActive = activeHighlight === link;
             const isStoryLink = link === 'PRODUCTS' || link === 'SERVICES' || link === 'NEWS';
@@ -1233,7 +1233,7 @@ export default function App() {
                     }
                   }
                 }}
-                className={`text-[15px] xl:text-[17px] font-[800] uppercase tracking-[0.12em] cursor-pointer transition-colors ${
+                className={`text-[13px] xl:text-[14px] font-[800] uppercase tracking-[0.12em] cursor-pointer transition-colors ${
                   isHighlightActive ? '!text-[#f9d02d]' : 'hover:!text-[#f9d02d]'
                 }`}
                 style={{
@@ -1248,22 +1248,14 @@ export default function App() {
         </div>
 
         {/* Media Kit Button */}
-        <motion.a
-          href="#media-kit"
-          className="absolute right-8 lg:right-12 hidden lg:flex items-center gap-2 px-5 py-2.5 rounded-full text-[13px] xl:text-[14px] font-[700] uppercase tracking-[0.1em] cursor-pointer transition-all duration-300 border border-white/30 hover:border-[#f9d02d] hover:bg-[#f9d02d]/10"
-          style={{
-            color: finalNavText,
-          }}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.97 }}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="7 10 12 15 17 10" />
-            <line x1="12" y1="15" x2="12" y2="3" />
-          </svg>
-          Media Kit
-        </motion.a>
+        <div className="absolute right-8 lg:right-12 hidden sm:block">
+          <Link
+            to="/media-kit"
+            className="bg-[#f9d02d] text-[#202121] font-extrabold px-6 py-2.5 rounded-full text-xs uppercase tracking-wider hover:brightness-110 transition-all shadow-md cursor-pointer inline-flex items-center"
+          >
+            Media Kit
+          </Link>
+        </div>
 
       </motion.nav>
 
