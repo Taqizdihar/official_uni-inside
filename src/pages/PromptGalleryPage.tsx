@@ -14,6 +14,8 @@ import { promptGalleryData, type PromptGalleryItem } from '../data/promptGallery
 import { GeminiPromptSection } from '../components/GeminiPromptSection';
 import { type GeneratedPromptResult } from '../lib/geminiPromptService';
 
+import { getLocalPrompts, saveLocalPrompts } from '../lib/cmsApi';
+
 type FilterCategory = 'ALL' | 'PORTRAIT' | 'PRODUCT' | 'REELS' | 'LANDSCAPE' | 'CINEMATIC' | '3D';
 
 const FILTER_OPTIONS: { id: FilterCategory; label: string }[] = [
@@ -31,7 +33,12 @@ export const PromptGalleryPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<PromptGalleryItem | null>(null);
-  const [customItems, setCustomItems] = useState<PromptGalleryItem[]>([]);
+  const [galleryItems, setGalleryItems] = useState<PromptGalleryItem[]>(() => getLocalPrompts());
+
+  // Reload prompts if local storage changes
+  React.useEffect(() => {
+    setGalleryItems(getLocalPrompts());
+  }, []);
 
   const handleAddGeneratedItem = (generated: GeneratedPromptResult) => {
     const newItem: PromptGalleryItem = {
@@ -50,12 +57,14 @@ export const PromptGalleryPage: React.FC = () => {
         : 'https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=800&q=80'),
       tags: generated.tags,
     };
-    setCustomItems((prev) => [newItem, ...prev]);
+    const updated = [newItem, ...galleryItems];
+    setGalleryItems(updated);
+    saveLocalPrompts(updated);
   };
 
   // Filter logic ensuring all tabs and search keywords have relevant content
   const filteredItems = useMemo(() => {
-    let items = [...customItems, ...promptGalleryData];
+    let items = [...galleryItems];
 
     if (activeFilter !== 'ALL') {
       items = items.filter((item) => {
