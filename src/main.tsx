@@ -8,14 +8,18 @@ import { AboutStoryProvider } from './components/AboutStoryProvider.tsx';
 
 const NewsPage = lazy(() => import('./pages/NewsPage').then(({ NewsPage: Page }) => ({ default: Page })));
 const MediaKitPage = lazy(() => import('./pages/MediaKitPage').then(({ MediaKitPage: Page }) => ({ default: Page })));
+const PromptGalleryPage = lazy(() => import('./pages/PromptGalleryPage').then(({ PromptGalleryPage: Page }) => ({ default: Page })));
 const ProductsPage = lazy(() => import('./pages/ProductsPage').then(({ ProductsPage: Page }) => ({ default: Page })));
 const ServicesPage = lazy(() => import('./pages/ServicesPage').then(({ ServicesPage: Page }) => ({ default: Page })));
+const AdminPage = lazy(() => import('./pages/AdminPage').then(({ AdminPage: Page }) => ({ default: Page })));
 
 const routeTitles: Record<string, string> = {
+  '/prompt-gallery': 'Prompt Gallery | Uni-Inside',
   '/media-kit': 'Media Kit | Uni-Inside',
   '/products': 'Products | Uni-Inside',
   '/services': 'Services | Uni-Inside',
   '/news': 'News | Uni-Inside',
+  '/admin': 'Admin CMS | Uni-Inside',
 };
 
 const landingScrollPositions = new Map<string, number>();
@@ -143,10 +147,12 @@ const AnimatedRoutes = () => {
           <Suspense fallback={<RouteFallback />}>
             <Routes location={location}>
               <Route path="/" element={<App />} />
+              <Route path="/prompt-gallery" element={<PromptGalleryPage />} />
               <Route path="/news" element={<NewsPage />} />
               <Route path="/media-kit" element={<MediaKitPage />} />
               <Route path="/products" element={<ProductsPage />} />
               <Route path="/services" element={<ServicesPage />} />
+              <Route path="/admin" element={<AdminPage />} />
             </Routes>
           </Suspense>
         </motion.div>

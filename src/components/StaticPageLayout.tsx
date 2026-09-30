@@ -4,7 +4,7 @@ import { Footer } from './Footer';
 import logoDarkTheme from '../assets/global/Logo - Dark Theme.svg';
 
 type StaticPageLayoutProps = PropsWithChildren<{
-  activePage: 'MEDIA KIT' | 'PRODUCTS' | 'SERVICES';
+  activePage?: 'MEDIA KIT' | 'PRODUCTS' | 'SERVICES' | 'NEWS' | 'PROMPT GALLERY';
 }>;
 
 const navigation = [
@@ -14,6 +14,7 @@ const navigation = [
   { label: 'SERVICES', to: '/services' },
   { label: 'NEWS', to: '/news' },
   { label: 'ACHIEVEMENTS', to: '/#achievements' },
+  { label: 'PROMPT GALLERY', to: '/prompt-gallery' },
   { label: 'CONTACT US', to: '/#contact-us' },
 ] as const;
 
@@ -33,14 +34,14 @@ export const StaticPageLayout: React.FC<StaticPageLayoutProps> = ({ activePage, 
   <div className="relative z-50 flex min-h-screen w-screen max-w-screen min-w-0 flex-col overflow-x-hidden bg-[#f0f0f0]">
     <nav
       aria-label="Primary navigation"
-      className="fixed top-0 left-0 z-[100] flex w-full items-center justify-between px-8 py-8 lg:px-12"
+      className="fixed top-0 left-0 z-[100] flex w-full items-center justify-center px-8 py-8 lg:px-12"
       style={{
         backgroundColor: 'rgba(32,33,33,0.85)',
         backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',
       }}
     >
-      <Link to="/" aria-label="Uni-Inside home" className="flex flex-shrink-0 items-center gap-3 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f9d02d] focus-visible:ring-offset-2 focus-visible:ring-offset-[#202121]">
+      <Link to="/" aria-label="Uni-Inside home" className="absolute left-8 lg:left-12 flex flex-shrink-0 items-center gap-3 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f9d02d] focus-visible:ring-offset-2 focus-visible:ring-offset-[#202121]">
         <span className="relative flex h-[60px] w-[60px] items-center justify-center sm:h-[66px] sm:w-[66px]">
           <img src={logoDarkTheme} alt="Uni-Inside Logo" className="absolute inset-0 h-full w-full object-contain" />
         </span>
@@ -63,14 +64,11 @@ export const StaticPageLayout: React.FC<StaticPageLayoutProps> = ({ activePage, 
         })}
       </div>
 
-      <Link
-        to="/media-kit"
-        className={`hidden rounded-full px-6 py-2.5 text-xs font-extrabold uppercase tracking-wider shadow-md transition-all hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f9d02d] focus-visible:ring-offset-2 focus-visible:ring-offset-[#202121] sm:block ${
-          activePage === 'MEDIA KIT' ? 'bg-white text-[#202121]' : 'bg-[#f9d02d] text-[#202121]'
-        }`}
-      >
-        Media Kit
-      </Link>
+        <div className="absolute right-8 lg:right-12 hidden sm:block">
+          <Link to="/media-kit" className="bg-[#f9d02d] text-[#202121] font-extrabold px-6 py-2.5 rounded-full text-xs uppercase tracking-wider hover:brightness-110 transition-all shadow-md cursor-pointer">
+            Media Kit
+          </Link>
+        </div>
     </nav>
 
     <main id="main-content" tabIndex={-1} className="min-w-0 max-w-full flex-grow outline-none">

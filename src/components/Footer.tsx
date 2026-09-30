@@ -123,10 +123,16 @@ export const Footer = () => {
         </div>
 
         {/* Copyright */}
-        <div className="w-full mt-20 pt-8 border-t border-[#333] flex flex-col justify-center items-center gap-4">
+        <div className="w-full mt-20 pt-8 border-t border-[#333] flex flex-col sm:flex-row justify-between items-center gap-4">
           <p className="text-gray-500 text-xs font-semibold tracking-wider">
             © {currentYear} UNI-INSIDE. ALL RIGHTS RESERVED.
           </p>
+          <a
+            href="/admin"
+            className="text-gray-600 hover:text-gray-400 text-xs transition-colors duration-200 flex items-center gap-1"
+          >
+            <span>🔐</span> Admin Portal
+          </a>
         </div>
       </div>
     </footer>
