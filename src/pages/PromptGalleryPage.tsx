@@ -47,7 +47,7 @@ export const PromptGalleryPage: React.FC = () => {
       category: generated.category,
       type: 'photo',
       orientation: generated.aspectRatio === '16:9' ? 'landscape' : 'portrait',
-      aspectRatio: generated.aspectRatio,
+      aspectRatio: generated.aspectRatio as PromptGalleryItem['aspectRatio'],
       prompt: generated.prompt,
       negativePrompt: generated.negativePrompt,
       model: 'Google Gemini AI',

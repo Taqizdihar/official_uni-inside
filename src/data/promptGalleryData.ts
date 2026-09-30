@@ -4,7 +4,7 @@ export interface PromptGalleryItem {
   category: string;
   type: 'photo' | 'video';
   orientation: 'portrait' | 'landscape';
-  aspectRatio: '9:16' | '3:4' | '16:9' | '21:9';
+  aspectRatio: '9:16' | '3:4' | '16:9' | '21:9' | '1:1';
   prompt: string;
   negativePrompt?: string;
   model: string;
