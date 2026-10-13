@@ -1,5 +1,6 @@
 import React, { forwardRef } from 'react';
 import { motion } from 'motion/react';
+import { Link } from 'react-router-dom';
 import craftsLogo from '../assets/global/Uni-Inside Crafts.svg';
 
 export const OurProductsSection = forwardRef<HTMLDivElement, {}>((props, ref) => {
@@ -28,15 +29,20 @@ export const OurProductsSection = forwardRef<HTMLDivElement, {}>((props, ref) =>
       >
         Discover our products, souvenirs, and more!
       </motion.p>
-      <motion.button 
+      <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         whileInView={{ opacity: 1, scale: 1 }}
         viewport={{ once: false, margin: "-100px" }}
         transition={{ duration: 0.8, delay: 0.4 }}
-        className="mt-12 bg-[#f9d02d] text-[#202121] font-extrabold text-lg sm:text-xl px-10 py-4 rounded-full hover:scale-105 transition-transform cursor-pointer shadow-lg"
+        className="mt-12"
       >
-        Check our catalogue
-      </motion.button>
+        <Link
+          to="/products"
+          className="inline-flex rounded-full bg-[#f9d02d] px-10 py-4 text-lg font-extrabold text-[#202121] shadow-lg transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#202121] focus-visible:ring-offset-2 sm:text-xl"
+        >
+          Check our catalogue
+        </Link>
+      </motion.div>
     </div>
   );
 });

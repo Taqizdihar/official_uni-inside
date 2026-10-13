@@ -1,6 +1,6 @@
 {
-  "name": "",
-  "description": "",
+  "name": "Uni-Inside Studio",
+  "description": "Official website for Uni-Inside Studio, a creative technology startup providing multimedia production, digital solutions, and custom 3D-printed products through Uni-Inside Craft.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": []
 }
