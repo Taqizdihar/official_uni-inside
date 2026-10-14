@@ -16,36 +16,44 @@ export function buildCraftRoom(context: RoomBuilderContext) {
     return group;
   }
 
-  function table(x: number, z: number, width: number, depth: number, surface: 'ivory' | 'yellow' = 'ivory') {
-    furniture.box(surface, [width, 0.12, depth], [x, 0.99, z]);
-    furniture.box('charcoal', [width - 0.1, 0.13, 0.08], [x, 0.88, z + depth / 2 - 0.07]);
+  function table(x: number, z: number, width: number, depth: number, surface: 'ivory' | 'yellow' = 'ivory', yaw = 0) {
+    const frame = context.batch();
+    frame.box(surface, [width, 0.12, depth], [0, 0.99, 0]);
+    frame.box('charcoal', [width - 0.1, 0.13, 0.08], [0, 0.88, depth / 2 - 0.07]);
     for (const dx of [-width / 2 + 0.09, width / 2 - 0.09]) {
       for (const dz of [-depth / 2 + 0.08, depth / 2 - 0.08]) {
-        furniture.box('charcoal', [0.075, 0.94, 0.075], [x + dx, 0.47, z + dz]);
+        frame.box('charcoal', [0.075, 0.94, 0.075], [dx, 0.47, dz]);
       }
     }
+    furniture.append(frame, yaw, [x, 0, z]);
   }
 
-  // An offset printer bench and two distinct working surfaces leave the entry open.
-  table(1.65, 2.65, 1.8, 0.95, 'yellow');
-  furniture.box('charcoal', [0.46, 0.81, 0.62], [2.15, 0.435, 2.65]);
+  // The desks track the angled walls; the finishing station remains separate.
+  const printerBench: Point = [2.65, 0, 1.4];
+  const designDesk: Point = [-2.55, 0, 1.3];
+  table(printerBench[0], printerBench[2], 1.8, 0.95, 'yellow', -Math.PI / 4);
+  const printerStorage = context.batch();
+  printerStorage.box('charcoal', [0.46, 0.81, 0.62], [0.5, 0.435, 0]);
   for (const y of [0.26, 0.49, 0.72]) {
-    furniture.box('black', [0.4, 0.012, 0.016], [2.15, y, 2.968]);
-    furniture.box('metal', [0.13, 0.02, 0.025], [2.15, y + 0.065, 2.982]);
+    printerStorage.box('black', [0.4, 0.012, 0.016], [0.5, y, 0.318]);
+    printerStorage.box('metal', [0.13, 0.02, 0.025], [0.5, y + 0.065, 0.332]);
   }
-  furniture.box('charcoal', [0.39, 0.29, 0.5], [1.1, 0.18, 2.62]);
-  furniture.box('metal', [0.14, 0.025, 0.03], [1.1, 0.333, 2.88]);
-  table(-1.7, 1.42, 1.4, 0.84);
+  printerStorage.box('charcoal', [0.39, 0.29, 0.5], [-0.55, 0.18, -0.03]);
+  printerStorage.box('metal', [0.14, 0.025, 0.03], [-0.55, 0.333, 0.23]);
+  furniture.append(printerStorage, -Math.PI / 4, printerBench);
+  table(designDesk[0], designDesk[2], 1.4, 0.84, 'ivory', Math.PI / 4);
   table(0, 0.85, 1.63, 0.76, 'yellow');
-  furniture.box('yellow', [0.49, 0.09, 0.43], [-1.7, 0.53, 2.23]);
-  furniture.box('charcoal', [0.49, 0.5, 0.09], [-1.7, 0.82, 2.43], [-0.1, 0, 0]);
-  furniture.box('yellow', [0.34, 0.24, 0.045], [-1.7, 0.91, 2.485], [-0.1, 0, 0]);
-  furniture.cylinder('metal', 0.045, 0.48, [-1.7, 0.25, 2.23]);
+  const designChair = context.batch();
+  designChair.box('yellow', [0.49, 0.09, 0.43], [0, 0.53, 1.03]);
+  designChair.box('charcoal', [0.49, 0.5, 0.09], [0, 0.82, 1.23], [-0.1, 0, 0]);
+  designChair.box('yellow', [0.34, 0.24, 0.045], [0, 0.91, 1.285], [-0.1, 0, 0]);
+  designChair.cylinder('metal', 0.045, 0.48, [0, 0.25, 1.03]);
   for (const angle of [0, Math.PI / 2, Math.PI, Math.PI * 1.5]) {
-    furniture.beam('metal', [-1.7, 0.08, 2.23], [-1.7 + Math.cos(angle) * 0.26, 0.06, 2.23 + Math.sin(angle) * 0.26], 0.045);
+    designChair.beam('metal', [0, 0.08, 1.03], [Math.cos(angle) * 0.26, 0.06, 1.03 + Math.sin(angle) * 0.26], 0.045);
   }
+  furniture.append(designChair, Math.PI / 4, designDesk);
 
-  const printer = object('printer', [1.65, 1.055, 2.65]);
+  const printer = object('printer', [printerBench[0], 1.055, printerBench[2]], -Math.PI / 4);
   const printerBody = context.batch();
   printerBody.box('black', [1.22, 0.095, 0.7], [0, 0.052, -0.025]);
   printerBody.box('charcoal', [0.35, 0.07, 0.78], [-0.395, 0.12, 0.015]);
@@ -67,7 +75,7 @@ export function buildCraftRoom(context: RoomBuilderContext) {
   printerBody.beam('yellow', [0.37, 1.2, -0.23], [0.29, 1.3, -0.15], 0.02);
   printerBody.beam('yellow', [0.29, 1.3, -0.15], [0, 0.87, -0.11], 0.016);
   printerBody.beam('metal', [0.48, 0.99, -0.24], [0.68, 0.99, -0.24], 0.035);
-  furniture.append(printerBody, 0, [1.65, 1.055, 2.65]);
+  furniture.append(printerBody, -Math.PI / 4, [printerBench[0], 1.055, printerBench[2]]);
   const printerHits: THREE.Object3D[] = [];
 
   const printBed = new THREE.Group();
@@ -100,7 +108,7 @@ export function buildCraftRoom(context: RoomBuilderContext) {
   printerHits.push(...feed.compileColored(feedSpool, 'craft-feed-spool'));
   context.register('printer', printHead, [0, 0, 0.145], printerHits);
 
-  const design = object('design', [-1.7, 1.055, 1.22]);
+  const design = object('design', [designDesk[0], 1.055, designDesk[2]], Math.PI / 4);
   const monitor = context.batch();
   monitor.box('charcoal', [0.95, 0.58, 0.075], [0, 0.48, 0]);
   monitor.box('charcoal', [0.07, 0.23, 0.07], [0, 0.15, 0]);
@@ -114,7 +122,7 @@ export function buildCraftRoom(context: RoomBuilderContext) {
   }
   monitor.box('yellow', [0.1, 0.013, 0.02], [-0.16, 0.285, 0.063]);
   monitor.box('yellow', [0.013, 0.105, 0.02], [-0.205, 0.332, 0.063]);
-  furniture.append(monitor, 0, [-1.7, 1.055, 1.22]);
+  furniture.append(monitor, Math.PI / 4, [designDesk[0], 1.055, designDesk[2]]);
   const designScreen = context.batch();
   designScreen.box('screen', [0.86, 0.48, 0.012], [0, 0.48, 0.045]);
   const designHits: THREE.Object3D[] = designScreen.compile(design, 'craft-design-screen');
@@ -160,7 +168,7 @@ export function buildCraftRoom(context: RoomBuilderContext) {
   paintingHits.push(...brushParts.compileColored(brush, 'craft-paint-brush'));
   context.register('painting', brush, [0, 0.1, 0.035], paintingHits);
 
-  const filament = object('filament', [2.78, 0, 1.05], -Math.PI / 4);
+  const filament = object('filament', [1.2, 0, 0.8], -Math.PI / 4);
   const rack = context.batch();
   for (const x of [-0.28, 0.28]) {
     rack.box('charcoal', [0.05, 2.25, 0.055], [x, 1.125, -0.13]);
@@ -169,7 +177,7 @@ export function buildCraftRoom(context: RoomBuilderContext) {
     rack.box('charcoal', [0.62, 0.052, 0.34], [0, height, 0]);
   }
   rack.box('yellow', [0.62, 0.035, 0.055], [0, 2.305, 0.16]);
-  furniture.append(rack, -Math.PI / 4, [2.78, 0, 1.05]);
+  furniture.append(rack, -Math.PI / 4, [1.2, 0, 0.8]);
   const filamentHits: THREE.Object3D[] = [];
   const spoolCoreGeometry = new THREE.CylinderGeometry(0.13, 0.13, 0.14, 8);
   const spoolFlange = new THREE.Shape();

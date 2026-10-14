@@ -62,9 +62,10 @@ function hotspotGroup(anchor: THREE.Object3D, id: HotspotId) {
   return object;
 }
 
-function snapshot(group: THREE.Object3D, includeMaterials = true) {
+function snapshot(group: THREE.Object3D, includeMaterials = true, excludeName?: string) {
   const values: number[] = [];
   group.traverse((object) => {
+    if (object.name === excludeName) return;
     values.push(...object.position.toArray(), ...object.quaternion.toArray(), ...object.scale.toArray());
     if (object instanceof THREE.InstancedMesh) values.push(...object.instanceMatrix.array);
     if (!includeMaterials || !(object instanceof THREE.Mesh)) return;
@@ -146,6 +147,7 @@ test('each selected object animates alone and returns to rest after deactivation
           return [objectId, hotspotGroup(hotspot.anchor, objectId)] as const;
         }));
         const baseline = new Map([...groups].map(([objectId, group]) => [objectId, snapshot(group)] as const));
+        const restingDrone = id === 'drone' ? snapshot(groups.get('drone')!, true, 'drone-propellers') : null;
         let time = 0;
         for (let frame = 0; frame < 60; frame += 1) diorama.update(id, time += 1 / 60, 1 / 60, false);
         assert.ok(largestDifference(baseline.get(id)!, snapshot(groups.get(id)!)) > 0.0001, `${id} must respond with an object animation`);
@@ -155,7 +157,16 @@ test('each selected object animates alone and returns to rest after deactivation
         }
         let needsFrame = true;
         for (let frame = 0; frame < 300; frame += 1) needsFrame = diorama.update(null, time += 1 / 60, 1 / 60, false);
-        assert.ok(largestDifference(baseline.get(id)!, snapshot(groups.get(id)!)) < 0.0001, `${id} must return to its baseline`);
+        if (id === 'drone') {
+          const group = groups.get(id)!;
+          assert.ok(largestDifference(restingDrone!, snapshot(group, true, 'drone-propellers')) < 0.0001, 'drone body must return to its baseline');
+          const propellers = group.getObjectByName('drone-propellers') as THREE.InstancedMesh;
+          const stoppedAngle = Array.from(propellers.instanceMatrix.array);
+          for (let frame = 0; frame < 60; frame += 1) diorama.update(null, time += 1 / 60, 1 / 60, false);
+          assert.deepEqual(Array.from(propellers.instanceMatrix.array), stoppedAngle, 'propellers must retain their stopped angle without snapping');
+        } else {
+          assert.ok(largestDifference(baseline.get(id)!, snapshot(groups.get(id)!)) < 0.0001, `${id} must return to its baseline`);
+        }
         assert.equal(needsFrame, false, 'the demand scheduler must be able to stop when all objects rest');
       } finally {
         diorama.dispose();

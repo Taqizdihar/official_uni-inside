@@ -6,6 +6,7 @@ import { AchievementsSection } from './components/AchievementsSection';
 import { Footer } from './components/Footer';
 import { ScrollStorySection, type ScrollStorySectionHandle } from './components/ScrollStorySection';
 import { IsometricHero } from './components/hero/IsometricHero';
+import navbarStyles from './components/Navbar.module.css';
 import { AboutIntro, AboutIntroPresentation, AboutVisionMissionStory, AboutVisionMissionStoryPreview } from './components/AboutPresentation';
 import { useNearViewportOnce } from './hooks/useNearViewportOnce';
 import { type AppSectionId } from './components/ThemeController';
@@ -1023,7 +1024,7 @@ export default function App() {
 
       {/* Fixed Navbar */}
       <motion.nav 
-        className="fixed top-0 left-0 w-full flex justify-between items-center px-8 lg:px-12 py-8 z-[100]"
+        className="fixed top-0 left-0 w-full flex justify-between items-center px-8 lg:px-12 py-3 z-[100]"
         style={{
           backgroundColor: finalNavBg,
           backdropFilter: 'blur(12px)',
@@ -1047,7 +1048,7 @@ export default function App() {
           </div>
         </a>
 
-        <div className="hidden lg:flex items-center gap-5 xl:gap-8">
+        <div className="hidden lg:flex items-center gap-[clamp(1.375rem,2vw,2.5rem)]">
           {['ABOUT US', 'OUR TEAM', 'PRODUCTS', 'SERVICES', 'NEWS', 'ACHIEVEMENTS', 'CONTACT US'].map((link) => {
             const isHighlightActive = activeHighlight === link;
             const isStoryLink = link === 'PRODUCTS' || link === 'SERVICES' || link === 'NEWS';
@@ -1072,7 +1073,7 @@ export default function App() {
                     }
                   }
                 }}
-                className={`text-[12px] xl:text-[14px] font-[800] uppercase tracking-[0.12em] cursor-pointer transition-colors ${
+                className={`text-[12px] xl:text-[14px] font-[800] uppercase tracking-[0.025em] cursor-pointer transition-colors ${
                   isHighlightActive ? '!text-[#f9d02d]' : 'hover:!text-[#f9d02d]'
                 }`}
                 style={{
@@ -1087,8 +1088,8 @@ export default function App() {
         </div>
 
         <div className="hidden sm:block">
-          <Link to="/media-kit" className="bg-[#f9d02d] text-[#202121] font-extrabold px-6 py-2.5 rounded-full text-xs uppercase tracking-wider hover:brightness-110 transition-all shadow-md cursor-pointer">
-            Media Kit
+          <Link to="/media-kit" className={`${navbarStyles.mediaKit} bg-[#f9d02d] text-[#202121] font-extrabold px-6 py-2.5 rounded-full text-xs uppercase tracking-wider hover:brightness-110 transition-all shadow-md cursor-pointer`}>
+            <span>Media Kit</span>
           </Link>
         </div>
       </motion.nav>

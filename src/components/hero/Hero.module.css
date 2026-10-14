@@ -7,7 +7,7 @@
   width: 100%;
   height: 100svh;
   min-height: 650px;
-  padding: 142px clamp(32px, 5.5vw, 128px) 45px;
+  padding: 112px clamp(32px, 5.5vw, 128px) 45px;
   overflow: hidden;
   isolation: isolate;
   color: #f8f8f4;
@@ -68,7 +68,7 @@
 .stage {
   position: absolute;
   z-index: auto;
-  top: 140px;
+  top: 110px;
   right: 0;
   bottom: 20px;
   left: 0;
@@ -86,6 +86,29 @@
   height: 100%;
   outline: none;
 }
+
+.introLogos {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.introLogo {
+  position: absolute;
+  top: 50%;
+  width: clamp(120px, 16vw, 300px);
+  max-height: 38%;
+  object-fit: contain;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate3d(-50%, -50%, 0);
+  will-change: transform, opacity;
+}
+
+.introStudio { left: 17%; }
+.introCraft { left: 83%; }
 
 .trust {
   display: grid;
@@ -106,7 +129,7 @@
   align-items: baseline;
   height: 1.08em;
   color: var(--hero-yellow);
-  font-family: Verdana, 'Trebuchet MS', Arial, sans-serif;
+  font-family: 'Poppins', ui-sans-serif, system-ui, sans-serif;
   font-size: clamp(44px, 3.8vw, 76px);
   font-weight: 800;
   font-variant-numeric: tabular-nums;
@@ -160,7 +183,7 @@
   display: block;
   margin-top: 9px;
   color: #f4f4f1;
-  font-family: Verdana, 'Trebuchet MS', Arial, sans-serif;
+  font-family: 'Poppins', ui-sans-serif, system-ui, sans-serif;
   font-size: clamp(12px, 0.87vw, 17px);
   font-weight: 800;
   line-height: 1.3;
@@ -305,6 +328,58 @@
   inset: 0;
   z-index: 3;
   pointer-events: none;
+}
+
+.radar {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.radarMarker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 8px;
+  height: 8px;
+  visibility: hidden;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.radarPoint {
+  display: block;
+  width: 8px;
+  height: 8px;
+  border: 1px solid #202121b0;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 1px #fff6, 0 1px 4px #0008;
+}
+
+.radarRing {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 30px;
+  height: 30px;
+  margin: -15px 0 0 -15px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  opacity: 0;
+  transform: scale(0.2);
+  pointer-events: none;
+}
+
+.stage[data-radar-active='true'][data-radar-ready='true'][data-scene-visible='true'][data-showcase-active='false'] .radarRing {
+  animation: radarPulse 9s linear infinite;
+  animation-delay: calc(var(--radar-index, 0) * 1.2s);
+}
+
+.radarMarker[data-showcase-selected='true'] .radarRing {
+  opacity: 0.85;
+  transform: scale(0.8);
 }
 
 .hotspot {
@@ -490,6 +565,12 @@
   to { opacity: 1; stroke-width: 2.5; }
 }
 
+@keyframes radarPulse {
+  0% { opacity: 0.75; transform: scale(0.2); }
+  12.4% { opacity: 0; transform: scale(1.35); }
+  12.5%, 100% { opacity: 0; transform: scale(1.35); }
+}
+
 @keyframes calloutEntrance {
   0% { opacity: 0; transform: translateY(3px) scale(0.98); }
   38% { opacity: 0.9; }
@@ -503,7 +584,7 @@
 }
 
 @media (min-width: 768px) and (max-height: 780px) {
-  .hero { min-height: 620px; padding-top: 140px; padding-bottom: 32px; }
+  .hero { min-height: 620px; padding-top: 110px; padding-bottom: 32px; }
   .title { font-size: clamp(42px, 4.2vw, 61px); line-height: 1.06; }
   .description { margin-top: 20px; font-size: clamp(16px, 1.32vw, 19px); }
   .trust { margin-top: 24px; gap: clamp(18px, 2vw, 30px); }
@@ -539,7 +620,7 @@
     align-content: start;
     height: auto;
     min-height: 100svh;
-    padding: 145px 24px max(32px, env(safe-area-inset-bottom));
+    padding: 110px 24px max(32px, env(safe-area-inset-bottom));
   }
   .headingCopy { grid-area: copy; width: 100%; }
   .title { max-width: 560px; font-size: clamp(38px, 9.6vw, 57px); line-height: 1.14; }
@@ -555,6 +636,9 @@
     aspect-ratio: 1.08;
     margin: 14px -12px 0;
   }
+  .introLogo { width: clamp(58px, 16vw, 96px); max-height: 28%; }
+  .introStudio { left: 10%; }
+  .introCraft { left: 90%; }
   .trust { grid-area: trust; width: 100%; margin-top: 16px; gap: 12px; }
   .counterValue { font-size: clamp(40px, 10.7vw, 57px); }
   .counterLabel { margin-top: 7px; font-size: 11px; }
@@ -577,4 +661,5 @@
 @media (prefers-reduced-motion: reduce) {
   .hero *, .hero *::before, .hero *::after { animation: none !important; transition-duration: 1ms !important; }
   .reelRolling { transform: translateY(calc(-1em * var(--digit-final))); }
+  .radarRing { opacity: 0 !important; }
 }

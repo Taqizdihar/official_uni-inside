@@ -19,10 +19,17 @@ interface HeroSceneOptions {
   onFallback: () => void;
   onHover: (id: HotspotId | null) => void;
   project: (points: ProjectedHotspot[]) => void;
+  onIntroProgress: (progress: number) => void;
+  onShowcase: (id: HotspotId | null, running: boolean) => void;
+  onRadarOrder: (ids: readonly HotspotId[]) => void;
   logos: { studioLogo: string; craftLogo: string };
 }
 
 const PARALLAX_DISTANCE = 0.1;
+const SHOWCASE_IDLE_MS = 10000;
+const SHOWCASE_REPEAT_MS = 9000;
+const SHOWCASE_OBJECT_MS = 1050;
+const SHOWCASE_PAUSE_MS = 420;
 const easeInOutCubic = (value: number) => value < 0.5 ? 4 * value ** 3 : 1 - (-2 * value + 2) ** 3 / 2;
 
 /** One demand-driven scheduler owns animation, projection, and rendering. */
@@ -57,6 +64,12 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
   let pointerHotspot: HotspotId | null = null;
   let pointerInside = false;
   let interactive = false;
+  let idleTimer: number | null = null;
+  let showcasePhase: 'off' | 'playing' | 'returning' | 'between' = 'off';
+  let showcaseId: HotspotId | null = null;
+  let showcaseIndex = 0;
+  let showcaseElapsed = 0;
+  let radarOrder: HotspotId[] = [];
   let resizeObserver: ResizeObserver | null = null;
   let intersectionObserver: IntersectionObserver | null = null;
 
@@ -101,7 +114,41 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
     options.project(projections);
   }
 
+  function cancelShowcase() {
+    if (idleTimer !== null) window.clearTimeout(idleTimer);
+    idleTimer = null;
+    if (showcasePhase !== 'off') {
+      showcasePhase = 'off';
+      showcaseId = null;
+      showcaseElapsed = 0;
+      options.onShowcase(null, false);
+      requestRender(); // Let the moving prop ease back to rest.
+    }
+  }
+
+  function canShowcase() {
+    return canRender() && settled && interactive && !transitioning && !activeHotspot && !options.reducedMotion;
+  }
+
+  function scheduleShowcase(delay = SHOWCASE_IDLE_MS) {
+    if (idleTimer !== null) window.clearTimeout(idleTimer);
+    idleTimer = null;
+    if (!canShowcase() || showcasePhase !== 'off') return;
+    idleTimer = window.setTimeout(() => {
+      idleTimer = null;
+      if (!canShowcase()) return;
+      if (radarOrder.length !== 5) { scheduleShowcase(500); return; }
+      showcaseIndex = 0;
+      showcaseElapsed = 0;
+      showcasePhase = 'playing';
+      showcaseId = radarOrder[showcaseIndex];
+      options.onShowcase(showcaseId, true);
+      requestRender();
+    }, delay);
+  }
+
   function disposeScene() {
+    cancelShowcase();
     pause();
     resizeObserver?.disconnect();
     intersectionObserver?.disconnect();
@@ -140,8 +187,9 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
   }
 
   function onVisibilityChange() {
-    if (document.hidden) pause();
-    else requestRender();
+    host.dataset.sceneVisible = String(!document.hidden && inViewport);
+    if (document.hidden) { cancelShowcase(); pause(); }
+    else { requestRender(); scheduleShowcase(); }
   }
 
   function onPointerCapabilityChange() {
@@ -242,6 +290,9 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
     const aspect = width / height;
 
     desktop = window.innerWidth >= 768;
+    radarOrder = [];
+    options.onRadarOrder(radarOrder);
+    cancelShowcase();
     // Fit the active halves themselves. A combined box includes empty wedges and rear-room height.
     const previousPosition = diorama.root.position.clone();
     const previousRotation = diorama.root.rotation.y;
@@ -305,6 +356,15 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
         projection.x >= 0 && projection.x <= width && projection.y >= 0 && projection.y <= height;
     }
     options.project(projections);
+    if (settled && interactive && !transitioning && radarOrder.length !== 5) {
+      const visible = projections.filter(point => point.visible && hotspotWorkspace.get(point.id) === workspace);
+      if (visible.length === 5) {
+        visible.sort((left, right) => left.x - right.x);
+        radarOrder = visible.map(point => point.id);
+        options.onRadarOrder(radarOrder);
+        if (showcasePhase === 'off' && idleTimer === null) scheduleShowcase();
+      }
+    }
   }
 
   function renderFrame(timestamp: number) {
@@ -320,6 +380,7 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
       if (!settled) {
         introElapsed += frameElapsed * 1000;
         const progress = options.reducedMotion ? 1 : Math.min(1, introElapsed / HERO_TIMING.intro);
+        options.onIntroProgress(progress);
         setCamera(options.reducedMotion ? 1 : introCameraProgress(introElapsed, HERO_TIMING.intro));
         diorama.root.rotation.y = options.reducedMotion ? WORKSPACES.studio.rotation : introSpinRotation(introElapsed);
         diorama.root.position.copy(screenRight).multiplyScalar(compositionOffset);
@@ -342,10 +403,32 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
           diorama.root.rotation.y = rotationTo;
           transitioning = false;
           options.onTransitionEnd();
+          scheduleShowcase();
         } else needsAnotherFrame = true;
       }
 
       if (settled) {
+        if (showcasePhase !== 'off') {
+          showcaseElapsed += frameElapsed * 1000;
+          if (showcasePhase === 'playing' && showcaseElapsed >= SHOWCASE_OBJECT_MS) {
+            showcasePhase = 'returning';
+            showcaseId = null;
+            showcaseElapsed = 0;
+            options.onShowcase(null, true);
+          } else if (showcasePhase === 'between' && showcaseElapsed >= SHOWCASE_PAUSE_MS) {
+            showcaseIndex += 1;
+            showcaseElapsed = 0;
+            if (showcaseIndex < radarOrder.length) {
+              showcasePhase = 'playing';
+              showcaseId = radarOrder[showcaseIndex];
+              options.onShowcase(showcaseId, true);
+            } else {
+              showcasePhase = 'off';
+              options.onShowcase(null, false);
+              scheduleShowcase(SHOWCASE_REPEAT_MS);
+            }
+          }
+        }
         if (!pointerInside || !interactive || transitioning || options.reducedMotion) targetParallax.set(0, 0);
         const damping = 1 - Math.exp(-delta * 9);
         parallax.lerp(targetParallax, damping);
@@ -355,7 +438,12 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
         needsAnotherFrame = needsAnotherFrame || moving;
       }
 
-      needsAnotherFrame = diorama.update(transitioning ? null : activeHotspot, elapsed, delta, options.reducedMotion) || needsAnotherFrame;
+      const objectMoving = diorama.update(transitioning ? null : activeHotspot ?? showcaseId, elapsed, delta, options.reducedMotion);
+      if (showcasePhase === 'returning' && !objectMoving && showcaseElapsed >= 350) {
+        showcasePhase = 'between';
+        showcaseElapsed = 0;
+      }
+      needsAnotherFrame = objectMoving || showcasePhase !== 'off' || needsAnotherFrame;
       renderer.render(scene, camera);
       renderedFrames += 1;
       projectHotspots();
@@ -375,6 +463,9 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
       }
       queuedWorkspace = null;
       if (nextWorkspace === workspace) return;
+      cancelShowcase();
+      radarOrder = [];
+      options.onRadarOrder(radarOrder);
       activeHotspot = null;
       pointerInside = false;
       targetParallax.set(0, 0);
@@ -389,19 +480,23 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
     },
     setActiveHotspot(id) {
       if (disposed || failed || !settled || !interactive || transitioning || (id && hotspotWorkspace.get(id) !== workspace)) return;
-      if (activeHotspot === id) return;
+      if (activeHotspot === id && showcasePhase === 'off') return;
+      cancelShowcase();
       activeHotspot = id;
+      if (!id) scheduleShowcase();
       requestRender();
     },
     setInteractive(enabled) {
       if (disposed || failed || interactive === enabled) return;
       interactive = enabled;
       if (!enabled) {
+        cancelShowcase();
         activeHotspot = null;
         pointerInside = false;
         targetParallax.set(0, 0);
         emitHover(null);
       }
+      else scheduleShowcase();
       requestRender();
     },
     dispose() {
@@ -485,11 +580,13 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
     resizeObserver.observe(host);
     intersectionObserver = new IntersectionObserver(entries => {
       inViewport = entries[0]?.isIntersecting ?? false;
-      if (inViewport) requestRender();
-      else pause();
+      host.dataset.sceneVisible = String(inViewport && !document.hidden);
+      if (inViewport) { requestRender(); scheduleShowcase(); }
+      else { cancelShowcase(); pause(); }
     }, { threshold: 0.01 });
     intersectionObserver.observe(host);
     ready = true;
+    host.dataset.sceneVisible = String(!document.hidden && inViewport);
     resize();
     if (import.meta.env.DEV) {
       diagnosticAccessor = () => {
@@ -537,6 +634,7 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
         }).sort((left, right) => left[0] - right[0]);
         return {
           phase: transitioning ? 'workspaceTransition' : settled ? 'settled' : introElapsed <= HERO_CAMERA.spinDuration ? 'topDown' : 'cameraTransition',
+          introElapsedMs: introElapsed,
           orthographic: camera.isOrthographicCamera,
           topDownAngleDeg: THREE.MathUtils.radToDeg(Math.acos(THREE.MathUtils.clamp(-forward.y, -1, 1))),
           cameraPosition: camera.position.toArray(),
@@ -548,6 +646,7 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
           middleWall: { left: wallPoints[0], right: wallPoints[1] },
           projections: projections.map(point => ({ ...point })),
           interactionRegion: { x: desktop ? width * HERO_CAMERA.interactionStart : 0, width: desktop ? width * (1 - HERO_CAMERA.interactionStart) : width },
+          showcase: { phase: showcasePhase, id: showcaseId, order: [...radarOrder], idleTimerPending: idleTimer !== null },
         };
       };
       (host as HTMLElement & { __heroDiagnostics?: () => object }).__heroDiagnostics = diagnosticAccessor;

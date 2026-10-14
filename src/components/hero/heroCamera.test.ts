@@ -15,29 +15,28 @@ test('the primary spin uses a stable true top-down camera above the floor center
   assert.equal(introCameraProgress(2200, 2200), 1);
 });
 
-test('the frontal camera preserves horizontal wall edges and symmetric receding side walls', () => {
+test('the settled camera restores the previous leftward three-quarter view in both rooms', () => {
   const poses = createHeroCameraPoses();
   const camera = new THREE.OrthographicCamera(-7, 7, 4, -4, 0.1, 80);
   camera.position.copy(poses.frontPosition);
   camera.quaternion.copy(poses.frontQuaternion);
   camera.updateMatrixWorld();
   const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(poses.frontQuaternion);
-  assert.equal(poses.frontPosition.x, 0);
-  assert.ok(Math.abs(forward.x) < 1e-12);
+  assert.deepEqual(poses.frontPosition.toArray(), [5, 10, 14]);
+  assert.ok(forward.x < -0.25);
   assert.ok(forward.y < 0 && forward.z < 0);
   for (const rotation of [0, Math.PI, 0, Math.PI, 0, Math.PI, 0, Math.PI, 0, Math.PI]) {
     const root = new THREE.Matrix4().makeRotationY(rotation);
     const left = new THREE.Vector3(-2, 2.8, rotation ? -0.08 : 0.08).applyMatrix4(root).project(camera);
     const right = new THREE.Vector3(2, 2.8, rotation ? -0.08 : 0.08).applyMatrix4(root).project(camera);
-    assert.ok(Math.abs(left.y - right.y) < 1e-12);
+    assert.ok(Math.abs(left.y - right.y) > 0.01);
   }
-  const leftWall = new THREE.Vector3(-4, 2.8, 2).project(camera);
-  const rightWall = new THREE.Vector3(4, 2.8, 2).project(camera);
-  assert.ok(Math.abs(leftWall.x + rightWall.x) < 1e-12);
-  assert.ok(Math.abs(leftWall.y - rightWall.y) < 1e-12);
+  const wallLeft = new THREE.Vector3(-2, 2.8, 0.08).project(camera);
+  const wallRight = new THREE.Vector3(2, 2.8, 0.08).project(camera);
+  assert.ok(Math.abs(wallLeft.y - wallRight.y) > 0.01);
 });
 
-test('quaternion interpolation keeps the camera free of yaw and roll throughout the entrance', () => {
+test('quaternion interpolation remains continuous throughout the top-down to three-quarter entrance', () => {
   const poses = createHeroCameraPoses();
   const quaternion = new THREE.Quaternion();
   const forward = new THREE.Vector3();
@@ -46,8 +45,10 @@ test('quaternion interpolation keeps the camera free of yaw and roll throughout 
     quaternion.slerpQuaternions(poses.topQuaternion, poses.frontQuaternion, step / 100);
     forward.set(0, 0, -1).applyQuaternion(quaternion);
     right.set(1, 0, 0).applyQuaternion(quaternion);
-    assert.ok(Math.abs(forward.x) < 1e-12);
-    assert.ok(right.distanceTo(new THREE.Vector3(1, 0, 0)) < 1e-12);
+    assert.ok(forward.toArray().every(Number.isFinite));
+    assert.ok(Math.abs(forward.length() - 1) < 1e-12);
+    assert.ok(Math.abs(right.length() - 1) < 1e-12);
+    assert.ok(Math.abs(forward.dot(right)) < 1e-12);
   }
 });
 

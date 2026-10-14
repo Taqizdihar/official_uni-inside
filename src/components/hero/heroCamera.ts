@@ -28,12 +28,13 @@ export interface CameraFrame {
 
 export function createHeroCameraPoses() {
   const topPosition = new THREE.Vector3(0, 22, 0);
-  const frontPosition = new THREE.Vector3(0, 10, 14);
+  // Restore the original leftward three-quarter azimuth without changing the top pose.
+  const frontPosition = new THREE.Vector3(5, 10, 14);
   const topQuaternion = new THREE.Quaternion().setFromRotationMatrix(
     new THREE.Matrix4().lookAt(topPosition, new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -1)),
   );
   const frontQuaternion = new THREE.Quaternion().setFromRotationMatrix(
-    new THREE.Matrix4().lookAt(frontPosition, new THREE.Vector3(0, 1.1, 0), new THREE.Vector3(0, 1, 0)),
+    new THREE.Matrix4().lookAt(frontPosition, new THREE.Vector3(0, 1.2, 0), new THREE.Vector3(0, 1, 0)),
   );
   return { topPosition, frontPosition, topQuaternion, frontQuaternion };
 }
@@ -51,7 +52,8 @@ export function introSpinRotation(elapsed: number) {
 
 export function fitHeroCameraFrames(aspect: number, active: CameraBounds, radius: number, desktop: boolean): { top: CameraFrame; front: CameraFrame } {
   const safeAspect = Math.max(0.01, aspect);
-  const diameter = Math.max(HERO_CAMERA.footprintRadius, radius) * 2 * HERO_CAMERA.topPadding;
+  // Mobile reserves side space for the two decorative intro marks.
+  const diameter = Math.max(HERO_CAMERA.footprintRadius, radius) * 2 * (desktop ? HERO_CAMERA.topPadding : 1.4);
   const topHeight = Math.max(diameter, diameter / safeAspect);
   const frontHeight = Math.max(
     (active.maxY - active.minY) * HERO_CAMERA.frontPadding,

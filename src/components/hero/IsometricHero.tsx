@@ -2,9 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import studioLogo from '../../assets/global/Logo - Light Theme.png';
 import craftLogo from '../../assets/global/Uni-Inside Crafts.png';
+import studioIntroLogo from '../../assets/global/Uni-Inside Studio White.avif';
+import craftIntroLogo from '../../assets/global/Uni-Inside Craft White.avif';
 import { HERO_COPY, HERO_TIMING, HOTSPOTS, WORKSPACES, type HotspotId, type ProjectedHotspot, type Workspace } from './heroConfig';
 import type { HeroSceneController } from './heroScene';
 import { RollingCounters } from './RollingCounters';
+import { smoothStep } from './heroMotion';
 import styles from './Hero.module.css';
 
 const LOGOS = { studioLogo, craftLogo };
@@ -63,6 +66,10 @@ export function IsometricHero() {
   const heroRef = useRef<HTMLElement>(null);
   const copyRef = useRef<HTMLDivElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
+  const introLayerRef = useRef<HTMLDivElement>(null);
+  const studioIntroRef = useRef<HTMLImageElement>(null);
+  const craftIntroRef = useRef<HTMLImageElement>(null);
+  const radarRefs = useRef(new Map<HotspotId, HTMLSpanElement>());
   const controllerRef = useRef<HeroSceneController | null>(null);
   const hotspotRefs = useRef(new Map<HotspotId, HTMLButtonElement>());
   const hitTargetsRef = useRef<HitTarget[]>(HOTSPOTS.map(({ id }) => ({ id, x: 0, y: 0, offsetX: 0, offsetY: 0, visible: false })));
@@ -112,6 +119,34 @@ export function IsometricHero() {
     repositionCallout();
   }, [repositionCallout]);
 
+  const onIntroProgress = useCallback((progress: number) => {
+    const stageWidth = hostRef.current?.clientWidth ?? 0;
+    const inward = smoothStep((progress - 0.69) / 0.2) * stageWidth * (window.innerWidth < 768 ? 0.4 : 0.33);
+    const fadeOut = 1 - smoothStep((progress - 0.79) / 0.11);
+    if (studioIntroRef.current) {
+      studioIntroRef.current.style.opacity = String(smoothStep((progress - 0.06) / 0.11) * fadeOut);
+      studioIntroRef.current.style.transform = `translate3d(calc(-50% + ${inward}px), -50%, 0)`;
+    }
+    if (craftIntroRef.current) {
+      craftIntroRef.current.style.opacity = String(smoothStep((progress - 0.15) / 0.11) * fadeOut);
+      craftIntroRef.current.style.transform = `translate3d(calc(-50% - ${inward}px), -50%, 0)`;
+    }
+  }, []);
+
+  const onShowcase = useCallback((id: HotspotId | null, running: boolean) => {
+    const host = hostRef.current;
+    if (host) {
+      host.dataset.showcaseActive = String(running);
+      host.dataset.showcaseId = id ?? '';
+    }
+    for (const [markerId, marker] of radarRefs.current) marker.dataset.showcaseSelected = String(running && markerId === id);
+  }, []);
+
+  const onRadarOrder = useCallback((ids: readonly HotspotId[]) => {
+    if (hostRef.current) hostRef.current.dataset.radarReady = String(ids.length === 5);
+    ids.forEach((id, index) => radarRefs.current.get(id)?.style.setProperty('--radar-index', String(index)));
+  }, []);
+
   const projectHotspots = useCallback((points: ProjectedHotspot[]) => {
     projectedRef.current = points;
     const width = hostRef.current?.clientWidth ?? 1;
@@ -124,6 +159,11 @@ export function IsometricHero() {
     for (const target of hitTargetsRef.current) target.visible = false;
     for (const point of points) {
       const button = hotspotRefs.current.get(point.id);
+      const marker = radarRefs.current.get(point.id);
+      if (marker) {
+        marker.style.transform = `translate3d(${point.x - 4}px, ${point.y - 4}px, 0)`;
+        marker.style.visibility = point.visible ? 'visible' : 'hidden';
+      }
       if (!button) continue;
       const targetIndex = HOTSPOT_INDEX.get(point.id);
       if (targetIndex === undefined) continue;
@@ -173,6 +213,14 @@ export function IsometricHero() {
   }, []);
 
   useEffect(() => {
+    for (const url of [studioIntroLogo, craftIntroLogo]) {
+      const image = new Image();
+      image.src = url;
+      void image.decode().catch(() => undefined);
+    }
+  }, []);
+
+  useEffect(() => {
     if (!hostRef.current) return;
     const host = hostRef.current;
     setSceneSettled(false);
@@ -198,6 +246,7 @@ export function IsometricHero() {
     };
     const useFallback = () => {
       if (cancelled) return;
+      if (introLayerRef.current) introLayerRef.current.style.display = 'none';
       setFallback(true);
       setContentVisible(true);
       setRollStarted(true);
@@ -214,6 +263,7 @@ export function IsometricHero() {
           if (!cancelled) setFallback(false);
         },
         onSettled: () => {
+          if (introLayerRef.current) introLayerRef.current.style.display = 'none';
           if (!cancelled) {
             setSceneSettled(true);
             if (workspaceRef.current === 'studio') {
@@ -243,6 +293,9 @@ export function IsometricHero() {
           selectHotspot(id);
         },
         project: projectHotspots,
+        onIntroProgress,
+        onShowcase,
+        onRadarOrder,
       });
       controllerRef.current = instance;
       instance.setInteractive(readyRef.current && !busyRef.current);
@@ -254,7 +307,7 @@ export function IsometricHero() {
       instance?.dispose();
       if (controllerRef.current === instance) controllerRef.current = null;
     };
-  }, [reducedMotion, projectHotspots, selectHotspot]);
+  }, [reducedMotion, projectHotspots, selectHotspot, onIntroProgress, onShowcase, onRadarOrder]);
 
   useEffect(() => {
     if (!activeHotspot || !calloutRef.current || fallback) return;
@@ -336,7 +389,41 @@ export function IsometricHero() {
         </p>
       </div>
 
-      <div ref={hostRef} className={styles.stage} data-hero-scene="" aria-label={`${current.name} interactive workspace`}>
+      <div
+        ref={hostRef}
+        className={styles.stage}
+        data-hero-scene=""
+        data-radar-active={canInteract && !activeHotspot && !reducedMotion && !fallback && !busy}
+        data-radar-ready="false"
+        data-showcase-active="false"
+        data-showcase-id=""
+        aria-label={`${current.name} interactive workspace`}
+      >
+        {!reducedMotion && !fallback && (
+          <div ref={introLayerRef} className={styles.introLogos} aria-hidden="true">
+            <img ref={studioIntroRef} src={studioIntroLogo} className={`${styles.introLogo} ${styles.introStudio}`} alt="" fetchPriority="high" />
+            <img ref={craftIntroRef} src={craftIntroLogo} className={`${styles.introLogo} ${styles.introCraft}`} alt="" fetchPriority="high" />
+          </div>
+        )}
+        {!fallback && (
+          <div className={styles.radar} aria-hidden="true">
+            {HOTSPOTS.map((hotspot) => (
+              <span
+                key={hotspot.id}
+                ref={(element) => {
+                  if (element) radarRefs.current.set(hotspot.id, element);
+                  else radarRefs.current.delete(hotspot.id);
+                }}
+                className={styles.radarMarker}
+                data-hero-radar={hotspot.id}
+                data-showcase-selected="false"
+              >
+                <span className={styles.radarPoint} />
+                <span className={styles.radarRing} />
+              </span>
+            ))}
+          </div>
+        )}
         {fallback && (
           <div className={styles.fallback}>
             <div className={styles.fallbackLogoFrame}>

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { focusRing, softboxShell, type Point, type RoomAnimation, type RoomBuilderContext } from './roomGeometry';
+import { advanceRotorAngle } from './heroMotion';
 
 export function buildStudioRoom(context: RoomBuilderContext): RoomAnimation {
   const { room, static: fixed, materials, resources, batch, register } = context;
@@ -204,6 +205,8 @@ export function buildStudioRoom(context: RoomBuilderContext): RoomAnimation {
     fixed.box('ivory', [0.11, 0.038, 0.115], [x, 2.315, 0.18]);
   }
 
+  let rotorAngle = 0;
+  let lastRotorTime = 0;
   let lastRotorRotation = Number.NaN;
   let lastScreenLevel = Number.NaN;
   let lastPanelLevel = Number.NaN;
@@ -213,7 +216,10 @@ export function buildStudioRoom(context: RoomBuilderContext): RoomAnimation {
     camera.rotation.x = activity.camera * 0.045;
     lens.scale.setScalar(1 + activity.camera * (0.025 + wave * 0.013));
     drone.position.y = 0.98 + activity.drone * (0.16 + wave * 0.015);
-    const rotorRotation = reducedMotion ? 0 : activity.drone * Math.sin(time * 12) * Math.PI;
+    const rotorDelta = time - lastRotorTime;
+    lastRotorTime = time;
+    rotorAngle = reducedMotion ? rotorAngle : advanceRotorAngle(rotorAngle, rotorDelta, activity.drone);
+    const rotorRotation = rotorAngle;
     if (rotorRotation !== lastRotorRotation) {
       for (let index = 0; index < rotorPositions.length; index++) {
         rotorTransform.position.set(...rotorPositions[index]);
