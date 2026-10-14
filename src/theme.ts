@@ -1,5 +1,5 @@
 export type AppTheme = 'light' | 'dark';
-export type AppSectionId = 'hero' | 'about' | 'team' | 'products' | 'services' | 'events' | 'achievements' | 'contact';
+export type AppSectionId = 'hero' | 'about' | 'team' | 'products' | 'services' | 'events' | 'achievements' | 'prompt-gallery' | 'contact';
 export type StoryScene = 'PRODUCTS' | 'SERVICES' | 'EVENTS';
 
 const SECTION_THEME_MAP: Record<AppSectionId, AppTheme> = {
@@ -10,6 +10,7 @@ const SECTION_THEME_MAP: Record<AppSectionId, AppTheme> = {
   services: 'dark',
   events: 'light',
   achievements: 'dark',
+  'prompt-gallery': 'dark',
   contact: 'light',
 };
 
