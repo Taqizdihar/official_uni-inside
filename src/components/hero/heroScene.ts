@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { buildDiorama } from './diorama';
+import { HERO_CAMERA, createHeroCameraPoses, fitHeroCameraFrames, introCameraProgress, introSpinRotation } from './heroCamera';
 import { HERO_TIMING, HOTSPOTS, WORKSPACES, type HotspotId, type ProjectedHotspot, type Workspace } from './heroConfig';
 
 export interface HeroSceneController {
@@ -21,13 +22,7 @@ interface HeroSceneOptions {
   logos: { studioLogo: string; craftLogo: string };
 }
 
-const INTRO_TURNS = Math.PI * 6;
-const PARALLAX_DISTANCE = 0.16;
-const VIEW_PADDING = 1.08;
-const FINAL_CAMERA = new THREE.Vector3(10, 10, 14);
-const TOP_CAMERA = new THREE.Vector3(0, 20, 0.001);
-const CAMERA_TARGET = new THREE.Vector3(0, 1.2, 0);
-const easeOutCubic = (value: number) => 1 - (1 - value) ** 3;
+const PARALLAX_DISTANCE = 0.1;
 const easeInOutCubic = (value: number) => value < 0.5 ? 4 * value ** 3 : 1 - (-2 * value + 2) ** 3 / 2;
 
 /** One demand-driven scheduler owns animation, projection, and rendering. */
@@ -53,6 +48,10 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
   let height = 1;
   let viewWidth = 12;
   let viewHeight = 10;
+  let desktop = window.innerWidth >= 768;
+  let compositionOffset = 0;
+  let renderedFrames = 0;
+  let diagnosticAccessor: (() => object) | null = null;
   let materialCount = 0;
   let activeHotspot: HotspotId | null = null;
   let pointerHotspot: HotspotId | null = null;
@@ -63,12 +62,15 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
 
   const scene = new THREE.Scene();
   const camera = new THREE.OrthographicCamera(-6, 6, 5, -5, 0.1, 80);
+  const cameraPoses = createHeroCameraPoses();
+  let cameraFrames = fitHeroCameraFrames(1.6, { minX: -4, maxX: 4, minY: -3.3, maxY: 1.45 }, HERO_CAMERA.footprintRadius, desktop);
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
   const targetParallax = new THREE.Vector2();
   const parallax = new THREE.Vector2();
   const projectedPosition = new THREE.Vector3();
   const pointInCamera = new THREE.Vector3();
+  const worldVertex = new THREE.Vector3();
   const boundsMatrix = new THREE.Matrix4();
   const instanceMatrix = new THREE.Matrix4();
   const screenRight = new THREE.Vector3();
@@ -118,6 +120,9 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
     renderer?.forceContextLoss();
     renderer?.domElement.remove();
     renderer = null;
+    const diagnosticHost = host as HTMLElement & { __heroDiagnostics?: () => object };
+    if (diagnosticHost.__heroDiagnostics === diagnosticAccessor) delete diagnosticHost.__heroDiagnostics;
+    diagnosticAccessor = null;
     scene.clear();
   }
 
@@ -158,6 +163,7 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
   function pointerCoordinates(event: PointerEvent) {
     const rect = host.getBoundingClientRect();
     pointer.set(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1);
+    return !desktop || (pointer.x + 1) / 2 >= HERO_CAMERA.interactionStart;
   }
 
   function hitTest(): HotspotId | null {
@@ -179,11 +185,16 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
 
   function onPointerMove(event: PointerEvent) {
     if (!settled || !interactive || transitioning || event.pointerType === 'touch' || isDOMControl(event)) return;
-    pointerCoordinates(event);
+    if (!pointerCoordinates(event)) {
+      onPointerLeave();
+      return;
+    }
     emitHover(hitTest());
     if (!options.reducedMotion && pointerMedia.matches) {
       pointerInside = true;
-      targetParallax.set(pointer.x * PARALLAX_DISTANCE, pointer.y * PARALLAX_DISTANCE * 0.65);
+      const regionStart = desktop ? HERO_CAMERA.interactionStart : 0;
+      const regionX = (((pointer.x + 1) / 2 - regionStart) / (1 - regionStart)) * 2 - 1;
+      targetParallax.set(regionX * PARALLAX_DISTANCE, pointer.y * PARALLAX_DISTANCE * 0.65);
       requestRender();
     }
   }
@@ -197,16 +208,25 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
 
   function onPointerDown(event: PointerEvent) {
     if (!settled || !interactive || transitioning || isDOMControl(event)) return;
-    pointerCoordinates(event);
-    const id = hitTest();
+    const id = pointerCoordinates(event) ? hitTest() : null;
     pointerHotspot = id;
     options.onHover(id);
   }
 
   function setCamera(progress: number) {
-    camera.position.lerpVectors(TOP_CAMERA, FINAL_CAMERA, progress);
-    camera.lookAt(CAMERA_TARGET);
-    camera.zoom = THREE.MathUtils.lerp(0.46, 1, progress);
+    camera.position.lerpVectors(cameraPoses.topPosition, cameraPoses.frontPosition, progress);
+    camera.quaternion.slerpQuaternions(cameraPoses.topQuaternion, cameraPoses.frontQuaternion, progress);
+    camera.up.set(0, 1, 0).applyQuaternion(camera.quaternion);
+    camera.zoom = 1;
+    viewWidth = THREE.MathUtils.lerp(cameraFrames.top.width, cameraFrames.front.width, progress);
+    viewHeight = THREE.MathUtils.lerp(cameraFrames.top.height, cameraFrames.front.height, progress);
+    const centerX = THREE.MathUtils.lerp(cameraFrames.top.centerX, cameraFrames.front.centerX, progress);
+    const centerY = THREE.MathUtils.lerp(cameraFrames.top.centerY, cameraFrames.front.centerY, progress);
+    camera.left = centerX - viewWidth / 2;
+    camera.right = centerX + viewWidth / 2;
+    camera.top = centerY + viewHeight / 2;
+    camera.bottom = centerY - viewHeight / 2;
+    compositionOffset = desktop ? viewWidth * (HERO_CAMERA.desktopCenter - 0.5) * progress : 0;
     camera.updateProjectionMatrix();
     camera.updateMatrixWorld();
     // These vectors translate the whole room in the image plane without orbiting it.
@@ -221,53 +241,51 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
     height = Math.max(1, rect.height);
     const aspect = width / height;
 
-    // The concave rooms leave empty corners: frame their actual vertices, not an enclosing box.
+    desktop = window.innerWidth >= 768;
+    // Fit the active halves themselves. A combined box includes empty wedges and rear-room height.
     const previousPosition = diorama.root.position.clone();
     const previousRotation = diorama.root.rotation.y;
     diorama.root.position.set(0, 0, 0);
     diorama.root.rotation.y = 0;
-    diorama.root.updateMatrixWorld(true);
-    camera.position.copy(FINAL_CAMERA);
-    camera.lookAt(CAMERA_TARGET);
+    camera.position.copy(cameraPoses.frontPosition);
+    camera.quaternion.copy(cameraPoses.frontQuaternion);
     camera.updateMatrixWorld();
     let minX = Infinity;
     let maxX = -Infinity;
     let minY = Infinity;
     let maxY = -Infinity;
-    diorama.root.traverse(object => {
-      if (!(object instanceof THREE.Mesh) || !object.visible) return;
-      const positions = object.geometry.getAttribute('position');
-      if (!positions) return;
-      const instances = object instanceof THREE.InstancedMesh ? object.count : 1;
-      for (let instance = 0; instance < instances; instance += 1) {
-        boundsMatrix.copy(object.matrixWorld);
-        if (object instanceof THREE.InstancedMesh) {
-          object.getMatrixAt(instance, instanceMatrix);
-          boundsMatrix.multiply(instanceMatrix);
+    let radius = HERO_CAMERA.footprintRadius;
+    for (const rotation of [WORKSPACES.studio.rotation, WORKSPACES.craft.rotation]) {
+      diorama.root.rotation.y = rotation;
+      diorama.root.updateMatrixWorld(true);
+      diorama.root.traverse(object => {
+        if (!(object instanceof THREE.Mesh) || !object.visible) return;
+        const positions = object.geometry.getAttribute('position');
+        if (!positions) return;
+        const instances = object instanceof THREE.InstancedMesh ? object.count : 1;
+        for (let instance = 0; instance < instances; instance += 1) {
+          boundsMatrix.copy(object.matrixWorld);
+          if (object instanceof THREE.InstancedMesh) {
+            object.getMatrixAt(instance, instanceMatrix);
+            boundsMatrix.multiply(instanceMatrix);
+          }
+          for (let vertex = 0; vertex < positions.count; vertex += 1) {
+            worldVertex.fromBufferAttribute(positions, vertex).applyMatrix4(boundsMatrix);
+            radius = Math.max(radius, Math.hypot(worldVertex.x, worldVertex.z));
+            if (worldVertex.z < -0.12) continue;
+            pointInCamera.copy(worldVertex).applyMatrix4(camera.matrixWorldInverse);
+            minX = Math.min(minX, pointInCamera.x);
+            maxX = Math.max(maxX, pointInCamera.x);
+            minY = Math.min(minY, pointInCamera.y);
+            maxY = Math.max(maxY, pointInCamera.y);
+          }
         }
-        boundsMatrix.premultiply(camera.matrixWorldInverse);
-        for (let vertex = 0; vertex < positions.count; vertex += 1) {
-          pointInCamera.fromBufferAttribute(positions, vertex).applyMatrix4(boundsMatrix);
-          minX = Math.min(minX, pointInCamera.x);
-          maxX = Math.max(maxX, pointInCamera.x);
-          minY = Math.min(minY, pointInCamera.y);
-          maxY = Math.max(maxY, pointInCamera.y);
-        }
-      }
-    });
+      });
+    }
     diorama.root.position.copy(previousPosition);
     diorama.root.rotation.y = previousRotation;
-    const horizontalSpan = Math.max(1, maxX - minX);
-    const verticalSpan = Math.max(1, maxY - minY);
-    viewHeight = Math.max(verticalSpan, horizontalSpan / aspect) * VIEW_PADDING;
-    viewWidth = viewHeight * aspect;
-    const centerX = (minX + maxX) / 2;
-    const centerY = (minY + maxY) / 2;
-    camera.left = centerX - viewWidth / 2;
-    camera.right = centerX + viewWidth / 2;
-    camera.top = centerY + viewHeight / 2;
-    camera.bottom = centerY - viewHeight / 2;
-    setCamera(settled ? 1 : easeOutCubic(Math.min(1, introElapsed / HERO_TIMING.intro)));
+    cameraFrames = fitHeroCameraFrames(aspect, { minX, maxX, minY, maxY }, radius, desktop);
+    setCamera(settled ? 1 : introCameraProgress(introElapsed, HERO_TIMING.intro));
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     renderer.setSize(width, height, false);
     requestRender();
@@ -302,14 +320,11 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
       if (!settled) {
         introElapsed += frameElapsed * 1000;
         const progress = options.reducedMotion ? 1 : Math.min(1, introElapsed / HERO_TIMING.intro);
-        const eased = easeOutCubic(progress);
-        setCamera(eased);
-        diorama.root.rotation.y = -INTRO_TURNS * (1 - eased);
-        const desktopShift = window.innerWidth >= 900 ? -viewWidth * 0.22 * (1 - eased) / camera.zoom : 0;
-        diorama.root.position.copy(screenRight).multiplyScalar(desktopShift);
+        setCamera(options.reducedMotion ? 1 : introCameraProgress(introElapsed, HERO_TIMING.intro));
+        diorama.root.rotation.y = options.reducedMotion ? WORKSPACES.studio.rotation : introSpinRotation(introElapsed);
+        diorama.root.position.copy(screenRight).multiplyScalar(compositionOffset);
         if (progress >= 1) {
           diorama.root.rotation.y = WORKSPACES.studio.rotation;
-          diorama.root.position.set(0, 0, 0);
           settled = true;
           options.onSettled();
           if (queuedWorkspace) {
@@ -336,12 +351,13 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
         parallax.lerp(targetParallax, damping);
         const moving = parallax.distanceToSquared(targetParallax) > 0.000002;
         if (!moving) parallax.copy(targetParallax);
-        diorama.root.position.copy(screenRight).multiplyScalar(parallax.x).addScaledVector(screenUp, parallax.y);
+        diorama.root.position.copy(screenRight).multiplyScalar(compositionOffset + parallax.x).addScaledVector(screenUp, parallax.y);
         needsAnotherFrame = needsAnotherFrame || moving;
       }
 
       needsAnotherFrame = diorama.update(transitioning ? null : activeHotspot, elapsed, delta, options.reducedMotion) || needsAnotherFrame;
       renderer.render(scene, camera);
+      renderedFrames += 1;
       projectHotspots();
       if (needsAnotherFrame) requestRender();
       else previousTime = 0;
@@ -475,6 +491,67 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
     intersectionObserver.observe(host);
     ready = true;
     resize();
+    if (import.meta.env.DEV) {
+      diagnosticAccessor = () => {
+        const forward = camera.getWorldDirection(new THREE.Vector3());
+        const diagnosticVertex = new THREE.Vector3();
+        const diagnosticMatrix = new THREE.Matrix4();
+        const diagnosticInstance = new THREE.Matrix4();
+        const projectedBounds = (floorOnly: boolean, activeOnly: boolean) => {
+          let minX = Infinity;
+          let maxX = -Infinity;
+          let minY = Infinity;
+          let maxY = -Infinity;
+          diorama?.root.updateMatrixWorld(true);
+          diorama?.root.traverse(object => {
+            if (!(object instanceof THREE.Mesh) || !object.visible || (floorOnly && !object.name.endsWith('-floor'))) return;
+            const positions = object.geometry.getAttribute('position');
+            if (!positions) return;
+            const instances = object instanceof THREE.InstancedMesh ? object.count : 1;
+            for (let instance = 0; instance < instances; instance += 1) {
+              diagnosticMatrix.copy(object.matrixWorld);
+              if (object instanceof THREE.InstancedMesh) {
+                object.getMatrixAt(instance, diagnosticInstance);
+                diagnosticMatrix.multiply(diagnosticInstance);
+              }
+              for (let vertex = 0; vertex < positions.count; vertex += 1) {
+                diagnosticVertex.fromBufferAttribute(positions, vertex).applyMatrix4(diagnosticMatrix);
+                if (activeOnly && diorama && diagnosticVertex.z < diorama.root.position.z - 0.12) continue;
+                diagnosticVertex.project(camera);
+                const x = (diagnosticVertex.x * 0.5 + 0.5) * width;
+                const y = (-diagnosticVertex.y * 0.5 + 0.5) * height;
+                minX = Math.min(minX, x);
+                maxX = Math.max(maxX, x);
+                minY = Math.min(minY, y);
+                maxY = Math.max(maxY, y);
+              }
+            }
+          });
+          return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+        };
+        const wallPoints = [-2, 2].map(x => {
+          diagnosticVertex.set(x, 2.8, workspace === 'studio' ? 0.08 : -0.08);
+          if (diorama) diagnosticVertex.applyMatrix4(diorama.root.matrixWorld);
+          diagnosticVertex.project(camera);
+          return [(diagnosticVertex.x * 0.5 + 0.5) * width, (-diagnosticVertex.y * 0.5 + 0.5) * height];
+        }).sort((left, right) => left[0] - right[0]);
+        return {
+          phase: transitioning ? 'workspaceTransition' : settled ? 'settled' : introElapsed <= HERO_CAMERA.spinDuration ? 'topDown' : 'cameraTransition',
+          orthographic: camera.isOrthographicCamera,
+          topDownAngleDeg: THREE.MathUtils.radToDeg(Math.acos(THREE.MathUtils.clamp(-forward.y, -1, 1))),
+          cameraPosition: camera.position.toArray(),
+          cameraForward: forward.toArray(),
+          rootRotation: diorama?.root.rotation.y ?? 0,
+          frames: renderedFrames,
+          floorBounds: projectedBounds(true, false),
+          activeRoomBounds: projectedBounds(false, true),
+          middleWall: { left: wallPoints[0], right: wallPoints[1] },
+          projections: projections.map(point => ({ ...point })),
+          interactionRegion: { x: desktop ? width * HERO_CAMERA.interactionStart : 0, width: desktop ? width * (1 - HERO_CAMERA.interactionStart) : width },
+        };
+      };
+      (host as HTMLElement & { __heroDiagnostics?: () => object }).__heroDiagnostics = diagnosticAccessor;
+    }
     options.onReady();
     requestRender();
   } catch {

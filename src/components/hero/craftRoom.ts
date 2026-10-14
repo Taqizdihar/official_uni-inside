@@ -16,8 +16,8 @@ export function buildCraftRoom(context: RoomBuilderContext) {
     return group;
   }
 
-  function table(x: number, z: number, width: number, depth: number) {
-    furniture.box('ivory', [width, 0.12, depth], [x, 0.99, z]);
+  function table(x: number, z: number, width: number, depth: number, surface: 'ivory' | 'yellow' = 'ivory') {
+    furniture.box(surface, [width, 0.12, depth], [x, 0.99, z]);
     furniture.box('charcoal', [width - 0.1, 0.13, 0.08], [x, 0.88, z + depth / 2 - 0.07]);
     for (const dx of [-width / 2 + 0.09, width / 2 - 0.09]) {
       for (const dz of [-depth / 2 + 0.08, depth / 2 - 0.08]) {
@@ -27,19 +27,29 @@ export function buildCraftRoom(context: RoomBuilderContext) {
   }
 
   // An offset printer bench and two distinct working surfaces leave the entry open.
-  table(1.18, 2.58, 1.8, 1.0);
-  table(-1.5, 1.75, 1.35, 0.85);
-  table(0, 0.93, 1.63, 0.76);
-  furniture.box('charcoal', [0.46, 0.09, 0.4], [-1.48, 0.53, 2.51]);
-  furniture.box('charcoal', [0.46, 0.47, 0.08], [-1.48, 0.79, 2.71], [-0.1, 0, 0]);
-  furniture.cylinder('metal', 0.045, 0.48, [-1.48, 0.25, 2.51]);
+  table(1.65, 2.65, 1.8, 0.95, 'yellow');
+  furniture.box('charcoal', [0.46, 0.81, 0.62], [2.15, 0.435, 2.65]);
+  for (const y of [0.26, 0.49, 0.72]) {
+    furniture.box('black', [0.4, 0.012, 0.016], [2.15, y, 2.968]);
+    furniture.box('metal', [0.13, 0.02, 0.025], [2.15, y + 0.065, 2.982]);
+  }
+  furniture.box('charcoal', [0.39, 0.29, 0.5], [1.1, 0.18, 2.62]);
+  furniture.box('metal', [0.14, 0.025, 0.03], [1.1, 0.333, 2.88]);
+  table(-1.7, 1.42, 1.4, 0.84);
+  table(0, 0.85, 1.63, 0.76, 'yellow');
+  furniture.box('yellow', [0.49, 0.09, 0.43], [-1.7, 0.53, 2.23]);
+  furniture.box('charcoal', [0.49, 0.5, 0.09], [-1.7, 0.82, 2.43], [-0.1, 0, 0]);
+  furniture.box('yellow', [0.34, 0.24, 0.045], [-1.7, 0.91, 2.485], [-0.1, 0, 0]);
+  furniture.cylinder('metal', 0.045, 0.48, [-1.7, 0.25, 2.23]);
   for (const angle of [0, Math.PI / 2, Math.PI, Math.PI * 1.5]) {
-    furniture.beam('metal', [-1.48, 0.08, 2.51], [-1.48 + Math.cos(angle) * 0.26, 0.06, 2.51 + Math.sin(angle) * 0.26], 0.045);
+    furniture.beam('metal', [-1.7, 0.08, 2.23], [-1.7 + Math.cos(angle) * 0.26, 0.06, 2.23 + Math.sin(angle) * 0.26], 0.045);
   }
 
-  const printer = object('printer', [1.18, 1.055, 2.58]);
+  const printer = object('printer', [1.65, 1.055, 2.65]);
   const printerBody = context.batch();
-  printerBody.box('black', [1.22, 0.15, 0.83], [0, 0.075, 0]);
+  printerBody.box('black', [1.22, 0.095, 0.7], [0, 0.052, -0.025]);
+  printerBody.box('charcoal', [0.35, 0.07, 0.78], [-0.395, 0.12, 0.015]);
+  printerBody.box('charcoal', [0.35, 0.07, 0.78], [0.395, 0.12, 0.015]);
   // The exposed gantry and forward sliding bed identify an open bed-slinger FDM printer.
   for (const x of [-0.48, 0.48]) {
     printerBody.box('charcoal', [0.095, 1.02, 0.09], [x, 0.67, -0.21]);
@@ -47,15 +57,17 @@ export function buildCraftRoom(context: RoomBuilderContext) {
     printerBody.box('black', [0.18, 0.1, 0.27], [x, 0.2, -0.21]);
   }
   printerBody.box('charcoal', [1.04, 0.11, 0.095], [0, 1.16, -0.21]);
+  printerBody.box('yellow', [0.2, 0.115, 0.027], [-0.39, 1.16, -0.148]);
+  printerBody.box('yellow', [0.2, 0.115, 0.027], [0.39, 1.16, -0.148]);
   printerBody.box('metal', [1.04, 0.043, 0.043], [0, 0.73, -0.145]);
   printerBody.box('charcoal', [0.048, 0.038, 0.72], [-0.17, 0.185, 0.035]);
   printerBody.box('charcoal', [0.048, 0.038, 0.72], [0.17, 0.185, 0.035]);
-  printerBody.box('black', [0.22, 0.17, 0.12], [0.58, 0.19, 0.18], [-0.28, 0, 0]);
-  printerBody.box('screen', [0.155, 0.098, 0.012], [0.58, 0.217, 0.245], [-0.28, 0, 0]);
+  printerBody.box('black', [0.26, 0.2, 0.12], [0.6, 0.19, 0.26], [-0.34, 0, 0]);
+  printerBody.box('screen', [0.19, 0.125, 0.012], [0.6, 0.212, 0.328], [-0.34, 0, 0]);
   printerBody.beam('yellow', [0.37, 1.2, -0.23], [0.29, 1.3, -0.15], 0.02);
   printerBody.beam('yellow', [0.29, 1.3, -0.15], [0, 0.87, -0.11], 0.016);
   printerBody.beam('metal', [0.48, 0.99, -0.24], [0.68, 0.99, -0.24], 0.035);
-  furniture.append(printerBody, 0, [1.18, 1.055, 2.58]);
+  furniture.append(printerBody, 0, [1.65, 1.055, 2.65]);
   const printerHits: THREE.Object3D[] = [];
 
   const printBed = new THREE.Group();
@@ -63,7 +75,7 @@ export function buildCraftRoom(context: RoomBuilderContext) {
   printer.add(printBed);
   const bed = context.batch();
   bed.box('charcoal', [0.77, 0.065, 0.69], [0, 0, 0]);
-  bed.box('yellow', [0.7, 0.02, 0.62], [0, 0.041, 0]);
+  bed.box('black', [0.7, 0.02, 0.62], [0, 0.041, 0]);
   bed.cylinder('yellow', 0.12, 0.17, [0, 0.135, 0], undefined, 0.095, 6);
   printerHits.push(...bed.compileColored(printBed, 'craft-print-bed'));
 
@@ -86,9 +98,9 @@ export function buildCraftRoom(context: RoomBuilderContext) {
   feed.cylinder('charcoal', 0.2, 0.025, [0, 0.082, 0]);
   feed.cylinder('metal', 0.045, 0.17, [0, 0, 0]);
   printerHits.push(...feed.compileColored(feedSpool, 'craft-feed-spool'));
-  context.register('printer', printer, [0.08, 0.94, 0.16], printerHits);
+  context.register('printer', printHead, [0, 0, 0.145], printerHits);
 
-  const design = object('design', [-1.5, 1.055, 1.58]);
+  const design = object('design', [-1.7, 1.055, 1.22]);
   const monitor = context.batch();
   monitor.box('charcoal', [0.95, 0.58, 0.075], [0, 0.48, 0]);
   monitor.box('charcoal', [0.07, 0.23, 0.07], [0, 0.15, 0]);
@@ -102,7 +114,7 @@ export function buildCraftRoom(context: RoomBuilderContext) {
   }
   monitor.box('yellow', [0.1, 0.013, 0.02], [-0.16, 0.285, 0.063]);
   monitor.box('yellow', [0.013, 0.105, 0.02], [-0.205, 0.332, 0.063]);
-  furniture.append(monitor, 0, [-1.5, 1.055, 1.58]);
+  furniture.append(monitor, 0, [-1.7, 1.055, 1.22]);
   const designScreen = context.batch();
   designScreen.box('screen', [0.86, 0.48, 0.012], [0, 0.48, 0.045]);
   const designHits: THREE.Object3D[] = designScreen.compile(design, 'craft-design-screen');
@@ -113,9 +125,9 @@ export function buildCraftRoom(context: RoomBuilderContext) {
   model.ball('sage', 0.18, [0, 0, 0]);
   model.cylinder('sage', 0.09, 0.11, [0, -0.19, 0], undefined, 0.11, 6);
   designHits.push(...model.compileColored(designModel, 'craft-cad-model'));
-  context.register('design', design, [0.1, 0.63, 0.1], designHits);
+  context.register('design', design, [0.04, 0.48, 0.11], designHits);
 
-  const painting = object('painting', [0, 1.055, 0.93]);
+  const painting = object('painting', [0, 1.055, 0.85]);
   const finishing = context.batch();
   finishing.box('sage', [0.94, 0.012, 0.56], [0.13, 0.006, 0.045]);
   finishing.cylinder('ivory', 0.2, 0.024, [-0.44, 0.02, 0.2], undefined, 0.2, 8);
@@ -131,8 +143,11 @@ export function buildCraftRoom(context: RoomBuilderContext) {
   finishing.beam('metal', [-0.55, 0.08, -0.17], [-0.51, 0.34, -0.2], 0.018);
   finishing.cylinder('ivory', 0.12, 0.13, [0.1, 0.065, 0.1], undefined, 0.08, 6);
   finishing.ball('ivory', 0.12, [0.1, 0.225, 0.1]);
-  finishing.box('yellow', [0.055, 0.12, 0.055], [0.1, 0.325, 0.1]);
-  furniture.append(finishing, 0, [0, 1.055, 0.93]);
+  finishing.cylinder('ivory', 0.045, 0.085, [0.02, 0.33, 0.1], undefined, 0, 4);
+  finishing.cylinder('ivory', 0.045, 0.085, [0.18, 0.33, 0.1], undefined, 0, 4);
+  finishing.box('charcoal', [0.027, 0.026, 0.018], [0.054, 0.238, 0.213]);
+  finishing.box('charcoal', [0.027, 0.026, 0.018], [0.146, 0.238, 0.213]);
+  furniture.append(finishing, 0, [0, 1.055, 0.85]);
   const paintingHits: THREE.Object3D[] = [];
   const brush = new THREE.Group();
   brush.position.set(-0.17, 0.13, 0.14);
@@ -143,18 +158,18 @@ export function buildCraftRoom(context: RoomBuilderContext) {
   brushParts.box('metal', [0.039, 0.06, 0.03], [0, -0.135, 0]);
   brushParts.box('coral', [0.033, 0.07, 0.025], [0, -0.19, 0]);
   paintingHits.push(...brushParts.compileColored(brush, 'craft-paint-brush'));
-  context.register('painting', painting, [0.02, 0.26, 0.07], paintingHits);
+  context.register('painting', brush, [0, 0.1, 0.035], paintingHits);
 
-  const filament = object('filament', [2.62, 0, 1.17]);
+  const filament = object('filament', [2.78, 0, 1.05], -Math.PI / 4);
   const rack = context.batch();
-  for (const x of [-0.43, 0.43]) {
-    rack.box('charcoal', [0.05, 2.15, 0.055], [x, 1.075, -0.13]);
+  for (const x of [-0.28, 0.28]) {
+    rack.box('charcoal', [0.05, 2.25, 0.055], [x, 1.125, -0.13]);
   }
-  for (const height of [0.37, 1.0, 1.63, 2.16]) {
-    rack.box('charcoal', [0.93, 0.052, 0.36], [0, height, 0]);
+  for (const height of [0.4, 1.04, 1.68, 2.28]) {
+    rack.box('charcoal', [0.62, 0.052, 0.34], [0, height, 0]);
   }
-  rack.box('yellow', [0.94, 0.035, 0.055], [0, 2.2, 0.17]);
-  furniture.append(rack, 0, [2.62, 0, 1.17]);
+  rack.box('yellow', [0.62, 0.035, 0.055], [0, 2.305, 0.16]);
+  furniture.append(rack, -Math.PI / 4, [2.78, 0, 1.05]);
   const filamentHits: THREE.Object3D[] = [];
   const spoolCoreGeometry = new THREE.CylinderGeometry(0.13, 0.13, 0.14, 8);
   const spoolFlange = new THREE.Shape();
@@ -178,10 +193,14 @@ export function buildCraftRoom(context: RoomBuilderContext) {
   const spoolFlangeGeometry = new THREE.ExtrudeGeometry(spoolFlange, { depth: 0.025, bevelEnabled: false, steps: 1, curveSegments: 1 });
   spoolFlangeGeometry.translate(0, 0, -0.0125);
   spoolFlangeGeometry.rotateX(Math.PI / 2);
+  // Instanced geometry bypasses GeometryBatch's white vertex-color initialization.
+  for (const geometry of [spoolCoreGeometry, spoolFlangeGeometry]) {
+    geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(geometry.getAttribute('position').count * 3).fill(1), 3));
+  }
   resources.add(spoolCoreGeometry);
   resources.add(spoolFlangeGeometry);
-  const cores = new THREE.InstancedMesh(spoolCoreGeometry, materials.ivory, 8);
-  const flanges = new THREE.InstancedMesh(spoolFlangeGeometry, materials.charcoal, 16);
+  const cores = new THREE.InstancedMesh(spoolCoreGeometry, materials.ivory, 6);
+  const flanges = new THREE.InstancedMesh(spoolFlangeGeometry, materials.charcoal, 12);
   cores.name = 'craft-filament-cores';
   flanges.name = 'craft-filament-flanges';
   for (const mesh of [cores, flanges]) {
@@ -191,15 +210,15 @@ export function buildCraftRoom(context: RoomBuilderContext) {
     filamentHits.push(mesh);
   }
   const spoolPositions: Point[] = [
-    [-0.22, 0.58, 0], [0.22, 0.58, 0], [-0.22, 1.21, 0], [0.22, 1.21, 0],
-    [-0.22, 1.84, 0], [0.22, 1.84, 0], [-0.21, 0.1, 0.08], [-0.21, 0.28, 0.08],
+    [0, 0.61, 0], [0, 1.25, 0], [0, 1.89, 0],
+    [0, 0.1, 0.07], [0, 0.28, 0.07], [0, 0.2, 0.39],
   ];
-  const spoolColors = ['#e5ae34', '#bcc9b3', '#d48572', '#ddccac', '#dcded5', '#b7bfc3', '#e5ae34', '#ddccac'];
+  const spoolColors = ['#e5ae34', '#252a2d', '#e7e4d9', '#e5ae34', '#e7e4d9', '#252a2d'];
   const spoolAxis = new THREE.Vector3();
   function setSpool(index: number, rotation: number) {
     const position = spoolPositions[index];
     moving.position.set(...position);
-    moving.rotation.set(index < 6 ? Math.PI / 2 : 0, rotation, 0);
+    moving.rotation.set(index < 3 || index === 5 ? Math.PI / 2 : 0, rotation, 0);
     moving.updateMatrix();
     cores.setMatrixAt(index, moving.matrix);
     spoolAxis.set(0, 1, 0).applyQuaternion(moving.quaternion);
@@ -209,7 +228,7 @@ export function buildCraftRoom(context: RoomBuilderContext) {
       flanges.setMatrixAt(index * 2 + side, moving.matrix);
     }
   }
-  for (let index = 0; index < 8; index++) {
+  for (let index = 0; index < spoolPositions.length; index++) {
     setSpool(index, 0);
     cores.setColorAt(index, new THREE.Color(spoolColors[index]));
   }
@@ -218,51 +237,65 @@ export function buildCraftRoom(context: RoomBuilderContext) {
   for (const mesh of [cores, flanges]) {
     mesh.computeBoundingSphere();
   }
-  context.register('filament', filament, [0.21, 1.87, 0.18], filamentHits);
+  context.register('filament', filament, [0, 1.89, 0.105], filamentHits);
 
-  const products = object('products', [-2.56, 0, 1.15], Math.PI / 4);
+  const products = object('products', [-2.66, 1.95, 1.0], Math.PI / 4);
   const display = context.batch();
-  for (const x of [-0.45, 0.45]) {
-    display.box('charcoal', [0.055, 2.01, 0.06], [x, 1.005, -0.17]);
+  // One mounted display follows the angled left wall rather than filling the floor.
+  display.box('yellow', [1.54, 0.06, 0.38], [0, 0, 0]);
+  for (const x of [-0.54, 0.54]) {
+    display.box('charcoal', [0.05, 0.28, 0.05], [x, -0.13, -0.145]);
+    display.beam('charcoal', [x, -0.26, -0.145], [x, -0.03, 0.12], 0.04);
   }
-  for (const height of [0.32, 0.96, 1.59, 2.02]) {
-    display.box('ivory', [0.96, 0.055, 0.48], [0, height, 0]);
-  }
-  // A faceted planter, little character, and miniature architectural print.
-  display.cylinder('sage', 0.14, 0.22, [-0.22, 0.45, 0], undefined, 0.12, 6);
-  display.cylinder('black', 0.09, 0.014, [-0.22, 0.567, 0], undefined, 0.09, 6);
-  display.box('sage', [0.04, 0.24, 0.045], [-0.22, 0.68, 0]);
-  display.beam('sage', [-0.22, 0.65, 0], [-0.31, 0.77, 0], 0.05);
-  display.beam('sage', [-0.22, 0.7, 0], [-0.14, 0.79, 0], 0.045);
-  display.box('ivory', [0.24, 0.21, 0.19], [0.22, 0.45, 0]);
-  display.cylinder('coral', 0.17, 0.14, [0.22, 0.625, 0], undefined, 0, 4);
-  display.box('charcoal', [0.042, 0.07, 0.013], [0.22, 0.415, 0.103]);
-  display.cylinder('ivory', 0.12, 0.26, [-0.23, 1.74, 0], undefined, 0.07, 6);
-  display.cylinder('ivory', 0.07, 0.09, [-0.23, 1.905, 0], undefined, 0.1, 6);
-  display.box('sage', [0.26, 0.18, 0.18], [0.21, 1.71, 0]);
-  display.box('yellow', [0.055, 0.14, 0.02], [0.21, 1.73, 0.105]);
-  furniture.append(display, Math.PI / 4, [-2.56, 0, 1.15]);
+  // Printed planter, geometric model, and miniature trophy establish the product mix.
+  display.cylinder('charcoal', 0.105, 0.17, [-0.57, 0.115, 0], undefined, 0.125, 6);
+  display.cylinder('black', 0.095, 0.012, [-0.57, 0.207, 0], undefined, 0.095, 6);
+  display.box('sage', [0.035, 0.23, 0.035], [-0.57, 0.31, 0]);
+  display.beam('sage', [-0.57, 0.26, 0], [-0.68, 0.36, 0], 0.045);
+  display.beam('sage', [-0.57, 0.29, 0], [-0.48, 0.41, 0], 0.045);
+  display.cylinder('ivory', 0.12, 0.055, [-0.18, 0.06, 0], undefined, 0.12, 6);
+  display.ball('ivory', 0.16, [-0.18, 0.22, 0]);
+  display.box('charcoal', [0.15, 0.055, 0.15], [0.12, 0.059, 0]);
+  display.cylinder('yellow', 0.026, 0.15, [0.12, 0.158, 0], undefined, 0.028, 6);
+  display.cylinder('yellow', 0.075, 0.11, [0.12, 0.28, 0], undefined, 0.105, 6);
+  display.beam('yellow', [0.05, 0.28, 0], [-0.01, 0.24, 0], 0.018);
+  display.beam('yellow', [0.19, 0.28, 0], [0.25, 0.24, 0], 0.018);
+  furniture.append(display, Math.PI / 4, [-2.66, 1.95, 1.0]);
   const productHits: THREE.Object3D[] = [];
   const featuredProduct = new THREE.Group();
-  featuredProduct.position.set(0.11, 0.99, 0.07);
+  featuredProduct.position.set(0.49, 0.04, 0.03);
   products.add(featuredProduct);
   const featured = context.batch();
-  featured.cylinder('coral', 0.14, 0.2, [0, 0.1, 0], undefined, 0.11, 6);
-  featured.ball('coral', 0.145, [0, 0.31, 0]);
-  featured.box('charcoal', [0.035, 0.035, 0.015], [-0.057, 0.334, 0.134]);
-  featured.box('charcoal', [0.035, 0.035, 0.015], [0.057, 0.334, 0.134]);
-  featured.box('ivory', [0.08, 0.025, 0.026], [0, 0.287, 0.137]);
-  featured.cylinder('yellow', 0.045, 0.14, [-0.11, 0.41, 0], undefined, 0.017, 6);
-  featured.cylinder('yellow', 0.045, 0.14, [0.11, 0.41, 0], undefined, 0.017, 6);
+  featured.cylinder('charcoal', 0.12, 0.17, [0, 0.085, 0], undefined, 0.095, 6);
+  featured.ball('charcoal', 0.12, [0, 0.26, 0]);
+  featured.box('yellow', [0.03, 0.03, 0.015], [-0.05, 0.278, 0.111]);
+  featured.box('yellow', [0.03, 0.03, 0.015], [0.05, 0.278, 0.111]);
+  featured.box('ivory', [0.055, 0.023, 0.02], [0, 0.242, 0.113]);
+  featured.cylinder('charcoal', 0.043, 0.1, [-0.075, 0.36, 0], undefined, 0, 4);
+  featured.cylinder('charcoal', 0.043, 0.1, [0.075, 0.36, 0], undefined, 0, 4);
   productHits.push(...featured.compileColored(featuredProduct, 'craft-custom-character'));
-  context.register('products', products, [0.1, 1.4, 0.19], productHits);
+  context.register('products', featuredProduct, [0, 0.26, 0.135], productHits);
 
-  // A restrained geometric tool rail keeps the middle wall visually clear for its logo.
-  furniture.box('charcoal', [0.52, 0.035, 0.08], [1.27, 1.55, 0.12]);
-  furniture.beam('metal', [1.1, 1.48, 0.16], [1.1, 1.25, 0.16], 0.025);
-  furniture.box('yellow', [0.09, 0.11, 0.045], [1.1, 1.22, 0.16]);
-  furniture.beam('metal', [1.29, 1.5, 0.16], [1.35, 1.28, 0.16], 0.025);
-  furniture.box('charcoal', [0.1, 0.075, 0.05], [1.36, 1.26, 0.16]);
+  const tools = context.batch();
+  tools.box('charcoal', [0.88, 0.7, 0.045], [0, 0, 0]);
+  tools.box('ivory', [0.8, 0.62, 0.027], [0, 0, 0.028]);
+  for (let column = 0; column < 5; column++) {
+    for (let row = 0; row < 3; row++) {
+      tools.box('charcoal', [0.03, 0.03, 0.012], [-0.33 + column * 0.165, -0.23 + row * 0.23, 0.051]);
+    }
+  }
+  tools.beam('metal', [-0.32, 0.2, 0.071], [-0.32, -0.18, 0.071], 0.025);
+  tools.box('yellow', [0.08, 0.16, 0.055], [-0.32, -0.16, 0.08]);
+  tools.box('metal', [0.22, 0.055, 0.055], [-0.02, 0.2, 0.075]);
+  tools.beam('yellow', [-0.02, 0.18, 0.075], [-0.02, -0.17, 0.075], 0.04);
+  tools.beam('metal', [0.25, 0.23, 0.07], [0.18, -0.12, 0.07], 0.022);
+  tools.beam('metal', [0.2, 0.23, 0.07], [0.28, -0.12, 0.07], 0.022);
+  tools.box('yellow', [0.08, 0.12, 0.042], [0.18, -0.16, 0.078]);
+  tools.box('yellow', [0.08, 0.12, 0.042], [0.28, -0.16, 0.078]);
+  tools.beam('black', [0.3, 0.17, 0.066], [0.355, 0.01, 0.066], 0.018);
+  tools.beam('black', [0.355, 0.01, 0.066], [0.3, -0.23, 0.066], 0.018);
+  tools.beam('black', [0.3, -0.23, 0.066], [0.26, -0.09, 0.066], 0.018);
+  furniture.append(tools, -Math.PI / 4, [3.36, 2, 1.6]);
 
   let lastSpoolRotation = Number.NaN;
   return (activity: Readonly<Record<HotspotId, number>>, time: number, reducedMotion: boolean) => {
@@ -273,11 +306,11 @@ export function buildCraftRoom(context: RoomBuilderContext) {
     designModel.rotation.y = activity.design * (reducedMotion ? 0.22 : Math.sin(time * 0.65) * 0.65);
     brush.position.y = 0.13 + activity.painting * (reducedMotion ? 0.035 : 0.045 + wave * 0.035);
     brush.rotation.z = -0.48 + activity.painting * (reducedMotion ? 0.08 : wave * 0.16);
-    featuredProduct.position.y = 0.99 + activity.products * (reducedMotion ? 0.025 : 0.035 + Math.sin(time * 2) * 0.025);
+    featuredProduct.position.y = 0.04 + activity.products * (reducedMotion ? 0.025 : 0.035 + Math.sin(time * 2) * 0.025);
     featuredProduct.rotation.y = activity.products * (reducedMotion ? 0.14 : Math.sin(time * 1.7) * 0.32);
     const spoolRotation = activity.filament * (reducedMotion ? 0.18 : Math.sin(time * 0.72) * 0.4);
     if (spoolRotation !== lastSpoolRotation) {
-      setSpool(5, spoolRotation);
+      setSpool(2, spoolRotation);
       cores.instanceMatrix.needsUpdate = true;
       flanges.instanceMatrix.needsUpdate = true;
       lastSpoolRotation = spoolRotation;

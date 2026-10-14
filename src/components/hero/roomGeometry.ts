@@ -21,6 +21,50 @@ export const ROOM_FOOTPRINT: readonly (readonly [number, number])[] = [
   [-2, 0], [2, 0], [4, 2], [2, 4], [-2, 4], [-4, 2],
 ];
 
+/** Open eight-sided collars reveal the camera lens instead of covering its face. */
+export function focusRing(outer: number, inner: number, depth: number) {
+  const shape = new THREE.Shape();
+  const hole = new THREE.Path();
+  for (let index = 0; index < 8; index++) {
+    const angle = index * Math.PI / 4;
+    const x = Math.cos(angle);
+    const y = Math.sin(angle);
+    if (index === 0) {
+      shape.moveTo(x * outer, y * outer);
+      hole.moveTo(x * inner, -y * inner);
+    } else {
+      shape.lineTo(x * outer, y * outer);
+      hole.lineTo(x * inner, -y * inner);
+    }
+  }
+  shape.closePath();
+  hole.closePath();
+  shape.holes.push(hole);
+  const geometry = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false, steps: 1, curveSegments: 1 });
+  geometry.translate(0, 0, -depth / 2);
+  return geometry;
+}
+
+/** A tapered shell gives the softbox its photographic silhouette with only twelve triangles. */
+export function softboxShell(width: number, height: number, depth: number) {
+  const x = width / 2;
+  const y = height / 2;
+  const rearX = width * 0.23;
+  const rearY = height * 0.23;
+  const z = depth / 2;
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute([
+    -x, -y, z, x, -y, z, x, y, z, -x, y, z,
+    -rearX, -rearY, -z, rearX, -rearY, -z, rearX, rearY, -z, -rearX, rearY, -z,
+  ], 3));
+  geometry.setIndex([0, 1, 2, 0, 2, 3, 5, 4, 7, 5, 7, 6,
+    4, 0, 3, 4, 3, 7, 1, 5, 6, 1, 6, 2, 3, 2, 6, 3, 6, 7, 4, 5, 1, 4, 1, 0]);
+  const flat = geometry.toNonIndexed();
+  geometry.dispose();
+  flat.computeVertexNormals();
+  return flat;
+}
+
 export class GeometryBatch {
   private readonly parts = new Map<RoomMaterial, THREE.BufferGeometry[]>();
 

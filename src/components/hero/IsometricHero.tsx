@@ -8,6 +8,8 @@ import { RollingCounters } from './RollingCounters';
 import styles from './Hero.module.css';
 
 const LOGOS = { studioLogo, craftLogo };
+const DESCRIPTION_BREAK = HERO_COPY.description.indexOf('every idea');
+const DESCRIPTION_LINES = [HERO_COPY.description.slice(0, DESCRIPTION_BREAK).trimEnd(), HERO_COPY.description.slice(DESCRIPTION_BREAK)];
 const clamp = (value: number, minimum: number, maximum: number) => Math.min(Math.max(value, minimum), Math.max(minimum, maximum));
 const TARGET_SIZE = 44;
 const TARGET_SPACING = 48;
@@ -59,6 +61,7 @@ export function IsometricHero() {
   const interactionsReady = countersComplete && (sceneSettled || fallback);
   const canInteract = interactionsReady && !busy;
   const heroRef = useRef<HTMLElement>(null);
+  const copyRef = useRef<HTMLDivElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
   const controllerRef = useRef<HeroSceneController | null>(null);
   const hotspotRefs = useRef(new Map<HotspotId, HTMLButtonElement>());
@@ -86,8 +89,11 @@ export function IsometricHero() {
     const { width: panelWidth, height: panelHeight } = calloutSizeRef.current;
     const width = host.clientWidth;
     const height = host.clientHeight;
-    const leftSide = anchor.x > width * 0.52;
-    const panelX = clamp(leftSide ? anchor.x - panelWidth - 46 : anchor.x + 46, 12, width - panelWidth - 12);
+    const minimumX = width >= 768
+      ? Math.max(width * 0.42, (copyRef.current?.offsetLeft ?? 0) + (copyRef.current?.offsetWidth ?? 0) - host.offsetLeft + 20)
+      : 12;
+    const leftSide = anchor.x > (minimumX + width) / 2;
+    const panelX = clamp(leftSide ? anchor.x - panelWidth - 46 : anchor.x + 46, minimumX, width - panelWidth - 12);
     const panelY = clamp(anchor.y - 94, 12, height - panelHeight - 12);
     const endX = leftSide ? panelX + panelWidth : panelX;
     const endY = panelY + panelHeight / 2;
@@ -110,7 +116,11 @@ export function IsometricHero() {
     projectedRef.current = points;
     const width = hostRef.current?.clientWidth ?? 1;
     const height = hostRef.current?.clientHeight ?? 1;
-    const compact = width <= 767;
+    const desktop = width >= 768;
+    const compact = width * (desktop ? 0.58 : 1) <= 767;
+    const minimumX = desktop
+      ? Math.max(width * 0.42, (copyRef.current?.offsetLeft ?? 0) + (copyRef.current?.offsetWidth ?? 0) - (hostRef.current?.offsetLeft ?? 0) + 20) + TARGET_SIZE / 2 + 2
+      : TARGET_SIZE / 2 + 2;
     for (const target of hitTargetsRef.current) target.visible = false;
     for (const point of points) {
       const button = hotspotRefs.current.get(point.id);
@@ -122,11 +132,11 @@ export function IsometricHero() {
       let centerY = point.y;
       if (compact && point.visible) {
         // Small screens need distinct 44px touch areas; leader lines keep their world-space anchors.
-        centerX = clamp(point.x + target.offsetX, TARGET_SIZE / 2 + 2, width - TARGET_SIZE / 2 - 2);
+        centerX = clamp(point.x + target.offsetX, minimumX, width - TARGET_SIZE / 2 - 2);
         centerY = clamp(point.y + target.offsetY, TARGET_SIZE / 2 + 2, height - TARGET_SIZE / 2 - 2);
         if (!targetFits(hitTargetsRef.current, centerX, centerY)) {
           for (const offset of TARGET_OFFSETS) {
-            const candidateX = clamp(point.x + offset.x, TARGET_SIZE / 2 + 2, width - TARGET_SIZE / 2 - 2);
+            const candidateX = clamp(point.x + offset.x, minimumX, width - TARGET_SIZE / 2 - 2);
             const candidateY = clamp(point.y + offset.y, TARGET_SIZE / 2 + 2, height - TARGET_SIZE / 2 - 2);
             if (!targetFits(hitTargetsRef.current, candidateX, candidateY)) continue;
             centerX = candidateX;
@@ -314,14 +324,16 @@ export function IsometricHero() {
       data-reduced-motion={reducedMotion}
       data-fallback={fallback}
     >
-      <div className={styles.headingCopy}>
+      <div ref={copyRef} className={styles.headingCopy}>
         <h1 id="isometric-hero-title" className={styles.title} aria-label={HERO_COPY.title}>
-          <span className={`${styles.titleLine} ${styles.accent}`}>Ideas</span>{' '}
-          <span className={styles.titleLine}>captured</span>{' '}
+          <span className={styles.titleLine}><span className={styles.accent}>Ideas</span>{' '}captured</span>{' '}
           <span className={styles.titleLine}>and made</span>{' '}
           <span className={styles.titleLine}>tangible</span>
         </h1>
-        <p className={styles.description}>{HERO_COPY.description}</p>
+        <p className={styles.description}>
+          <span className={styles.descriptionLine}>{DESCRIPTION_LINES[0]}</span>{' '}
+          <span className={styles.descriptionLine}>{DESCRIPTION_LINES[1]}</span>
+        </p>
       </div>
 
       <div ref={hostRef} className={styles.stage} data-hero-scene="" aria-label={`${current.name} interactive workspace`}>
