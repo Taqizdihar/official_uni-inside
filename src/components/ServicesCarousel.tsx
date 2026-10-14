@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useElementVisibility } from '../hooks/useElementVisibility';
 import { servicesData } from '../data/services';
+import { Link } from 'react-router-dom';
 
 const extendedServices = [
   ...servicesData.map(s => ({ ...s, uniqueId: s.id + '-1' })),
@@ -156,9 +157,12 @@ export const ServicesCarousel = () => {
           </span>
         </div>
 
-        <button className="mt-6 bg-[#f9d02d] text-[#202121] font-extrabold text-base sm:text-lg px-8 py-3.5 rounded-full hover:scale-105 transition-transform shadow-lg z-50 relative pointer-events-auto cursor-pointer">
+        <Link
+          to="/services"
+          className="relative z-50 mt-6 inline-flex rounded-full bg-[#f9d02d] px-8 py-3.5 text-base font-extrabold text-[#202121] shadow-lg transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#202121] sm:text-lg pointer-events-auto"
+        >
           Check Our Services
-        </button>
+        </Link>
       </div>
 
       {/* Grounded Images Area with Viewport Overflow Clipping */}

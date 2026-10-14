@@ -26,7 +26,7 @@ export const ProductsPage = () => (
         <BackToLandingLink />
         <div className="mt-16 flex flex-wrap items-center gap-4">
           <p className="text-sm font-extrabold uppercase tracking-[0.2em] text-[#f9d02d]">Uni-Inside</p>
-          <img src={craftsLogo} alt="Uni-Inside Crafts" className="h-8 w-auto" />
+          <img src={craftsLogo} alt="Uni-Inside Craft" className="h-8 w-auto" />
         </div>
         <h1 className="mt-4 text-[clamp(56px,11vw,150px)] font-black leading-none tracking-tight">PRODUCTS</h1>
         <p className="mt-7 w-[calc(100vw-3rem)] max-w-2xl text-lg font-medium leading-relaxed text-white/80 sm:w-auto sm:text-2xl">
@@ -66,7 +66,7 @@ export const ProductsPage = () => (
     <section className="bg-white px-6 py-20 sm:px-10 lg:px-12 lg:py-24">
       <div className="mx-auto flex max-w-7xl flex-col gap-8 rounded-[2rem] bg-[#202121] p-8 text-white sm:p-12 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-sm font-extrabold uppercase tracking-[0.2em] text-[#f9d02d]">Uni-Inside Crafts</p>
+          <p className="text-sm font-extrabold uppercase tracking-[0.2em] text-[#f9d02d]">Uni-Inside Craft</p>
           <h2 className="mt-3 max-w-3xl text-4xl font-black leading-tight sm:text-6xl">Want to know more about the current collection?</h2>
         </div>
         <a

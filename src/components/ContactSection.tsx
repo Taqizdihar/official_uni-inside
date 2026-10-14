@@ -51,7 +51,7 @@ interface ChatBubbleData {
 const CustomCIcon = (props: any) => (
   <img 
     src={craftsLogo} 
-    alt="Uni-Inside Crafts" 
+    alt="Uni-Inside Craft" 
     className={`${props.className} object-contain`} 
   />
 );
@@ -61,7 +61,7 @@ const socials = [
   { id: 'instagram', name: 'Instagram', Icon: FaInstagram, url: 'https://www.instagram.com/uniinside.studio?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==' },
   { id: 'tiktok', name: 'TikTok', Icon: FaTiktok, url: 'https://www.tiktok.com/@uniinside.studio?is_from_webapp=1&sender_device=pc' },
   { id: 'linkedin', name: 'LinkedIn', Icon: FaLinkedinIn, url: 'https://www.linkedin.com/company/uni-inside-studio' },
-  { id: 'custom', name: 'Uni-Inside Crafts', Icon: CustomCIcon, url: 'https://www.instagram.com/uniinside.craft/?utm_source=ig_web_button_share_sheet' },
+  { id: 'custom', name: 'Uni-Inside Craft', Icon: CustomCIcon, url: 'https://www.instagram.com/uniinside.craft/?utm_source=ig_web_button_share_sheet' },
 ];
 
 
