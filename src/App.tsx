@@ -1,13 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback, forwardRef, lazy, Suspense } from 'react';
-import { motion, useMotionValue, useMotionTemplate, AnimatePresence, useAnimation, useInView, useScroll, useTransform, useMotionValueEvent, useSpring, useAnimationFrame, animate } from 'motion/react';
+import { motion, useMotionValue, useMotionTemplate, useAnimation, useInView, useScroll, useTransform, useMotionValueEvent, useSpring, useAnimationFrame, animate } from 'motion/react';
 import { Twitter, Linkedin, Instagram } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
-import Lottie from 'lottie-react';
 import { AchievementsSection } from './components/AchievementsSection';
 import { Footer } from './components/Footer';
 import { ScrollStorySection, type ScrollStorySectionHandle } from './components/ScrollStorySection';
-import { HeroModelFrame } from './components/HeroModelFrame';
-import { HeroAnimatedHeading } from './components/HeroAnimatedHeading';
+import { IsometricHero } from './components/hero/IsometricHero';
 import { AboutIntro, AboutIntroPresentation, AboutVisionMissionStory, AboutVisionMissionStoryPreview } from './components/AboutPresentation';
 import { useNearViewportOnce } from './hooks/useNearViewportOnce';
 import { type AppSectionId } from './components/ThemeController';
@@ -24,10 +22,8 @@ import member9 from './assets/our-team/members/9 - Ropaldo.avif';
 import logoDarkTheme from './assets/global/Logo - Dark Theme.svg';
 import logoLightTheme from './assets/global/Logo - Light Theme.svg';
 import craftsLogo from './assets/global/Uni-Inside Crafts.svg';
-import heroLoadingUrl from './assets/lottie/creative/hero-loading.json?url';
 
 const PARTNER_MODULES = import.meta.glob('./assets/about-us/partners/*.{png,jpg,jpeg,svg,webp}', { eager: true, import: 'default' }) as Record<string, string>;
-const LazyHeroModel = lazy(() => import('./components/HeroModel'));
 const LazyContactSection = lazy(() => import('./components/ContactSection').then(({ ContactSection }) => ({ default: ContactSection })));
 const partnersList = Object.entries(PARTNER_MODULES).map(([path, image]) => {
   const name = path.split('/').pop()?.split('.')[0] || 'Partner';
@@ -48,49 +44,6 @@ const teamMembers = [
   { name: 'Amany', image: member8, role: 'Creative Director' },
   { name: 'Ropaldo', image: member9, role: 'Creative Director' },
 ];
-
-const HeroLoadingIndicator: React.FC = () => {
-  const [animationData, setAnimationData] = useState<unknown>(null);
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    void fetch(heroLoadingUrl, { signal: controller.signal })
-      .then((response) => {
-        if (!response.ok) throw new Error('Unable to load the Hero animation.');
-        return response.json() as Promise<unknown>;
-      })
-      .then((data: unknown) => {
-        if (!controller.signal.aborted) setAnimationData(data);
-      })
-      .catch((error: unknown) => {
-        if (!(error instanceof DOMException && error.name === 'AbortError')) {
-          // The status region remains available if the asset cannot be requested.
-          setAnimationData(null);
-        }
-      });
-
-    return () => controller.abort();
-  }, []);
-
-  return (
-    <div
-      role="status"
-      aria-live="polite"
-      className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none overflow-hidden"
-    >
-      <span className="sr-only">Loading 3D model</span>
-      {animationData ? (
-        <Lottie
-          animationData={animationData}
-          autoplay
-          loop
-          className="w-28 h-28 sm:w-36 sm:h-36 lg:w-44 lg:h-44 max-w-[42vw] max-h-[42vw] scale-[3.5]"
-        />
-      ) : null}
-    </div>
-  );
-};
 
 const FilmFrame: React.FC<{ partner: { name: string; image: string } }> = ({ partner }) => (
   <div className="w-[280px] sm:w-[320px] h-[220px] flex flex-col justify-between bg-[#111] p-2 flex-shrink-0 border-r border-black/50">
@@ -492,7 +445,6 @@ const PageContent = ({
   onSceneChange,
   activeSection,
   heroTransitionRef,
-  heroTransitionProgress,
   aboutTeamTransitionRef,
   teamProductsTransitionRef,
   eventsAchievementsTransitionRef,
@@ -514,50 +466,12 @@ const PageContent = ({
   onSceneChange?: (scene: 'PRODUCTS' | 'SERVICES' | 'EVENTS' | null) => void,
   activeSection?: AppSectionId,
   heroTransitionRef?: React.RefObject<HTMLDivElement>,
-  heroTransitionProgress?: any,
   aboutTeamTransitionRef?: React.RefObject<HTMLDivElement>,
   teamProductsTransitionRef?: React.RefObject<HTMLDivElement>,
   eventsAchievementsTransitionRef?: React.RefObject<HTMLDivElement>,
   achievementsContactTransitionRef?: React.RefObject<HTMLDivElement>,
   shouldMountContact?: boolean
 }) => {
-  const [shouldLoadHero, setShouldLoadHero] = useState(false);
-  const [isHeroReady, setIsHeroReady] = useState(false);
-
-  const handleHeroReady = useCallback(() => {
-    setIsHeroReady((ready) => ready || true);
-  }, []);
-
-  useEffect(() => {
-    if (isCursor) return;
-    let cancelled = false;
-    const loadHero = () => {
-      if (!cancelled) setShouldLoadHero(true);
-    };
-    const windowWithIdle = window as Window & {
-      requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number;
-      cancelIdleCallback?: (handle: number) => void;
-    };
-    const idleId = windowWithIdle.requestIdleCallback?.(loadHero, { timeout: 150 });
-    const timeoutId = idleId === undefined ? window.setTimeout(loadHero, 0) : undefined;
-
-    return () => {
-      cancelled = true;
-      if (idleId !== undefined) windowWithIdle.cancelIdleCallback?.(idleId);
-      if (timeoutId !== undefined) window.clearTimeout(timeoutId);
-    };
-  }, []);
-  // Use progress for glow overlay fading
-  const fallbackProgress = useMotionValue(0);
-  const progress = heroTransitionProgress || fallbackProgress;
-  const glowOpacity = useTransform(progress, [0, 1], [0.5, 0]);
-
-  const textPopStyle = {
-    color: '#ffffff',
-    lineHeight: 0.9,
-    textShadow: '6px 6px 0px #f9d02d, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000'
-  };
-
   if (isCursor) {
     return (
       <div className="w-full flex flex-col relative z-10 pointer-events-none">
@@ -576,74 +490,7 @@ const PageContent = ({
 
   return (
     <div className="w-full flex flex-col relative z-10">
-      {/* Hero Section */}
-      <div className="relative w-full h-[100vh] flex items-center pt-20 px-8 lg:px-12 z-10">
-        {/* Glow overlay for hero */}
-        <motion.div className="absolute inset-0 pointer-events-none mix-blend-screen" 
-             style={{ 
-               background: 'radial-gradient(circle at 75% 50%, rgba(255,255,255,0.06) 0%, transparent 60%)',
-               maskImage: 'linear-gradient(to bottom, black 80%, transparent 100%)',
-               WebkitMaskImage: 'linear-gradient(to bottom, black 80%, transparent 100%)',
-               opacity: glowOpacity
-             }} />
-        <div className="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-8 items-center relative z-10">
-          
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.7, ease: "easeOut" }}
-            className="flex justify-center items-center order-2 lg:order-1"
-          >
-            <div className="relative group w-full max-w-[400px] lg:max-w-[500px]">
-               <div className="absolute -inset-4 bg-white/5 blur-3xl rounded-full" />
-                {shouldLoadHero ? (
-                  <Suspense fallback={<HeroModelFrame />}>
-                    <LazyHeroModel isReady={isHeroReady} onReady={handleHeroReady} />
-                  </Suspense>
-                ) : <HeroModelFrame />}
-                <AnimatePresence>
-                  {!isHeroReady && (
-                    <motion.div
-                      key="hero-loading"
-                      initial={{ opacity: 1, scale: 1 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.94 }}
-                      transition={{ duration: 0.28, ease: 'easeOut' }}
-                      className="absolute inset-0 z-20"
-                    >
-                      <HeroLoadingIndicator />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.7, ease: "easeOut", delay: 0.2 }}
-            className="flex flex-col items-center lg:items-start text-center lg:text-left order-1 lg:order-2 gap-6 relative z-10 lg:pl-16"
-          >
-            <HeroAnimatedHeading textPopStyle={textPopStyle} />
-
-            <p className="text-xl text-white/90 font-medium tracking-tight mt-2">
-              Creative Inside, Impact Outside
-            </p>
-
-            <div className="flex flex-wrap justify-center lg:justify-start gap-4 mt-4">
-              <Link to="/media-kit" className="bg-[#f9d02d] text-[#202121] font-bold text-sm px-8 py-3.5 rounded-full uppercase tracking-wide hover:scale-105 transition-transform cursor-pointer">
-                Media Kit
-              </Link>
-              <Link to="/products" className="bg-transparent border-2 border-white text-white font-bold text-sm px-8 py-3.5 rounded-full uppercase tracking-wide hover:bg-white hover:text-[#202121] transition-all cursor-pointer">
-                Products
-              </Link>
-              <Link to="/services" className="bg-transparent border-2 border-white text-white font-bold text-sm px-8 py-3.5 rounded-full uppercase tracking-wide hover:bg-white hover:text-[#202121] transition-all cursor-pointer">
-                Services
-              </Link>
-            </div>
-          </motion.div>
-        </div>
-      </div>
+      <IsometricHero />
 
       {/* Smooth Transition Spacer */}
       <div ref={heroTransitionRef} className="w-full h-[30vh] relative z-10 pointer-events-none" />
@@ -1263,7 +1110,6 @@ export default function App() {
         onSceneChange={handleSceneChange}
         activeSection={activeSection}
         heroTransitionRef={heroTransitionRef}
-        heroTransitionProgress={heroTransitionProgress}
         aboutTeamTransitionRef={aboutTeamTransitionRef}
         teamProductsTransitionRef={teamProductsTransitionRef}
         eventsAchievementsTransitionRef={eventsAchievementsTransitionRef}
