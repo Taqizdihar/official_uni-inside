@@ -52,6 +52,78 @@
   color: var(--hero-yellow);
 }
 
+.bulbIcon {
+  display: inline-block;
+  width: 0.57em;
+  height: 0.85em;
+  margin-right: -0.025em;
+  overflow: visible;
+  vertical-align: -0.08em;
+}
+
+.bulbFill {
+  fill: var(--hero-yellow);
+  transition: filter 160ms ease;
+}
+
+.hero[data-bulb-lit='true'] .bulbFill {
+  filter: drop-shadow(0 0 5px var(--hero-yellow)) drop-shadow(0 0 11px #ffd64d);
+}
+
+.pullCord {
+  position: absolute;
+  z-index: 4;
+  top: clamp(88px, 11vh, 120px);
+  left: calc(40% - 70px);
+  width: 140px;
+  height: 285px;
+  pointer-events: none;
+}
+
+.cordDrawing {
+  position: absolute;
+  inset: 0;
+  width: 140px;
+  height: 285px;
+  overflow: visible;
+  filter: drop-shadow(0 1px 2px #0009);
+}
+
+.cordAnchor { fill: #b8bcb9; stroke: #fafaf3; stroke-width: 1; }
+.cordPath { fill: none; stroke: #e9e9df; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+
+.cordHandle {
+  position: absolute;
+  left: 70px;
+  top: 162px;
+  display: grid;
+  width: 38px;
+  height: 42px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  padding: 0;
+  background: transparent;
+  cursor: grab;
+  pointer-events: auto;
+  touch-action: none;
+  transform: translate(-50%, -22%);
+}
+
+.cordHandle[data-dragging='true'] { cursor: grabbing; }
+.cordHandle:disabled { cursor: default; }
+.cordHandle:focus-visible { outline: 3px solid var(--hero-yellow); outline-offset: 3px; }
+
+.cordGrip {
+  display: block;
+  width: 11px;
+  height: 26px;
+  border: 1.5px solid #f5f5ed;
+  border-radius: 6px 6px 7px 7px;
+  background: linear-gradient(90deg, #d2a923, var(--hero-yellow) 40%, #f7dc67);
+  box-shadow: 0 2px 4px #0008;
+}
+
 .description {
   max-width: 640px;
   margin: clamp(24px, 3.3vh, 34px) 0 0;
@@ -68,7 +140,7 @@
 .stage {
   position: absolute;
   z-index: auto;
-  top: 110px;
+  top: 0;
   right: 0;
   bottom: 20px;
   left: 0;
@@ -120,20 +192,24 @@
 }
 
 .trustSignal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   min-width: 0;
+  text-align: center;
   white-space: nowrap;
 }
 
 .counterValue {
-  display: flex;
+  display: inline-flex;
   align-items: baseline;
+  justify-content: center;
+  gap: 0;
   height: 1.08em;
   color: var(--hero-yellow);
-  font-family: 'Poppins', ui-sans-serif, system-ui, sans-serif;
+  font-family: 'Anton', Impact, sans-serif;
   font-size: clamp(44px, 3.8vw, 76px);
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: 'tnum' 1, 'lnum' 1;
+  font-weight: 400;
   line-height: 1;
   letter-spacing: 0;
 }
@@ -141,7 +217,7 @@
 .digitWindow {
   display: inline-block;
   flex: 0 0 auto;
-  width: 1ch;
+  width: 0.5em;
   height: 1em;
   overflow: hidden;
 }
@@ -169,7 +245,7 @@
 }
 
 .plus {
-  margin-left: 0;
+  margin-left: -0.025em;
   font-size: 0.62em;
   opacity: 0;
   transition: opacity 160ms ease;
@@ -609,6 +685,7 @@
   .actions { gap: 10px; }
   .primaryCta, .secondaryCta { min-height: 46px; padding: 10px 16px; font-size: 12px; }
   .switcherPosition { right: 28px; }
+  .pullCord { left: calc(41% - 70px); }
 }
 
 @media (max-width: 767px) {
@@ -649,6 +726,7 @@
   .switcherThumb { width: 50px; height: 50px; }
   .switcherThumb img { width: 38px; height: 38px; }
   .hero[data-workspace='craft'] .switcherThumb { transform: translateX(64px); }
+  .pullCord { top: 270px; right: -6px; left: auto; transform: scale(0.62); transform-origin: top right; }
   .calloutLabel { max-width: 245px; padding: 9px 12px; font-size: 11px; }
   .fallback { width: 100%; margin-left: 0; padding: 24px 6px; }
   .fallbackLogoFrame { width: 145px; border-radius: 20px; }
