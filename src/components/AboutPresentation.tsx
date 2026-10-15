@@ -1,10 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
-import heroImage from '../assets/hero/hero-image.avif';
 import cameraImage from '../assets/about-us/elements/camera.avif';
 import cameraFlashImage from '../assets/about-us/elements/camera-flash.avif';
 import { useElementVisibility } from '../hooks/useElementVisibility';
+import { AboutComplexLogoParallax } from './about/AboutComplexLogoParallax';
 import { AboutRotatingIcon } from './AboutRotatingIcon';
 import { useAboutStory } from './AboutStoryProvider';
 
@@ -18,22 +18,19 @@ export const ABOUT_MISSION = {
   description: 'To combine creativity, collaboration, and technology to deliver thoughtful, high-quality work for every partner.',
 };
 
-const AboutIntroContent: React.FC<{ shouldFloat: boolean }> = ({ shouldFloat }) => {
-  const imageRef = useRef<HTMLDivElement>(null);
+const AboutIntroContent: React.FC<{ shouldFloat: boolean; parallaxActive: boolean; interactive: boolean }> = ({ shouldFloat, parallaxActive, interactive }) => {
   const reduceMotion = useReducedMotion();
 
   return (
     <div className="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-12 items-stretch px-6 sm:px-8 lg:px-12 py-20 sm:py-28">
-      <div ref={imageRef} className="order-1 flex min-h-[15rem] sm:min-h-[21rem] lg:min-h-[clamp(25rem,42vw,34rem)] items-center justify-center overflow-hidden">
-        <motion.img
-          src={heroImage}
-          alt=""
-          aria-hidden="true"
-          decoding="async"
-          className="block h-full max-h-[34rem] w-full object-contain"
+      <div className="order-1 flex min-h-[15rem] sm:min-h-[21rem] lg:min-h-[clamp(25rem,42vw,34rem)] items-center justify-center overflow-hidden">
+        <motion.div
+          className="relative aspect-square w-full max-w-[34rem] flex-none"
           animate={shouldFloat ? { y: [0, -8, 0] } : { y: 0 }}
           transition={shouldFloat ? { duration: 5.2, ease: 'easeInOut', repeat: Infinity } : { duration: 0.2 }}
-        />
+        >
+          <AboutComplexLogoParallax active={parallaxActive} interactive={interactive} />
+        </motion.div>
       </div>
       <div className="order-2 flex min-h-[clamp(25rem,42vw,34rem)] flex-col justify-between text-[#202121]">
         <div>
@@ -63,11 +60,21 @@ export const AboutIntro: React.FC = () => {
   const visibilityRef = useRef<HTMLDivElement>(null);
   const { isVisible, isPageVisible } = useElementVisibility(visibilityRef, '600px 0px');
   const reduceMotion = useReducedMotion();
-  return <div ref={visibilityRef}><AboutIntroContent shouldFloat={isVisible && isPageVisible && !reduceMotion} /></div>;
+  return (
+    <div ref={visibilityRef}>
+      <AboutIntroContent
+        shouldFloat={isVisible && isPageVisible && !reduceMotion}
+        parallaxActive={isVisible && isPageVisible}
+        interactive
+      />
+    </div>
+  );
 };
 
 /** Visual-only copy used inside the magnifier: no observer or animation owner. */
-export const AboutIntroPresentation: React.FC = () => <AboutIntroContent shouldFloat={false} />;
+export const AboutIntroPresentation: React.FC = () => (
+  <AboutIntroContent shouldFloat={false} parallaxActive={false} interactive={false} />
+);
 
 const AboutPolaroid: React.FC<{ title: string; description: string; floating: boolean; delay: number }> = ({ title, description, floating, delay }) => {
   const reduceMotion = useReducedMotion();
