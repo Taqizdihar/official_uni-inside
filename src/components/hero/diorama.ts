@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { HOTSPOTS, type HotspotId, type Workspace } from './heroConfig';
+import { HOTSPOTS, type HotspotId } from './heroConfig';
 import { GeometryBatch, type Point, type RoomMaterial, type RoomBuilderContext } from './roomGeometry';
 import { buildStudioRoom } from './studioRoom';
 import { buildCraftRoom } from './craftRoom';
@@ -12,7 +12,6 @@ export interface DioramaHotspot {
 export interface Diorama {
   root: THREE.Group;
   hotspots: Map<HotspotId, DioramaHotspot>;
-  setVisibleWorkspace(workspace: Workspace | null): void;
   update(activeId: HotspotId | null, time: number, delta: number, reducedMotion: boolean): boolean;
   dispose(): void;
 }
@@ -58,12 +57,12 @@ export function buildDiorama({ studioLogo, craftLogo, invalidate }: DioramaOptio
   }
 
   function walls(fixed: GeometryBatch) {
-    // Keep the original interior planes fixed while extending thickness outward.
-    // This hides room furniture seen from the opposite workspace at oblique angles.
+    // Preserve each interior face and add only a modest outer lip for occlusion.
     const length = Math.sqrt(8);
-    const outward = (0.68 - 0.13) / (2 * Math.SQRT2);
-    fixed.box('wall', [length, 2.8, 0.68], [-2.95 - outward, 1.4, 1.05 - outward], [0, Math.PI / 4, 0]);
-    fixed.box('wall', [length, 2.8, 0.68], [2.95 + outward, 1.4, 1.05 - outward], [0, -Math.PI / 4, 0]);
+    const thickness = 0.42;
+    const outward = (thickness - 0.13) / (2 * Math.SQRT2);
+    fixed.box('wall', [length, 2.8, thickness], [-2.95 - outward, 1.4, 1.05 - outward], [0, Math.PI / 4, 0]);
+    fixed.box('wall', [length, 2.8, thickness], [2.95 + outward, 1.4, 1.05 - outward], [0, -Math.PI / 4, 0]);
   }
 
   function logo(room: THREE.Group, url: string, aspect: number) {
@@ -123,10 +122,6 @@ export function buildDiorama({ studioLogo, craftLogo, invalidate }: DioramaOptio
 
   return {
     root, hotspots,
-    setVisibleWorkspace(workspace) {
-      studio.visible = workspace !== 'craft';
-      craft.visible = workspace !== 'studio';
-    },
     update(activeId, time, delta, reducedMotion) {
       if (disposed) return false;
       let resetting = false;
@@ -137,8 +132,8 @@ export function buildDiorama({ studioLogo, craftLogo, invalidate }: DioramaOptio
         activity[id] = next;
         resetting ||= next !== target;
       }
-      if (studio.visible) animateStudio(activity, time, reducedMotion);
-      if (craft.visible) animateCraft(activity, time, reducedMotion);
+      animateStudio(activity, time, reducedMotion);
+      animateCraft(activity, time, reducedMotion);
       return !reducedMotion && (activeId !== null || resetting);
     },
     dispose() {

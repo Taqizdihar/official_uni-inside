@@ -81,6 +81,13 @@
   position: absolute;
   z-index: 10;
   inset: 0;
+  opacity: 1;
+  pointer-events: none;
+  transition: opacity 420ms ease;
+}
+
+.pullCord[data-fading='true'] {
+  opacity: 0;
   pointer-events: none;
 }
 
@@ -208,13 +215,19 @@
   display: inline-flex;
   align-items: baseline;
   justify-content: center;
-  gap: 0;
+  gap: 0.12em;
   height: 1.08em;
   color: var(--hero-yellow);
   font-family: 'Anton', Impact, sans-serif;
   font-size: clamp(44px, 3.8vw, 76px);
   font-weight: 400;
   line-height: 1;
+  letter-spacing: 0;
+}
+
+.counterDigits {
+  display: inline-flex;
+  gap: 0;
   letter-spacing: 0;
 }
 
@@ -249,8 +262,10 @@
 }
 
 .plus {
-  margin-left: -0.025em;
-  font-size: 0.62em;
+  margin: 0;
+  font-size: 0.82em;
+  line-height: 1;
+  transform: translateY(-0.025em);
   opacity: 0;
   transition: opacity 160ms ease;
 }

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { LayoutGroup, motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import studioLogo from '../../assets/global/Logo - Light Theme.png';
 import craftLogo from '../../assets/global/Uni-Inside Crafts.png';
@@ -104,7 +105,7 @@ export function IsometricHero() {
   const interactionsReady = countersComplete && (sceneSettled || fallback);
   const canInteract = interactionsReady && !busy && replayPhase === 'idle';
   const controlsHaveBeenRevealed = interactionsReady && (replayPhase === 'idle' || replayPhase === 'bulb-lit' || replayPhase === 'exiting');
-  const cordReady = sceneSettled && countersComplete && !fallback && (replayPhase === 'idle' || replayPhase === 'bulb-lit');
+  const cordReady = sceneSettled && !fallback && (replayPhase === 'idle' || replayPhase === 'bulb-lit' || replayPhase === 'exiting');
   const heroRef = useRef<HTMLElement>(null);
   const copyRef = useRef<HTMLDivElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
@@ -408,7 +409,7 @@ export function IsometricHero() {
   }, []);
 
   useEffect(() => {
-    for (const url of [studioIntroLogo, craftIntroLogo]) {
+    for (const url of [studioLogo, craftLogo, studioIntroLogo, craftIntroLogo]) {
       const image = new Image();
       image.src = url;
       void image.decode().catch(() => undefined);
@@ -434,6 +435,7 @@ export function IsometricHero() {
     };
     const reveal = () => {
       if (cancelled) return;
+      window.clearTimeout(contentTimer);
       setContentVisible(true);
       contentTimer = window.setTimeout(() => {
         if (!cancelled) setRollStarted(true);
@@ -465,6 +467,7 @@ export function IsometricHero() {
           if (!cancelled) setFallback(false);
         },
         onSettled: (replayed) => {
+          if (cancelled) return;
           if (introLayerRef.current) introLayerRef.current.style.display = 'none';
           if (!cancelled) {
             setSceneSettled(true);
@@ -489,9 +492,10 @@ export function IsometricHero() {
           });
         },
         onReplayIntroStart: () => {
+          if (cancelled) return;
           if (introLayerRef.current) introLayerRef.current.style.display = '';
           replayPhaseRef.current = 'replaying-intro';
-          if (!cancelled) setReplayPhase('replaying-intro');
+          setReplayPhase('replaying-intro');
         },
         onTransitionEnd: () => {
           if (!cancelled) {
@@ -760,43 +764,50 @@ export function IsometricHero() {
       {cordReady && <HeroPullCord reducedMotion={reducedMotion} disabled={replayPhase !== 'idle' || busy} onPull={pullCord} />}
 
       <div className={styles.actions}>
-        <div
-          className={styles.ctaGroup}
-          data-cta-phase={ctaPhase}
-          data-cta-workspace={ctaWorkspace}
-          onAnimationEnd={event => {
-            if (event.target !== event.currentTarget) return;
-            if (ctaPhase === 'exit' && ctaPendingRef.current) enterCta(ctaPendingRef.current);
-            else if (ctaPhase === 'enter') setCtaPhase('idle');
-          }}
-        >
-          {ctaWorkspace === 'studio' ? (
-            <>
-              <Link className={styles.primaryCta} to="/#contact-us">{cta.primary}</Link>
-              <Link className={styles.secondaryCta} to="/services">{cta.secondary}</Link>
-            </>
-          ) : (
-            <>
-              <Link className={styles.primaryCta} to="/products">{cta.primary}</Link>
-              <Link className={styles.secondaryCta} to="/#contact-us">{cta.secondary}</Link>
-            </>
-          )}
-        </div>
-        <div className={styles.switcherPosition}>
-          <button
-            type="button"
-            className={styles.switcher}
-            onClick={switchWorkspace}
-            disabled={!canInteract}
-            aria-label={`Switch to ${WORKSPACES[workspace === 'studio' ? 'craft' : 'studio'].name}`}
-            aria-pressed={workspace === 'craft'}
+        <LayoutGroup id="hero-action-layout">
+          <div
+            className={styles.ctaGroup}
+            data-cta-phase={ctaPhase}
+            data-cta-workspace={ctaWorkspace}
+            onAnimationEnd={event => {
+              if (event.target !== event.currentTarget) return;
+              if (ctaPhase === 'exit' && ctaPendingRef.current) enterCta(ctaPendingRef.current);
+              else if (ctaPhase === 'enter') setCtaPhase('idle');
+            }}
           >
-            <span className={styles.switcherThumb}>
-              <img src={workspace === 'studio' ? studioLogo : craftLogo} alt="" />
-            </span>
-          </button>
-          <span className={styles.srOnly} role="status">{current.name} active</span>
-        </div>
+            {ctaWorkspace === 'studio' ? (
+              <>
+                <Link className={styles.primaryCta} to="/#contact-us">{cta.primary}</Link>
+                <Link className={styles.secondaryCta} to="/services">{cta.secondary}</Link>
+              </>
+            ) : (
+              <>
+                <Link className={styles.primaryCta} to="/products">{cta.primary}</Link>
+                <Link className={styles.secondaryCta} to="/#contact-us">{cta.secondary}</Link>
+              </>
+            )}
+          </div>
+          <motion.div
+            className={styles.switcherPosition}
+            layout="position"
+            initial={false}
+            transition={{ layout: { duration: reducedMotion ? 0 : 0.34, ease: [0.2, 0.8, 0.2, 1] } }}
+          >
+            <button
+              type="button"
+              className={styles.switcher}
+              onClick={switchWorkspace}
+              disabled={!canInteract}
+              aria-label={`Switch to ${WORKSPACES[workspace === 'studio' ? 'craft' : 'studio'].name}`}
+              aria-pressed={workspace === 'craft'}
+            >
+              <span className={styles.switcherThumb}>
+                <img src={workspace === 'studio' ? studioLogo : craftLogo} alt="" />
+              </span>
+            </button>
+            <span className={styles.srOnly} role="status">{current.name} active</span>
+          </motion.div>
+        </LayoutGroup>
       </div>
     </section>
   );

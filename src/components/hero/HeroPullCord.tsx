@@ -27,6 +27,7 @@ export function HeroPullCord({ reducedMotion, disabled, onPull }: {
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [dropped, setDropped] = useState(reducedMotion);
+  const [fadingOut, setFadingOut] = useState(false);
   const pathRef = useRef<SVGPathElement>(null);
   const gripRef = useRef<HTMLButtonElement>(null);
   const pullRef = useRef(onPull);
@@ -59,9 +60,9 @@ export function HeroPullCord({ reducedMotion, disabled, onPull }: {
     let metrics = measurements(root);
     drawing?.setAttribute('viewBox', `0 0 ${metrics.width} ${metrics.height}`);
     grip.style.left = `${metrics.anchorX}px`;
-    grip.style.top = `${metrics.restY}px`;
     if (reducedMotion) {
       setDropped(true);
+      grip.style.top = `${metrics.restY}px`;
       path.setAttribute('d', `M ${metrics.anchorX} ${ANCHOR_Y} L ${metrics.anchorX} ${metrics.restY}`);
       const observer = new ResizeObserver(() => {
         metrics = measurements(root);
@@ -207,8 +208,15 @@ export function HeroPullCord({ reducedMotion, disabled, onPull }: {
     };
   };
 
+  const triggerReplay = () => {
+    if (disabledRef.current || fadingOut) return false;
+    const started = pullRef.current();
+    if (started) setFadingOut(true);
+    return started;
+  };
+
   return (
-    <div ref={rootRef} className={styles.pullCord} data-hero-cord="" data-cord-ready={dropped}>
+    <div ref={rootRef} className={styles.pullCord} data-hero-cord="" data-cord-ready={dropped} data-fading={fadingOut}>
       <svg className={styles.cordDrawing} aria-hidden="true">
         <path ref={pathRef} d="" className={styles.cordPath} />
       </svg>
@@ -219,7 +227,7 @@ export function HeroPullCord({ reducedMotion, disabled, onPull }: {
         style={reducedMotion ? undefined : { top: ANCHOR_Y + SEGMENTS * 2 }}
         aria-label="Replay hero animation"
         data-dragging={physicsRef.current?.dragging ?? false}
-        disabled={disabled || !dropped}
+        disabled={disabled || !dropped || fadingOut}
         onPointerDown={(event) => {
           if (disabledRef.current || reducedMotion) return;
           const physics = physicsRef.current;
@@ -258,7 +266,7 @@ export function HeroPullCord({ reducedMotion, disabled, onPull }: {
           event.currentTarget.dataset.dragging = 'false';
           if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
           if (physics.maxPull >= clamp(window.innerHeight * 0.085, 64, 90) && !physics.fired && !disabledRef.current) {
-            physics.fired = pullRef.current();
+            physics.fired = triggerReplay();
           }
         }}
         onPointerCancel={(event) => {
@@ -271,11 +279,11 @@ export function HeroPullCord({ reducedMotion, disabled, onPull }: {
         onKeyDown={(event) => {
           if ((event.key === 'Enter' || event.key === ' ') && !disabledRef.current) {
             event.preventDefault();
-            pullRef.current();
+            triggerReplay();
           }
         }}
         onClick={(event) => {
-          if (reducedMotion && event.detail > 0 && !disabledRef.current) pullRef.current();
+          if (reducedMotion && event.detail > 0 && !disabledRef.current) triggerReplay();
         }}
       ><span className={styles.cordGrip} /></button>
     </div>

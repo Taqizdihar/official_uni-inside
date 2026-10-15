@@ -927,7 +927,7 @@ export default function App() {
 
   const finalNavGradient = useTransform(() => {
     const color = finalNavBg.get();
-    return `linear-gradient(to bottom, ${color} 0%, ${color} 25%, ${color} 50%, color-mix(in srgb, ${color} 50%, transparent) 75%, transparent 100%)`;
+    return `linear-gradient(to bottom, ${color} 0%, ${color} 20%, ${color} 40%, ${color} 60%, ${color} 80%, color-mix(in srgb, ${color} 50%, transparent) 100%)`;
   });
 
   const finalNavText = useTransform(() => {

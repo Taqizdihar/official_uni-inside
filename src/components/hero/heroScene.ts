@@ -418,7 +418,6 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
           diorama.root.rotation.y = WORKSPACES[workspace].rotation;
           replayPhase = 'off';
           settled = true;
-          diorama.setVisibleWorkspace(workspace);
           options.onSettled(replayed);
           if (queuedWorkspace) {
             const nextWorkspace = queuedWorkspace;
@@ -434,7 +433,6 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
         if (progress >= 1) {
           diorama.root.rotation.y = rotationTo;
           transitioning = false;
-          diorama.setVisibleWorkspace(workspace);
           options.onTransitionEnd();
           scheduleShowcase();
         } else needsAnotherFrame = true;
@@ -495,7 +493,6 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
       targetParallax.set(0, 0);
       emitHover(null);
       workspace = nextWorkspace;
-      diorama.setVisibleWorkspace(null);
       rotationFrom = diorama.root.rotation.y;
       rotationTo = WORKSPACES[nextWorkspace].rotation;
       transitionElapsed = 0;
@@ -545,7 +542,6 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
       emitHover(null);
       clearProjections();
       rewindElapsed = 0;
-      diorama.setVisibleWorkspace(null);
       rewindFromRotation = diorama.root.rotation.y;
       replayPhase = 'rewinding';
       requestRender();
