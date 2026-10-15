@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, forwardRef, lazy, Suspense } from 'react';
 import { motion, useMotionValue, useMotionTemplate, useAnimation, useInView, useScroll, useTransform, useMotionValueEvent, useSpring, useAnimationFrame, animate } from 'motion/react';
+import type { MotionStyle } from 'motion/react';
 import { Twitter, Linkedin, Instagram } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { AchievementsSection } from './components/AchievementsSection';
@@ -966,7 +967,10 @@ export default function App() {
   const preloadStory = useCallback(() => scrollStoryRef.current?.preload(), []);
 
   return (
-    <div className="w-full relative font-sans overflow-hidden min-h-screen">
+    <motion.div
+      className="w-full relative font-sans overflow-hidden min-h-screen"
+      style={{ backgroundColor: finalBg, '--scrollstory-bg': finalBg } as MotionStyle}
+    >
       <link rel="preload" as="image" href={logoDarkTheme} />
       <link rel="preload" as="image" href={logoLightTheme} />
       <style>{`
@@ -1135,6 +1139,6 @@ export default function App() {
         <div className="absolute w-[48px] h-[16px] bg-[#202121] rounded-full shadow-lg" style={{ bottom: -12, right: -12, transform: 'rotate(45deg)' }} />
       </motion.div>
       )}
-    </div>
+    </motion.div>
   );
 }
