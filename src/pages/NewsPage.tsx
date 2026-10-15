@@ -7,6 +7,7 @@ import { NewsSidebar } from '../components/news/NewsSidebar';
 import { LoadMoreButton } from '../components/news/LoadMoreButton';
 import { mockNews } from '../data/mockNews';
 import { Link } from 'react-router-dom';
+import navbarStyles from '../components/Navbar.module.css';
 import logoDarkTheme from '../assets/global/Logo - Dark Theme.svg';
 
 export const NewsPage: React.FC = () => {
@@ -53,7 +54,7 @@ export const NewsPage: React.FC = () => {
                 key={link}
                 to={link === 'NEWS' ? '/news' : '/'}
                 className={`text-[12px] xl:text-[14px] font-[800] uppercase tracking-[0.12em] cursor-pointer transition-colors ${
-                  isHighlightActive ? '!text-[#f9d02d]' : 'text-white hover:!text-[#f9d02d]'
+                  isHighlightActive ? `!text-[#f9d02d] ${navbarStyles.activeLink}` : 'text-white hover:!text-[#f9d02d]'
                 }`}
               >
                 {link}

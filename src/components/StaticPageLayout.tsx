@@ -1,6 +1,7 @@
 import type { PropsWithChildren } from 'react';
 import { Link } from 'react-router-dom';
 import { Footer } from './Footer';
+import navbarStyles from './Navbar.module.css';
 import logoDarkTheme from '../assets/global/Logo - Dark Theme.svg';
 
 type StaticPageLayoutProps = PropsWithChildren<{
@@ -54,7 +55,7 @@ export const StaticPageLayout: React.FC<StaticPageLayoutProps> = ({ activePage, 
               key={item.label}
               to={item.to}
               className={`rounded-sm text-[12px] font-[800] uppercase tracking-[0.12em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f9d02d] xl:text-[14px] ${
-                isActive ? 'text-[#f9d02d]' : 'text-white hover:text-[#f9d02d]'
+                isActive ? `text-[#f9d02d] ${navbarStyles.activeLink}` : 'text-white hover:text-[#f9d02d]'
               }`}
             >
               {item.label}
