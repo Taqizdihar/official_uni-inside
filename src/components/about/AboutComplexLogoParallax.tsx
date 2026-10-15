@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, useMotionValue, useSpring, useTransform, type MotionValue } from 'motion/react';
 import styles from './AboutComplexLogoParallax.module.css';
 
@@ -82,6 +82,7 @@ const useDepthMotion = (x: MotionValue<number>, y: MotionValue<number>, depth: n
 });
 
 const InteractiveComplexLogo: React.FC<{ active: boolean }> = ({ active }) => {
+  const frameRef = useRef<HTMLDivElement>(null);
   const pointerX = useMotionValue(0);
   const pointerY = useMotionValue(0);
   const springX = useSpring(pointerX, { stiffness: 170, damping: 26, mass: 0.35 });
@@ -101,7 +102,10 @@ const InteractiveComplexLogo: React.FC<{ active: boolean }> = ({ active }) => {
   };
 
   const [layerState, setLayerState] = useState<'idle' | 'loading' | 'ready' | 'failed'>('idle');
-  const [pointerInside, setPointerInside] = useState(false);
+  const [logoVisible, setLogoVisible] = useState(false);
+  const [pageVisible, setPageVisible] = useState(() => typeof document === 'undefined' || document.visibilityState === 'visible');
+  const [windowFocused, setWindowFocused] = useState(() => typeof document === 'undefined' || typeof document.hasFocus !== 'function' || document.hasFocus());
+  const lastPointer = useRef<{ x: number; y: number } | null>(null);
   const loadStarted = useRef(false);
   const mounted = useRef(true);
 
@@ -110,6 +114,17 @@ const InteractiveComplexLogo: React.FC<{ active: boolean }> = ({ active }) => {
     return () => {
       mounted.current = false;
     };
+  }, []);
+
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+
+    const observer = new IntersectionObserver(([entry]) => {
+      setLogoVisible(entry.isIntersecting);
+    }, { root: null, rootMargin: '0px', threshold: 0.01 });
+    observer.observe(frame);
+    return () => observer.disconnect();
   }, []);
 
   useEffect(() => {
@@ -136,38 +151,108 @@ const InteractiveComplexLogo: React.FC<{ active: boolean }> = ({ active }) => {
   }, [active]);
 
   useEffect(() => {
-    if (active) return;
-    pointerX.set(0);
-    pointerY.set(0);
-    setPointerInside(false);
-  }, [active, pointerX, pointerY]);
+    if (!active || !logoVisible) return;
 
-  const canInteract = active && layerState === 'ready';
+    const updatePageVisibility = () => {
+      const visible = document.visibilityState === 'visible';
+      setPageVisible(visible);
+      if (!visible) {
+        lastPointer.current = null;
+        pointerX.set(0);
+        pointerY.set(0);
+      }
+    };
+    const handleWindowFocus = () => {
+      setWindowFocused(true);
+      updatePageVisibility();
+    };
+    const handleWindowBlur = () => {
+      setWindowFocused(false);
+      lastPointer.current = null;
+      pointerX.set(0);
+      pointerY.set(0);
+    };
+
+    updatePageVisibility();
+    setWindowFocused(typeof document.hasFocus !== 'function' || document.hasFocus());
+    document.addEventListener('visibilitychange', updatePageVisibility);
+    window.addEventListener('focus', handleWindowFocus);
+    window.addEventListener('blur', handleWindowBlur);
+    return () => {
+      document.removeEventListener('visibilitychange', updatePageVisibility);
+      window.removeEventListener('focus', handleWindowFocus);
+      window.removeEventListener('blur', handleWindowBlur);
+    };
+  }, [active, logoVisible, pointerX, pointerY]);
+
+  const trackingEnabled = active
+    && layerState === 'ready'
+    && logoVisible
+    && pageVisible
+    && windowFocused;
   const showLayers = layerState !== 'failed' && (active || layerState === 'ready');
-  const setNeutral = useCallback(() => {
+
+  const resetToNeutral = useCallback(() => {
     pointerX.set(0);
     pointerY.set(0);
-    setPointerInside(false);
   }, [pointerX, pointerY]);
-  const handlePointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!canInteract || (event.pointerType !== 'mouse' && event.pointerType !== 'pen')) return;
-    const bounds = event.currentTarget.getBoundingClientRect();
-    const normalize = (position: number, start: number, length: number) =>
-      Math.max(-1, Math.min(1, ((position - start) / Math.max(length, 1) - 0.5) * 2));
-    pointerX.set(normalize(event.clientX, bounds.left, bounds.width));
-    pointerY.set(normalize(event.clientY, bounds.top, bounds.height));
-  }, [canInteract, pointerX, pointerY]);
+
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!trackingEnabled || !frame) {
+      resetToNeutral();
+      return;
+    }
+
+    let animationFrame = 0;
+    const updatePointer = () => {
+      animationFrame = 0;
+      const position = lastPointer.current;
+      if (!position) return;
+
+      const bounds = frame.getBoundingClientRect();
+      const centerX = bounds.left + bounds.width / 2;
+      const centerY = bounds.top + bounds.height / 2;
+      const normalize = (position: number, center: number, viewportLength: number) => {
+        const delta = position - center;
+        const available = delta < 0 ? Math.max(1, Math.abs(center)) : Math.max(1, Math.abs(viewportLength - center));
+        return Math.max(-1, Math.min(1, delta / available));
+      };
+
+      pointerX.set(normalize(position.x, centerX, window.innerWidth));
+      pointerY.set(normalize(position.y, centerY, window.innerHeight));
+    };
+    const scheduleUpdate = () => {
+      if (animationFrame) return;
+      animationFrame = window.requestAnimationFrame(updatePointer);
+    };
+    const handlePointerMove = (event: PointerEvent) => {
+      if (event.pointerType !== 'mouse' && event.pointerType !== 'pen') return;
+      lastPointer.current = { x: event.clientX, y: event.clientY };
+      scheduleUpdate();
+    };
+
+    window.addEventListener('pointermove', handlePointerMove, { passive: true });
+    window.addEventListener('scroll', scheduleUpdate, { passive: true });
+    window.addEventListener('resize', scheduleUpdate, { passive: true });
+    scheduleUpdate();
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('scroll', scheduleUpdate);
+      window.removeEventListener('resize', scheduleUpdate);
+      if (animationFrame) window.cancelAnimationFrame(animationFrame);
+      resetToNeutral();
+    };
+  }, [trackingEnabled, pointerX, pointerY, resetToNeutral]);
 
   return (
     <div
+      ref={frameRef}
       className={styles.frame}
       role="img"
       aria-label="Uni-Inside Studio complex logo"
-      data-parallax-active={canInteract ? 'true' : 'false'}
-      onPointerEnter={canInteract ? () => setPointerInside(true) : undefined}
-      onPointerMove={canInteract ? handlePointerMove : undefined}
-      onPointerLeave={canInteract ? setNeutral : undefined}
-      onPointerCancel={canInteract ? setNeutral : undefined}
+      data-parallax-active={trackingEnabled ? 'true' : 'false'}
     >
       <motion.img
         className={`${styles.image} ${styles.fallback}`}
@@ -212,7 +297,7 @@ const InteractiveComplexLogo: React.FC<{ active: boolean }> = ({ active }) => {
                   x: movement.x,
                   y: movement.y,
                   zIndex: layer.zIndex,
-                  willChange: pointerInside ? 'transform' : 'auto',
+                  willChange: trackingEnabled ? 'transform' : 'auto',
                 }}
                 data-depth={layer.depth}
               />

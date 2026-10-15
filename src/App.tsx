@@ -8,7 +8,8 @@ import { Footer } from './components/Footer';
 import { ScrollStorySection, type ScrollStorySectionHandle } from './components/ScrollStorySection';
 import { IsometricHero } from './components/hero/IsometricHero';
 import navbarStyles from './components/Navbar.module.css';
-import { AboutIntro, AboutIntroPresentation, AboutVisionMissionStory, AboutVisionMissionStoryPreview } from './components/AboutPresentation';
+import { AboutIntro, AboutIntroPresentation } from './components/AboutPresentation';
+import { AboutEditorialContent, AboutTeamBridge } from './components/about/AboutEditorialContent';
 import { useNearViewportOnce } from './hooks/useNearViewportOnce';
 import { type AppSectionId } from './components/ThemeController';
 
@@ -483,8 +484,9 @@ const PageContent = ({
         {/* About Us Section */}
         <div className="w-full flex flex-col z-10">
           <AboutIntroPresentation />
-          <AboutVisionMissionStoryPreview />
+          <AboutEditorialContent presentationOnly />
           <FilmRollSection filmRollXVal={filmRollXVal} isCursor={true} />
+          <AboutTeamBridge presentationOnly />
         </div>
       </div>
     );
@@ -510,8 +512,9 @@ const PageContent = ({
           className="w-full flex flex-col"
         >
           <AboutIntro />
-          <AboutVisionMissionStory />
+          <AboutEditorialContent />
           <FilmRollSection filmRollXVal={filmRollXVal} isCursor={isCursor} />
+          <AboutTeamBridge />
         </div>
 
         {/* About → Team Transition Spacer */}
