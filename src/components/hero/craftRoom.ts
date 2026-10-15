@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { HotspotId } from './heroConfig';
+import { smoothStep } from './heroMotion';
 import type { Point, RoomBuilderContext } from './roomGeometry';
 
 /** The workshop is authored in its own coordinates, then turned with the room. */
@@ -145,6 +146,16 @@ export function buildCraftRoom(context: RoomBuilderContext) {
   const designScreen = context.batch();
   designScreen.box('screen', [0.86, 0.48, 0.012], [0, 0.48, 0.045]);
   const designHits: THREE.Object3D[] = designScreen.compile(design, 'craft-design-screen');
+  const designScreenColors = (designHits[0] as THREE.Mesh).geometry.getAttribute('color') as THREE.BufferAttribute;
+  const designAccents = context.batch();
+  for (let index = 0; index < 6; index++) designAccents.box('screen', [0.12, 0.016, 0.008], [-0.34 + index * 0.135, 0.69, 0.058]);
+  designAccents.box('screen', [0.016, 0.2, 0.008], [0.408, 0.52, 0.058]);
+  const designAccentMeshes = designAccents.compile(design, 'craft-design-rgb-accents');
+  const designAccentColors = designAccentMeshes[0].geometry.getAttribute('color') as THREE.BufferAttribute;
+  const accentColor = new THREE.Color();
+  let lastDesignAccentHue = Number.NaN;
+  let lastDesignAccentSpread = Number.NaN;
+  designHits.push(...designAccentMeshes);
   const designModel = new THREE.Group();
   designModel.position.set(0.09, 0.485, 0.08);
   design.add(designModel);
@@ -186,6 +197,17 @@ export function buildCraftRoom(context: RoomBuilderContext) {
   brushParts.box('coral', [0.033, 0.07, 0.025], [0, -0.19, 0]);
   paintingHits.push(...brushParts.compileColored(brush, 'craft-paint-brush'));
   context.register('painting', brush, [0, 0.1, 0.035], paintingHits);
+  const brushRestPosition = brush.position.clone();
+  const brushRestRotation = brush.rotation.clone();
+  const brushPath = [
+    { position: brushRestPosition, rotation: brushRestRotation },
+    { position: new THREE.Vector3(-0.27, 0.29, 0.15), rotation: new THREE.Euler(0, 0, -1.2) },
+    { position: new THREE.Vector3(-0.12, 0.25, 0.15), rotation: new THREE.Euler(0, 0, -1.35) },
+    { position: new THREE.Vector3(0.08, 0.31, 0.38), rotation: new THREE.Euler(0.72, 0, 0) },
+    { position: new THREE.Vector3(0.22, 0.25, 0.34), rotation: new THREE.Euler(0.76, 0, 0.42) },
+    { position: new THREE.Vector3(0.32, 0.24, 0.12), rotation: new THREE.Euler(0, 0, 1.32) },
+    { position: brushRestPosition, rotation: brushRestRotation },
+  ];
 
   const filamentPosition: Point = [-2.12, 0, 0.73];
   const filament = object('filament', filamentPosition, Math.PI / 4);
@@ -249,21 +271,21 @@ export function buildCraftRoom(context: RoomBuilderContext) {
   ];
   const spoolColors = ['#e5ae34', '#252a2d', '#e7e4d9', '#e5ae34', '#252a2d'];
   const spoolAxis = new THREE.Vector3();
-  function setSpool(index: number, rotation: number) {
+  function setSpool(index: number, rotation: number, frontOffset: number) {
     const position = spoolPositions[index];
-    moving.position.set(...position);
+    moving.position.set(position[0], position[1], position[2] + frontOffset);
     moving.rotation.set(Math.PI / 2, rotation, 0);
     moving.updateMatrix();
     cores.setMatrixAt(index, moving.matrix);
     spoolAxis.set(0, 1, 0).applyQuaternion(moving.quaternion);
     for (let side = 0; side < 2; side++) {
-      moving.position.set(...position).addScaledVector(spoolAxis, side ? 0.085 : -0.085);
+      moving.position.set(position[0], position[1], position[2] + frontOffset).addScaledVector(spoolAxis, side ? 0.085 : -0.085);
       moving.updateMatrix();
       flanges.setMatrixAt(index * 2 + side, moving.matrix);
     }
   }
   for (let index = 0; index < spoolPositions.length; index++) {
-    setSpool(index, 0);
+    setSpool(index, 0, 0);
     cores.setColorAt(index, new THREE.Color(spoolColors[index]));
   }
   cores.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -320,23 +342,32 @@ export function buildCraftRoom(context: RoomBuilderContext) {
   room.add(packagingGroup);
   packaging.compileColored(packagingGroup, 'craft-cardboard-packaging');
   const productHits: THREE.Object3D[] = [];
-  const featuredProduct = new THREE.Group();
-  featuredProduct.position.set(0, 0, 0.05);
-  products.add(featuredProduct);
-  const featured = context.batch();
-  // Three distinct, printable objects share a single animated product cluster and hit mesh.
-  featured.cylinder('charcoal', 0.115, 0.14, [-0.22, 0.07, 0], undefined, 0.08, 6);
-  featured.ball('charcoal', 0.11, [-0.22, 0.25, 0]);
-  featured.box('yellow', [0.025, 0.025, 0.015], [-0.26, 0.268, 0.105]);
-  featured.box('yellow', [0.025, 0.025, 0.015], [-0.18, 0.268, 0.105]);
-  featured.cylinder('charcoal', 0.04, 0.09, [-0.28, 0.35, 0], undefined, 0, 4);
-  featured.cylinder('charcoal', 0.04, 0.09, [-0.16, 0.35, 0], undefined, 0, 4);
-  featured.cylinder('sage', 0.11, 0.18, [0.09, 0.09, 0], undefined, 0.14, 6);
-  featured.cylinder('sage', 0.085, 0.12, [0.09, 0.23, 0], undefined, 0.065, 6);
-  featured.ball('ivory', 0.09, [0.37, 0.09, 0]);
-  featured.cylinder('yellow', 0.06, 0.1, [0.37, 0.22, 0], undefined, 0.03, 6);
-  productHits.push(...featured.compileColored(featuredProduct, 'craft-custom-character'));
-  context.register('products', featuredProduct, [0.09, 0.27, 0.08], productHits);
+  const productAnchors: Point[] = [[-0.45, 0, 0.3], [0, 0, 0.3], [0.45, 0, 0.3]];
+  const productModels = productAnchors.map((position, index) => {
+    const group = new THREE.Group();
+    group.name = `craft-product-model-${index + 1}`;
+    group.position.set(...position);
+    products.add(group);
+    return group;
+  });
+  // Keep the character, planter and trophy as separate models so each can travel between stable table anchors.
+  const character = context.batch();
+  character.cylinder('charcoal', 0.115, 0.14, [0, 0.07, 0], undefined, 0.08, 6);
+  character.ball('charcoal', 0.11, [0, 0.25, 0]);
+  character.box('yellow', [0.025, 0.025, 0.015], [-0.04, 0.268, 0.105]);
+  character.box('yellow', [0.025, 0.025, 0.015], [0.04, 0.268, 0.105]);
+  character.cylinder('charcoal', 0.04, 0.09, [-0.06, 0.35, 0], undefined, 0, 4);
+  character.cylinder('charcoal', 0.04, 0.09, [0.06, 0.35, 0], undefined, 0, 4);
+  productHits.push(...character.compileColored(productModels[0], 'craft-custom-character'));
+  const planter = context.batch();
+  planter.cylinder('sage', 0.11, 0.18, [0, 0.09, 0], undefined, 0.14, 6);
+  planter.cylinder('sage', 0.085, 0.12, [0, 0.23, 0], undefined, 0.065, 6);
+  productHits.push(...planter.compileColored(productModels[1], 'craft-printed-planter'));
+  const trophy = context.batch();
+  trophy.ball('ivory', 0.09, [0, 0.09, 0]);
+  trophy.cylinder('yellow', 0.06, 0.1, [0, 0.22, 0], undefined, 0.03, 6);
+  productHits.push(...trophy.compileColored(productModels[2], 'craft-miniature-trophy'));
+  context.register('products', products, [0, 0.27, 0.3], productHits);
 
   const tools = context.batch();
   tools.box('charcoal', [1.05, 0.84, 0.045], [0, 0, 0]);
@@ -386,23 +417,145 @@ export function buildCraftRoom(context: RoomBuilderContext) {
   }
   furniture.append(rightTools, 0, [1.19, 1.92, 0.18]);
 
-  let lastSpoolRotation = Number.NaN;
+  let paintingStartedAt = 0;
+  let paintingWasActive = false;
+  let filamentStartedAt = 0;
+  let filamentWasActive = false;
+  let productsStartedAt = 0;
+  let productsWereActive = false;
+  let lastDesignScreenLevel = Number.NaN;
+  const lastSpoolOffsets = new Float32Array(spoolPositions.length).fill(Number.NaN);
+  const lastSpoolRotations = new Float32Array(spoolPositions.length).fill(Number.NaN);
+  const pathPosition = new THREE.Vector3();
+  const pathRotation = new THREE.Euler();
+  const productOrder = [0, 1, 2];
+  const productSwaps: readonly (readonly [number, number])[] = [[0, 1], [1, 2], [2, 0], [0, 1], [1, 2], [2, 0]];
   return (activity: Readonly<Record<HotspotId, number>>, time: number, reducedMotion: boolean) => {
     const wave = reducedMotion ? 0.3 : Math.sin(time * 2.6);
     printHead.position.x = activity.printer * (reducedMotion ? 0.09 : wave * 0.21);
     printBed.position.z = 0.12 + activity.printer * (reducedMotion ? 0.025 : Math.sin(time * 1.8) * 0.07);
     feedSpool.rotation.x = activity.printer * (reducedMotion ? 0.18 : Math.sin(time * 0.5) * 0.4);
     designModel.rotation.y = activity.design * (reducedMotion ? 0.22 : Math.sin(time * 0.65) * 0.65);
-    brush.position.y = 0.13 + activity.painting * (reducedMotion ? 0.035 : 0.045 + wave * 0.035);
-    brush.rotation.z = -0.48 + activity.painting * (reducedMotion ? 0.08 : wave * 0.16);
-    featuredProduct.position.y = activity.products * (reducedMotion ? 0.025 : 0.035 + Math.sin(time * 2) * 0.025);
-    featuredProduct.rotation.y = activity.products * (reducedMotion ? 0.14 : Math.sin(time * 1.7) * 0.32);
-    const spoolRotation = activity.filament * (reducedMotion ? 0.18 : Math.sin(time * 0.72) * 0.4);
-    if (spoolRotation !== lastSpoolRotation) {
-      setSpool(2, spoolRotation);
+    const designScreenLevel = 0.86 + activity.design * 0.14;
+    if (designScreenLevel !== lastDesignScreenLevel) {
+      (designScreenColors.array as Float32Array).fill(designScreenLevel);
+      designScreenColors.needsUpdate = true;
+      lastDesignScreenLevel = designScreenLevel;
+    }
+    const designAccentActivity = reducedMotion ? 0 : activity.design;
+    const designAccentHue = (0.12 + designAccentActivity * ((time * 0.08) % 1)) % 1;
+    if (designAccentHue !== lastDesignAccentHue || designAccentActivity !== lastDesignAccentSpread) {
+      const values = designAccentColors.array as Float32Array;
+      for (let vertex = 0; vertex < designAccentColors.count; vertex++) {
+        const segment = Math.floor(vertex / 36);
+        accentColor.setHSL((designAccentHue + segment * designAccentActivity / 7) % 1, 0.86 * designAccentActivity + 0.48 * (1 - designAccentActivity), 0.76);
+        values[vertex * 3] = accentColor.r;
+        values[vertex * 3 + 1] = accentColor.g;
+        values[vertex * 3 + 2] = accentColor.b;
+      }
+      designAccentColors.needsUpdate = true;
+      lastDesignAccentHue = designAccentHue;
+      lastDesignAccentSpread = designAccentActivity;
+    }
+
+    const paintingActive = !reducedMotion && activity.painting > 0.02;
+    if (paintingActive && !paintingWasActive) paintingStartedAt = time;
+    if (!paintingActive) paintingStartedAt = 0;
+    paintingWasActive = paintingActive;
+    const paintingElapsed = paintingActive ? (time - paintingStartedAt) % 4.8 : 0;
+    const paintingSegmentDuration = 4.8 / (brushPath.length - 1);
+    const paintingSegment = Math.min(brushPath.length - 2, Math.floor(paintingElapsed / paintingSegmentDuration));
+    const paintingProgress = smoothStep((paintingElapsed - paintingSegment * paintingSegmentDuration) / paintingSegmentDuration);
+    const fromBrushPose = brushPath[paintingSegment];
+    const toBrushPose = brushPath[paintingSegment + 1];
+    pathPosition.copy(fromBrushPose.position).lerp(toBrushPose.position, paintingProgress);
+    pathRotation.set(
+      THREE.MathUtils.lerp(fromBrushPose.rotation.x, toBrushPose.rotation.x, paintingProgress),
+      THREE.MathUtils.lerp(fromBrushPose.rotation.y, toBrushPose.rotation.y, paintingProgress),
+      THREE.MathUtils.lerp(fromBrushPose.rotation.z, toBrushPose.rotation.z, paintingProgress),
+    );
+    const brushActivity = reducedMotion ? 0 : activity.painting;
+    brush.position.set(
+      brushRestPosition.x + (pathPosition.x - brushRestPosition.x) * brushActivity,
+      brushRestPosition.y + (pathPosition.y - brushRestPosition.y) * brushActivity,
+      brushRestPosition.z + (pathPosition.z - brushRestPosition.z) * brushActivity,
+    );
+    brush.rotation.set(
+      brushRestRotation.x + (pathRotation.x - brushRestRotation.x) * brushActivity,
+      brushRestRotation.y + (pathRotation.y - brushRestRotation.y) * brushActivity,
+      brushRestRotation.z + (pathRotation.z - brushRestRotation.z) * brushActivity,
+    );
+
+    const filamentActive = !reducedMotion && activity.filament > 0.02;
+    if (filamentActive && !filamentWasActive) filamentStartedAt = time;
+    if (!filamentActive) filamentStartedAt = 0;
+    filamentWasActive = filamentActive;
+    const spoolStepDuration = 0.72;
+    const spoolCycleDuration = spoolStepDuration * spoolPositions.length;
+    const spoolElapsed = filamentActive ? (time - filamentStartedAt) % spoolCycleDuration : 0;
+    const spoolStep = Math.min(spoolPositions.length - 1, Math.floor(spoolElapsed / spoolStepDuration));
+    const spoolStepProgress = (spoolElapsed - spoolStep * spoolStepDuration) / spoolStepDuration;
+    let spoolTravel = 0;
+    if (spoolStepProgress < 0.3) spoolTravel = 0.14 * smoothStep(spoolStepProgress / 0.3);
+    else if (spoolStepProgress < 0.42) spoolTravel = 0.14;
+    else if (spoolStepProgress < 0.82) spoolTravel = 0.14 * (1 - smoothStep((spoolStepProgress - 0.42) / 0.4));
+    const movingSpool = spoolPositions.length - 1 - spoolStep;
+    let spoolMatricesChanged = false;
+    for (let index = 0; index < spoolPositions.length; index++) {
+      const offset = index === movingSpool ? spoolTravel * activity.filament : 0;
+      const rotation = index === movingSpool ? spoolTravel * activity.filament * 1.8 : 0;
+      if (offset === lastSpoolOffsets[index] && rotation === lastSpoolRotations[index]) continue;
+      setSpool(index, rotation, offset);
+      lastSpoolOffsets[index] = offset;
+      lastSpoolRotations[index] = rotation;
+      spoolMatricesChanged = true;
+    }
+    if (spoolMatricesChanged) {
       cores.instanceMatrix.needsUpdate = true;
       flanges.instanceMatrix.needsUpdate = true;
-      lastSpoolRotation = spoolRotation;
+    }
+
+    const productsActive = !reducedMotion && activity.products > 0.02;
+    if (productsActive && !productsWereActive) productsStartedAt = time;
+    if (!productsActive) productsStartedAt = 0;
+    productsWereActive = productsActive;
+    const productCycleDuration = 4.5;
+    const productElapsed = productsActive ? (time - productsStartedAt) % productCycleDuration : 0;
+    const productStepDuration = productCycleDuration / productSwaps.length;
+    const productStep = Math.min(productSwaps.length - 1, Math.floor(productElapsed / productStepDuration));
+    const productProgress = (productElapsed - productStep * productStepDuration) / productStepDuration;
+    productOrder[0] = 0;
+    productOrder[1] = 1;
+    productOrder[2] = 2;
+    for (let step = 0; step < productStep; step++) {
+      const [left, right] = productSwaps[step];
+      const previous = productOrder[left];
+      productOrder[left] = productOrder[right];
+      productOrder[right] = previous;
+    }
+    const [leftSlot, rightSlot] = productSwaps[productStep];
+    const firstMovingModel = productOrder[leftSlot];
+    const secondMovingModel = productOrder[rightSlot];
+    const productTravel = smoothStep(productProgress);
+    const productArc = Math.sin(productProgress * Math.PI);
+    const productActivity = reducedMotion ? 0 : activity.products;
+    for (let modelIndex = 0; modelIndex < productModels.length; modelIndex++) {
+      const currentSlot = productOrder.indexOf(modelIndex);
+      let targetX = productAnchors[currentSlot][0];
+      let targetY = 0;
+      let targetZ = productAnchors[currentSlot][2];
+      if (modelIndex === firstMovingModel || modelIndex === secondMovingModel) {
+        const targetSlot = currentSlot === leftSlot ? rightSlot : leftSlot;
+        targetX = THREE.MathUtils.lerp(productAnchors[currentSlot][0], productAnchors[targetSlot][0], productTravel);
+        targetY = productArc * 0.075;
+        targetZ += (currentSlot === leftSlot ? 1 : -1) * productArc * 0.08;
+      }
+      const canonical = productAnchors[modelIndex];
+      productModels[modelIndex].position.set(
+        canonical[0] + (targetX - canonical[0]) * productActivity,
+        targetY * productActivity,
+        canonical[2] + (targetZ - canonical[2]) * productActivity,
+      );
     }
   };
 }

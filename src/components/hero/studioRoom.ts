@@ -80,13 +80,23 @@ export function buildStudioRoom(context: RoomBuilderContext): RoomAnimation {
   cursorShape.compile(cursor, 'timeline-cursor');
   register('editing', editing, [0, 0.05, 0.04], screenMeshes);
   const screenColors = screenMeshes[0].geometry.getAttribute('color') as THREE.BufferAttribute;
+  const screenAccent = batch();
+  for (let index = 0; index < 6; index++) screenAccent.box('screen', [0.15, 0.018, 0.01], [-0.52 + index * 0.2, 0.272, 0.022]);
+  const accentMeshes = screenAccent.compile(editing, 'editing-rgb-accents');
+  const accentColors = accentMeshes[0].geometry.getAttribute('color') as THREE.BufferAttribute;
+  const accentColor = new THREE.Color();
+  let lastAccentHue = Number.NaN;
+  let lastAccentSpread = Number.NaN;
 
   // Camera on a spread tripod, with a stepped lens and recognizable top handle.
   const camera = new THREE.Group();
   camera.name = 'hotspot-camera';
-  camera.position.set(-1.85, 1.15, 2.84);
+  camera.position.set(-1.85, 1.06, 2.84);
   camera.rotation.y = -0.11;
   room.add(camera);
+  const cameraHead = new THREE.Group();
+  cameraHead.position.y = 0.09;
+  camera.add(cameraHead);
   const cameraBody = batch();
   cameraBody.box('black', [0.46, 0.3, 0.3], [0, 0, 0]);
   cameraBody.box('charcoal', [0.08, 0.25, 0.27], [-0.24, -0.015, 0]);
@@ -99,17 +109,17 @@ export function buildStudioRoom(context: RoomBuilderContext): RoomAnimation {
   cameraBody.cylinder('metal', 0.095, 0.014, [0.055, -0.007, 0.413], [Math.PI / 2, 0, 0]);
   cameraBody.cylinder('black', 0.077, 0.016, [0.055, -0.007, 0.425], [Math.PI / 2, 0, 0]);
   cameraBody.box('yellow', [0.035, 0.027, 0.013], [-0.15, 0.075, 0.158]);
-  const cameraMeshes = cameraBody.compileColored(camera, 'camera');
+  const cameraMeshes = cameraBody.compileColored(cameraHead, 'camera');
   const lens = new THREE.Group();
   lens.name = 'camera-focus-ring';
-  camera.add(lens);
+  cameraHead.add(lens);
   const lensShape = batch();
   lensShape.add(focusRing(0.14, 0.112, 0.035), 'yellow', [0.055, -0.007, 0.354]);
   cameraMeshes.push(...lensShape.compile(lens, 'camera-focus-ring'));
   stand(-1.85, 2.84, 1.02, 0.42);
   fixed.box('black', [0.24, 0.075, 0.22], [-1.85, 1.06, 2.84]);
   fixed.beam('black', [-1.81, 1.04, 2.84], [-1.51, 0.98, 2.98], 0.03);
-  register('camera', camera, [0.055, 0.045, 0.37], cameraMeshes);
+  register('camera', camera, [0.055, 0.135, 0.37], cameraMeshes);
 
   fixed.box('ivory', [1.3, 0.075, 0.83], [1.86, 0.79, 2.73]);
   fixed.box('yellow', [1.3, 0.035, 0.065], [1.86, 0.82, 3.105]);
@@ -149,34 +159,43 @@ export function buildStudioRoom(context: RoomBuilderContext): RoomAnimation {
 
   const light = new THREE.Group();
   light.name = 'hotspot-lighting';
-  light.position.set(-2.5, 2.04, 1.65);
+  light.position.set(-2.5, 1.95, 1.65);
   light.rotation.y = 0.21;
   room.add(light);
+  const lightHead = new THREE.Group();
+  lightHead.position.y = 0.09;
+  light.add(lightHead);
   const lightShape = batch();
   lightShape.add(softboxShell(1.03, 0.88, 0.3), 'black');
   lightShape.box('ivory', [0.93, 0.78, 0.018], [0, 0, 0.161]);
-  const lightMeshes = lightShape.compile(light, 'softbox');
+  const lightMeshes = lightShape.compile(lightHead, 'softbox');
   const panel = lightMeshes.find((mesh) => mesh.name.endsWith('ivory'))!;
   const panelColors = panel.geometry.getAttribute('color') as THREE.BufferAttribute;
   stand(-2.5, 1.65, 1.89, 0.36);
-  register('lighting', light, [0, 0, 0.172], lightMeshes);
+  register('lighting', light, [0, 0.09, 0.172], lightMeshes);
   stand(2.46, 1.72, 1.78, 0.31);
   fixed.box('black', [0.46, 0.44, 0.075], [2.46, 1.96, 1.72], [0, -0.2, 0]);
   fixed.box('ivory', [0.39, 0.36, 0.014], [2.449, 1.96, 1.766], [0, -0.2, 0]);
 
   stand(-1.35, 1.76, 1.55, 0.28);
-  fixed.beam('metal', [-1.35, 1.59, 1.76], [-0.72, 1.83, 1.28], 0.033);
-  fixed.beam('black', [-1.35, 1.59, 1.76], [-1.61, 1.49, 1.95], 0.033);
+  const micBoom = new THREE.Group();
+  micBoom.name = 'hotspot-microphone';
+  micBoom.position.set(-1.35, 1.59, 1.76);
+  room.add(micBoom);
+  const boomShape = batch();
+  boomShape.beam('metal', [0, 0, 0], [0.63, 0.24, -0.48], 0.033);
+  boomShape.beam('black', [0, 0, 0], [-0.26, -0.1, 0.19], 0.033);
+  boomShape.compile(micBoom, 'microphone-boom');
   const microphone = new THREE.Group();
-  microphone.name = 'hotspot-microphone';
-  microphone.position.set(-0.73, 1.76, 1.29);
-  room.add(microphone);
+  microphone.name = 'microphone-body';
+  microphone.position.set(0.62, 0.17, -0.47);
+  micBoom.add(microphone);
   const micShape = batch();
   micShape.cylinder('black', 0.071, 0.27, [0, 0, 0], [0.47, 0, -0.28]);
   micShape.cylinder('metal', 0.076, 0.09, [0.02, 0.11, 0.04], [0.47, 0, -0.28]);
   micShape.box('yellow', [0.023, 0.055, 0.018], [0.022, -0.02, 0.08]);
   const micMeshes = micShape.compileColored(microphone, 'microphone');
-  register('microphone', microphone, [0.005, 0.04, 0.065], micMeshes);
+  register('microphone', micBoom, [0.625, 0.21, -0.405], micMeshes);
 
   const shelf = batch();
   shelf.box('charcoal', [1.28, 0.07, 0.38], [0, 0, 0]);
@@ -211,9 +230,9 @@ export function buildStudioRoom(context: RoomBuilderContext): RoomAnimation {
   let lastScreenLevel = Number.NaN;
   let lastPanelLevel = Number.NaN;
   return (activity, time, reducedMotion) => {
-    const wave = reducedMotion ? 0 : Math.sin(time * 2.8);
-    camera.rotation.y = -0.11 + activity.camera * wave * 0.07;
-    camera.rotation.x = activity.camera * 0.045;
+    const wave = reducedMotion ? 0 : Math.sin(time * 1.35);
+    camera.rotation.y = -0.11 + activity.camera * wave * 0.35;
+    camera.rotation.x = activity.camera * wave * 0.035;
     lens.scale.setScalar(1 + activity.camera * (0.025 + wave * 0.013));
     drone.position.y = 0.98 + activity.drone * (0.16 + wave * 0.015);
     const rotorDelta = time - lastRotorTime;
@@ -237,13 +256,29 @@ export function buildStudioRoom(context: RoomBuilderContext): RoomAnimation {
       screenColors.needsUpdate = true;
       lastScreenLevel = screenLevel;
     }
-    light.rotation.x = activity.lighting * wave * 0.022;
+    const accentActivity = reducedMotion ? 0 : activity.editing;
+    const accentHue = (0.12 + accentActivity * ((time * 0.08) % 1)) % 1;
+    if (accentHue !== lastAccentHue || accentActivity !== lastAccentSpread) {
+      const values = accentColors.array as Float32Array;
+      for (let vertex = 0; vertex < accentColors.count; vertex++) {
+        const segment = Math.floor(vertex / 36);
+        accentColor.setHSL((accentHue + segment * accentActivity / 6) % 1, 0.86 * accentActivity + 0.48 * (1 - accentActivity), 0.76);
+        values[vertex * 3] = accentColor.r;
+        values[vertex * 3 + 1] = accentColor.g;
+        values[vertex * 3 + 2] = accentColor.b;
+      }
+      accentColors.needsUpdate = true;
+      lastAccentHue = accentHue;
+      lastAccentSpread = accentActivity;
+    }
+    light.rotation.z = activity.lighting * wave * 0.36;
     const panelLevel = 0.83 + activity.lighting * (0.14 + (wave + 1) * 0.015);
     if (panelLevel !== lastPanelLevel) {
       (panelColors.array as Float32Array).fill(panelLevel);
       panelColors.needsUpdate = true;
       lastPanelLevel = panelLevel;
     }
-    microphone.rotation.z = activity.microphone * (0.035 + wave * 0.025);
+    micBoom.rotation.y = activity.microphone * wave * 0.28;
+    micBoom.rotation.z = activity.microphone * wave * 0.18;
   };
 }

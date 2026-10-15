@@ -29,7 +29,18 @@ interface HeroSceneOptions {
 }
 
 const PARALLAX_DISTANCE = 0.1;
-const SHOWCASE_OBJECT_MS = 1050;
+const SHOWCASE_OBJECT_MS: Record<HotspotId, number> = {
+  camera: 4900,
+  drone: 1050,
+  editing: 2600,
+  lighting: 4900,
+  microphone: 4900,
+  printer: 1050,
+  filament: 3900,
+  design: 1800,
+  painting: 5300,
+  products: 4900,
+};
 const REWIND_MS = 1000;
 const easeInOutCubic = (value: number) => value < 0.5 ? 4 * value ** 3 : 1 - (-2 * value + 2) ** 3 / 2;
 
@@ -441,7 +452,7 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
       if (settled && replayPhase === 'off') {
         if (showcasePhase !== 'off') {
           showcaseElapsed += timelineDelta * 1000;
-          if (showcasePhase === 'playing' && showcaseElapsed >= SHOWCASE_OBJECT_MS) {
+          if (showcasePhase === 'playing' && showcaseElapsed >= SHOWCASE_OBJECT_MS[showcaseId ?? 'camera']) {
             showcasePhase = 'returning';
             showcaseElapsed = 0;
           }

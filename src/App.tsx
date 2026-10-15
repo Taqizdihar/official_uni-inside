@@ -476,11 +476,13 @@ const PageContent = ({
   if (isCursor) {
     return (
       <div className="w-full flex flex-col relative z-10 pointer-events-none">
-        {/* Placeholder spacer for Hero section + Hero transition spacer (100vh + 30vh = 130vh) */}
-        <div className="w-full h-[130vh]" />
+        {/* Placeholder spacer for the 100vh Hero and its 40vh transition band. */}
+        <div className="relative w-full h-[140vh]">
+          <div className="absolute inset-x-0 bottom-0 h-[40vh] bg-gradient-to-b from-[#202121] to-[#f0f0f0]" />
+        </div>
         
         {/* About Us Section */}
-        <div className="w-full flex flex-col z-10">
+        <div className="w-full flex flex-col z-10 bg-[#f0f0f0]">
           <AboutIntroPresentation />
           <AboutVisionMissionStoryPreview />
           <FilmRollSection filmRollXVal={filmRollXVal} isCursor={true} />
@@ -493,12 +495,12 @@ const PageContent = ({
     <div className="w-full flex flex-col relative z-10">
       <IsometricHero />
 
-      {/* Smooth Transition Spacer */}
-      <div ref={heroTransitionRef} className="w-full h-[30vh] relative z-10 pointer-events-none" />
+      {/* Empty ScrollStory band: keep the Hero dark, then blend before About begins. */}
+      <div ref={heroTransitionRef} className="w-full h-[40vh] relative z-10 pointer-events-none bg-gradient-to-b from-[#202121] to-[#f0f0f0]" />
 
       {/* About Us Section Wrapper (Extends zoom area comfort zone) */}
       <div
-        className={`w-full flex flex-col relative z-10 ${isInAboutUs ? 'hide-cursor' : ''}`}
+        className={`w-full flex flex-col relative z-10 bg-[#f0f0f0] ${isInAboutUs ? 'hide-cursor' : ''}`}
         onMouseEnter={() => setIsInAboutUs?.(true)}
         onMouseLeave={() => setIsInAboutUs?.(false)}
       >
@@ -581,9 +583,10 @@ const useTransitionInterpolations = (
 
   const bg = useTransform(progress, [0, 1], [fromBg, toBg]);
   const navBg = useTransform(progress, [0, 1], [fromNavBg, toNavBg]);
-  const navText = useTransform(progress, [0, 1], [fromNavText, toNavText]);
-  const logoDark = useTransform(progress, [0, 1], [fromLogoDark, toLogoDark]);
-  const logoLight = useTransform(progress, [0, 1], [1 - fromLogoDark, 1 - toLogoDark]);
+  const navContrastSwitch = isDarkToLight ? 0.42 : 0.58;
+  const navText = useTransform(progress, (value: number) => value < navContrastSwitch ? fromNavText : toNavText);
+  const logoDark = useTransform(progress, (value: number) => value < navContrastSwitch ? fromLogoDark : toLogoDark);
+  const logoLight = useTransform(progress, (value: number) => value < navContrastSwitch ? 1 - fromLogoDark : 1 - toLogoDark);
 
   return { bg, navBg, navText, logoDark, logoLight };
 };
@@ -639,7 +642,7 @@ export default function App() {
   const heroTransitionRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress: heroTransitionProgress } = useScroll({
     target: heroTransitionRef,
-    offset: ["start end", "end start"]
+    offset: ["start start", "end start"]
   });
 
   const aboutTeamTransitionRef = useRef<HTMLDivElement>(null);
@@ -901,7 +904,7 @@ export default function App() {
     if (atp > 0 && atp < 1) return aboutTeam.bg.get();
 
     const p = heroTransitionProgress.get();
-    if (p > 0 && p < 1) return heroAbout.bg.get();
+    if (p >= 0 && p < 1) return heroAbout.bg.get();
 
     return SECTION_BG[activeSection] ?? '#202121';
   });
@@ -920,14 +923,14 @@ export default function App() {
     if (atp > 0 && atp < 1) return aboutTeam.navBg.get();
 
     const p = heroTransitionProgress.get();
-    if (p > 0 && p < 1) return heroAbout.navBg.get();
+    if (p >= 0 && p < 1) return heroAbout.navBg.get();
 
     return SECTION_NAV_BG[activeSection] ?? '#202121';
   });
 
   const finalNavGradient = useTransform(() => {
     const color = finalNavBg.get();
-    return `linear-gradient(to bottom, ${color} 0%, ${color} 20%, ${color} 40%, ${color} 60%, ${color} 80%, color-mix(in srgb, ${color} 50%, transparent) 100%)`;
+    return `linear-gradient(to bottom, ${color} 0%, ${color} 20%, ${color} 40%, ${color} 60%, color-mix(in srgb, ${color} 20%, transparent) 80%, transparent 100%)`;
   });
 
   const finalNavText = useTransform(() => {
@@ -944,7 +947,7 @@ export default function App() {
     if (atp > 0 && atp < 1) return aboutTeam.navText.get();
 
     const p = heroTransitionProgress.get();
-    if (p > 0 && p < 1) return heroAbout.navText.get();
+    if (p >= 0 && p < 1) return heroAbout.navText.get();
 
     return SECTION_NAV_TEXT[activeSection] ?? '#ffffff';
   });
@@ -963,7 +966,7 @@ export default function App() {
     if (atp > 0 && atp < 1) return aboutTeam.logoDark.get();
 
     const p = heroTransitionProgress.get();
-    if (p > 0 && p < 1) return heroAbout.logoDark.get();
+    if (p >= 0 && p < 1) return heroAbout.logoDark.get();
 
     return SECTION_LOGO_DARK[activeSection] ?? 1;
   });
@@ -982,7 +985,7 @@ export default function App() {
     if (atp > 0 && atp < 1) return aboutTeam.logoLight.get();
 
     const p = heroTransitionProgress.get();
-    if (p > 0 && p < 1) return heroAbout.logoLight.get();
+    if (p >= 0 && p < 1) return heroAbout.logoLight.get();
 
     return 1 - (SECTION_LOGO_DARK[activeSection] ?? 1);
   });

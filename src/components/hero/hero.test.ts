@@ -190,6 +190,102 @@ test('reduced motion leaves object transforms at rest for every hotspot', async 
   }
 });
 
+test('the filament wave visits every shelf from top to bottom and resets without drift', async () => {
+  const diorama = await createDiorama();
+  try {
+    const filament = hotspotGroup(diorama.hotspots.get('filament')!.anchor, 'filament');
+    const cores = filament.getObjectByName('craft-filament-cores') as THREE.InstancedMesh;
+    const baseline = Array.from(cores.instanceMatrix.array);
+    const matrix = new THREE.Matrix4();
+    const positionAt = (index: number) => {
+      cores.getMatrixAt(index, matrix);
+      return matrix.elements[14];
+    };
+    const frame = 1 / 60;
+    let time = 0;
+    const firstActivation = frame;
+    const sampleShelf = async (shelfFromTop: number, cycle = 0) => {
+      const target = firstActivation + cycle * 3.6 + shelfFromTop * 0.72 + 0.25;
+      while (time + 0.0001 < target) {
+        time += frame;
+        diorama.update('filament', time, frame, false);
+      }
+      const movingIndex = 4 - shelfFromTop;
+      assert.ok(positionAt(movingIndex) > 0.19, `spool ${shelfFromTop + 1} from the top must move outward`);
+      for (let index = 0; index < 5; index++) {
+        if (index !== movingIndex) assert.ok(Math.abs(positionAt(index) - 0.08) < 0.0001, 'the other spools must remain in their slots');
+      }
+    };
+    for (let shelf = 0; shelf < 5; shelf++) await sampleShelf(shelf);
+    await sampleShelf(0, 1); // The same top-to-bottom wave starts again after one complete cycle.
+    for (let frameIndex = 0; frameIndex < 240; frameIndex++) {
+      time += frame;
+      diorama.update(null, time, frame, false);
+    }
+    assert.ok(largestDifference(baseline, Array.from(cores.instanceMatrix.array)) < 0.0001, 'all spool matrices must return to their canonical positions and rotations');
+  } finally {
+    diorama.dispose();
+  }
+});
+
+test('the brush paints from multiple sides and product models shuffle smoothly between anchors', async () => {
+  const diorama = await createDiorama();
+  try {
+    const brush = diorama.hotspots.get('painting')!.hitObjects[0].parent!;
+    const brushRest = { position: brush.position.clone(), rotation: brush.quaternion.clone() };
+    let time = 0;
+    let minimumX = Number.POSITIVE_INFINITY;
+    let maximumX = Number.NEGATIVE_INFINITY;
+    let minimumZ = Number.POSITIVE_INFINITY;
+    let maximumZ = Number.NEGATIVE_INFINITY;
+    const frame = 1 / 60;
+    for (let frameIndex = 0; frameIndex < 360; frameIndex++) {
+      time += frame;
+      diorama.update('painting', time, frame, false);
+      minimumX = Math.min(minimumX, brush.position.x);
+      maximumX = Math.max(maximumX, brush.position.x);
+      minimumZ = Math.min(minimumZ, brush.position.z);
+      maximumZ = Math.max(maximumZ, brush.position.z);
+      assert.ok(brush.position.y > 0.1, 'the brush handle must stay clear of the table surface');
+    }
+    assert.ok(maximumX - minimumX > 0.45, 'the brush must reach both sides of the model');
+    assert.ok(maximumZ - minimumZ > 0.18, 'the brush must reposition around the model in depth');
+    for (let frameIndex = 0; frameIndex < 180; frameIndex++) {
+      time += frame;
+      diorama.update(null, time, frame, false);
+    }
+    assert.ok(brush.position.distanceTo(brushRest.position) < 0.0001, 'the brush must return to its canonical position');
+    assert.ok(brush.quaternion.angleTo(brushRest.rotation) < 0.0001, 'the brush must return to its canonical orientation');
+
+    const products = hotspotGroup(diorama.hotspots.get('products')!.anchor, 'products');
+    const models = [0, 1, 2].map((index) => products.getObjectByName(`craft-product-model-${index + 1}`)!);
+    const anchors = models.map((model) => model.position.clone());
+    let maximumFrameTravel = 0;
+    let previousPositions = models.map((model) => model.position.clone());
+    for (let frameIndex = 0; frameIndex < 600; frameIndex++) {
+      time += frame;
+      diorama.update('products', time, frame, false);
+      for (let index = 0; index < models.length; index++) {
+        const current = models[index].position;
+        maximumFrameTravel = Math.max(maximumFrameTravel, current.distanceTo(previousPositions[index]));
+        assert.ok(Math.abs(current.x) < 0.7 && current.y >= 0 && current.y < 0.1, 'models must stay above the tabletop and within its width');
+        assert.ok(current.z > 0.19 && current.z < 0.42, 'models must remain within the tabletop depth');
+        previousPositions[index].copy(current);
+      }
+    }
+    assert.ok(maximumFrameTravel < 0.04, 'models must move continuously without teleporting');
+    for (let frameIndex = 0; frameIndex < 180; frameIndex++) {
+      time += frame;
+      diorama.update(null, time, frame, false);
+    }
+    for (let index = 0; index < models.length; index++) {
+      assert.ok(models[index].position.distanceTo(anchors[index]) < 0.0001, 'each model must reset to its canonical anchor');
+    }
+  } finally {
+    diorama.dispose();
+  }
+});
+
 test('scene resources stay within the triangle budget and dispose after unmount', async () => {
   const diorama = await createDiorama();
   const geometries = new Set<THREE.BufferGeometry>();
