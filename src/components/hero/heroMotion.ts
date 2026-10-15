@@ -1,5 +1,8 @@
 import * as THREE from 'three';
 
+/** Current cycle rate is 2.5× the original 0.08 hue cycles per second. */
+export const RGB_SCREEN_CYCLE_SPEED = 0.08 * 2.5;
+
 /** Cumulative rotation keeps a propeller's direction through every activation cycle. */
 export function advanceRotorAngle(angle: number, deltaSeconds: number, activity: number, speed = 14) {
   return angle + Math.max(0, Math.min(deltaSeconds, 0.05)) * Math.max(0, activity) * speed;
@@ -30,7 +33,7 @@ export function updateRgbScreen(
   }
 
   // One full HSL hue loop gives cyan → blue → magenta → red → yellow → green → cyan.
-  rgbColor.setHSL((0.5 + (time * 0.08) % 1) % 1, 0.95, 0.55);
+  rgbColor.setHSL((0.5 + (time * RGB_SCREEN_CYCLE_SPEED) % 1) % 1, 0.95, 0.55);
   nextColor.copy(baseColor).lerp(rgbColor, amount);
   nextEmissive.copy(baseEmissive).lerp(rgbColor, amount);
   material.color.copy(nextColor);

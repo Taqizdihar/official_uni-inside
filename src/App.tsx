@@ -639,7 +639,7 @@ export default function App() {
   const heroTransitionRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress: heroTransitionProgress } = useScroll({
     target: heroTransitionRef,
-    offset: ["start start", "end start"]
+    offset: ["start end", "end start"]
   });
 
   const aboutTeamTransitionRef = useRef<HTMLDivElement>(null);
@@ -1038,13 +1038,12 @@ export default function App() {
                     }
                   }
                 }}
-                className={`text-[12px] xl:text-[14px] font-[800] uppercase tracking-[0.025em] cursor-pointer ${
+                className={`text-[12px] xl:text-[14px] font-[800] uppercase tracking-[0.025em] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f9d02d] focus-visible:ring-offset-2 ${
                   isHighlightActive ? '!text-[#f9d02d]' : 'hover:!text-[#f9d02d] focus-visible:!text-[#f9d02d]'
                 }`}
                 style={{
                   color: isHighlightActive ? '#f9d02d' : finalNavText,
-                  WebkitTextStroke: '0.35px rgba(32,33,33,0.8)',
-                } as any}
+                }}
               >
                 {link}
               </motion.a>

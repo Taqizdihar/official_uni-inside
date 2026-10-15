@@ -3,6 +3,7 @@ import test from 'node:test';
 import * as THREE from 'three';
 import { buildDiorama } from './diorama';
 import { HOTSPOTS, type HotspotId } from './heroConfig';
+import { RGB_SCREEN_CYCLE_SPEED, updateRgbScreen } from './heroMotion';
 
 async function createDiorama() {
   const originalLoad = THREE.TextureLoader.prototype.load;
@@ -74,6 +75,27 @@ function meshNamed(root: THREE.Object3D, name: string) {
 function colorDifference(first: THREE.Color, second: THREE.Color) {
   return Math.max(Math.abs(first.r - second.r), Math.abs(first.g - second.g), Math.abs(first.b - second.b));
 }
+
+test('monitor RGB uses the exact 2.5x hue cycle rate and completes in five seconds', () => {
+  assert.equal(RGB_SCREEN_CYCLE_SPEED, 0.08 * 2.5);
+  assert.equal(RGB_SCREEN_CYCLE_SPEED, 0.2);
+
+  const baseColor = new THREE.Color('#579d9e');
+  const baseEmissive = new THREE.Color('#386e72');
+  const material = new THREE.MeshStandardMaterial({ color: baseColor, emissive: baseEmissive });
+  const rgbColor = new THREE.Color();
+  const nextColor = new THREE.Color();
+  const nextEmissive = new THREE.Color();
+
+  updateRgbScreen(material, baseColor, baseEmissive, 1, 1, false, rgbColor, nextColor, nextEmissive);
+  const oneSecondColor = new THREE.Color().setHSL(0.7, 0.95, 0.55);
+  assert.ok(colorDifference(material.color, oneSecondColor) < 0.00001, 'one second must advance exactly 0.2 hue cycles');
+
+  updateRgbScreen(material, baseColor, baseEmissive, 1, 5, false, rgbColor, nextColor, nextEmissive);
+  const cycleStartColor = new THREE.Color().setHSL(0.5, 0.95, 0.55);
+  assert.ok(colorDifference(material.color, cycleStartColor) < 0.00001, 'the full hue loop must return to cyan after five seconds');
+  material.dispose();
+});
 
 function snapshot(group: THREE.Object3D, includeMaterials = true, excludeName?: string) {
   const values: number[] = [];
