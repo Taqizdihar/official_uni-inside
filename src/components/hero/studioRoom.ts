@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import { focusRing, softboxShell, type Point, type RoomAnimation, type RoomBuilderContext } from './roomGeometry';
-import { advanceRotorAngle } from './heroMotion';
+import { advanceRotorAngle, updateRgbScreen } from './heroMotion';
 
 export function buildStudioRoom(context: RoomBuilderContext): RoomAnimation {
-  const { room, static: fixed, materials, resources, batch, register } = context;
+  const { room, static: fixed, materials, ownMaterial, resources, batch, register } = context;
 
   function stand(x: number, z: number, height: number, spread: number) {
     fixed.cylinder('metal', 0.034, height, [x, height / 2 + 0.06, z]);
@@ -64,6 +64,14 @@ export function buildStudioRoom(context: RoomBuilderContext): RoomAnimation {
   const display = batch();
   display.box('screen', [1.53, 0.61, 0.012], [0, 0, 0]);
   const screenMeshes = display.compile(editing, 'editing-screen');
+  const screenMaterial = (screenMeshes[0].material as THREE.MeshStandardMaterial).clone();
+  screenMeshes[0].material = screenMaterial;
+  ownMaterial(screenMaterial);
+  const baseScreenColor = screenMaterial.color.clone();
+  const baseScreenEmissive = screenMaterial.emissive.clone();
+  const rgbScreenColor = new THREE.Color();
+  const nextScreenColor = new THREE.Color();
+  const nextScreenEmissive = new THREE.Color();
   // Interface, preview window and staggered timeline tracks are geometry, not images.
   fixed.box('black', [0.79, 0.28, 0.014], [-0.19, 1.54, 0.838]);
   fixed.box('sage', [0.49, 0.2, 0.014], [-0.2, 1.54, 0.85]);
@@ -79,14 +87,6 @@ export function buildStudioRoom(context: RoomBuilderContext): RoomAnimation {
   cursorShape.box('yellow', [0.012, 0.23, 0.016], [-0.34, -0.155, 0.034]);
   cursorShape.compile(cursor, 'timeline-cursor');
   register('editing', editing, [0, 0.05, 0.04], screenMeshes);
-  const screenColors = screenMeshes[0].geometry.getAttribute('color') as THREE.BufferAttribute;
-  const screenAccent = batch();
-  for (let index = 0; index < 6; index++) screenAccent.box('screen', [0.15, 0.018, 0.01], [-0.52 + index * 0.2, 0.272, 0.022]);
-  const accentMeshes = screenAccent.compile(editing, 'editing-rgb-accents');
-  const accentColors = accentMeshes[0].geometry.getAttribute('color') as THREE.BufferAttribute;
-  const accentColor = new THREE.Color();
-  let lastAccentHue = Number.NaN;
-  let lastAccentSpread = Number.NaN;
 
   // Camera on a spread tripod, with a stepped lens and recognizable top handle.
   const camera = new THREE.Group();
@@ -227,7 +227,6 @@ export function buildStudioRoom(context: RoomBuilderContext): RoomAnimation {
   let rotorAngle = 0;
   let lastRotorTime = 0;
   let lastRotorRotation = Number.NaN;
-  let lastScreenLevel = Number.NaN;
   let lastPanelLevel = Number.NaN;
   return (activity, time, reducedMotion) => {
     const wave = reducedMotion ? 0 : Math.sin(time * 1.35);
@@ -250,27 +249,8 @@ export function buildStudioRoom(context: RoomBuilderContext): RoomAnimation {
       lastRotorRotation = rotorRotation;
     }
     cursor.position.x = activity.editing * (reducedMotion ? 0.16 : (Math.sin(time * 1.9) + 1) * 0.27);
-    const screenLevel = 0.83 + activity.editing * 0.17;
-    if (screenLevel !== lastScreenLevel) {
-      (screenColors.array as Float32Array).fill(screenLevel);
-      screenColors.needsUpdate = true;
-      lastScreenLevel = screenLevel;
-    }
-    const accentActivity = reducedMotion ? 0 : activity.editing;
-    const accentHue = (0.12 + accentActivity * ((time * 0.08) % 1)) % 1;
-    if (accentHue !== lastAccentHue || accentActivity !== lastAccentSpread) {
-      const values = accentColors.array as Float32Array;
-      for (let vertex = 0; vertex < accentColors.count; vertex++) {
-        const segment = Math.floor(vertex / 36);
-        accentColor.setHSL((accentHue + segment * accentActivity / 6) % 1, 0.86 * accentActivity + 0.48 * (1 - accentActivity), 0.76);
-        values[vertex * 3] = accentColor.r;
-        values[vertex * 3 + 1] = accentColor.g;
-        values[vertex * 3 + 2] = accentColor.b;
-      }
-      accentColors.needsUpdate = true;
-      lastAccentHue = accentHue;
-      lastAccentSpread = accentActivity;
-    }
+    updateRgbScreen(screenMaterial, baseScreenColor, baseScreenEmissive, activity.editing, time, reducedMotion,
+      rgbScreenColor, nextScreenColor, nextScreenEmissive);
     light.rotation.z = activity.lighting * wave * 0.36;
     const panelLevel = 0.83 + activity.lighting * (0.14 + (wave + 1) * 0.015);
     if (panelLevel !== lastPanelLevel) {

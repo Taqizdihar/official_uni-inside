@@ -9,6 +9,7 @@ export interface RoomBuilderContext {
   room: THREE.Group;
   static: GeometryBatch;
   materials: Record<RoomMaterial, THREE.MeshStandardMaterial>;
+  ownMaterial(material: THREE.Material): void;
   resources: Set<THREE.BufferGeometry>;
   batch(): GeometryBatch;
   register(id: HotspotId, group: THREE.Group, offset: Point, hitObjects: THREE.Object3D[]): void;

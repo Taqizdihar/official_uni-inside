@@ -35,6 +35,7 @@ export function buildDiorama({ studioLogo, craftLogo, invalidate }: DioramaOptio
   const hotspots = new Map<HotspotId, DioramaHotspot>();
   const geometries = new Set<THREE.BufferGeometry>();
   const textures = new Set<THREE.Texture>();
+  const ownedMaterials = new Set<THREE.Material>();
   const logoMaterials: THREE.MeshStandardMaterial[] = [];
   let disposed = false;
   const materials = Object.fromEntries(Object.entries(PALETTE).map(([key, color]) => [key,
@@ -44,6 +45,7 @@ export function buildDiorama({ studioLogo, craftLogo, invalidate }: DioramaOptio
       emissive: key === 'screen' ? '#386e72' : '#000000', emissiveIntensity: key === 'screen' ? 0.3 : 0,
     }),
   ])) as Record<RoomMaterial, THREE.MeshStandardMaterial>;
+  const ownMaterial = (material: THREE.Material) => { ownedMaterials.add(material); };
   const batch = () => new GeometryBatch(materials, geometries);
   const structural = batch();
 
@@ -98,7 +100,7 @@ export function buildDiorama({ studioLogo, craftLogo, invalidate }: DioramaOptio
   // Both rooms share one central, double-faced wall rather than overlapping walls.
   structural.box('wall', [4, 2.8, 0.16], [0, 1.4, 0]);
   logo(studio, studioLogo, 1);
-  const studioContext: RoomBuilderContext = { room: studio, static: studioStatic, materials, resources: geometries, batch, register };
+  const studioContext: RoomBuilderContext = { room: studio, static: studioStatic, materials, ownMaterial, resources: geometries, batch, register };
   const animateStudio = buildStudioRoom(studioContext);
 
   const craft = new THREE.Group();
@@ -109,7 +111,7 @@ export function buildDiorama({ studioLogo, craftLogo, invalidate }: DioramaOptio
   craftStatic.floor();
   walls(craftStatic);
   logo(craft, craftLogo, 1034 / 1160);
-  const craftContext: RoomBuilderContext = { room: craft, static: craftStatic, materials, resources: geometries, batch, register };
+  const craftContext: RoomBuilderContext = { room: craft, static: craftStatic, materials, ownMaterial, resources: geometries, batch, register };
   const animateCraft = buildCraftRoom(craftContext);
   structural.compile(root, 'shared-wall');
   studioStatic.compile(studio, 'studio-static');
@@ -142,6 +144,7 @@ export function buildDiorama({ studioLogo, craftLogo, invalidate }: DioramaOptio
       root.traverse((object) => { if (object instanceof THREE.InstancedMesh) object.dispose(); });
       geometries.forEach((geometry) => geometry.dispose());
       Object.values(materials).forEach((material) => material.dispose());
+      ownedMaterials.forEach((material) => material.dispose());
       logoMaterials.forEach((material) => material.dispose());
       textures.forEach((texture) => texture.dispose());
       root.clear();

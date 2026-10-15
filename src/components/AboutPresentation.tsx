@@ -97,7 +97,7 @@ const AboutVisionMissionStoryPresentation: React.FC<StoryPresentationProps> = ({
   const showFlash = stage === 'flash';
   const idle = stage === 'settled' && isVisible && isPageVisible;
   return (
-    <section className="relative min-h-[88svh] w-full overflow-hidden bg-[#f0f0f0]" aria-label="Vision and mission">
+    <section className="relative min-h-[88svh] w-full overflow-hidden" aria-label="Vision and mission">
       <div className="pointer-events-none absolute inset-0" aria-hidden="true">
         <motion.div
           className="absolute left-0 top-1/2 aspect-square w-[clamp(18rem,47vw,46rem)] -translate-y-1/2"

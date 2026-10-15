@@ -62,6 +62,19 @@ function hotspotGroup(anchor: THREE.Object3D, id: HotspotId) {
   return object;
 }
 
+function meshNamed(root: THREE.Object3D, name: string) {
+  let result: THREE.Mesh | undefined;
+  root.traverse((object) => {
+    if (object instanceof THREE.Mesh && object.name === name) result = object;
+  });
+  assert.ok(result, `scene must contain ${name}`);
+  return result;
+}
+
+function colorDifference(first: THREE.Color, second: THREE.Color) {
+  return Math.max(Math.abs(first.r - second.r), Math.abs(first.g - second.g), Math.abs(first.b - second.b));
+}
+
 function snapshot(group: THREE.Object3D, includeMaterials = true, excludeName?: string) {
   const values: number[] = [];
   group.traverse((object) => {
@@ -185,6 +198,75 @@ test('reduced motion leaves object transforms at rest for every hotspot', async 
       for (let frame = 0; frame < 15; frame += 1) diorama.update(id, time += 1 / 60, 1 / 60, true);
       assert.ok(largestDifference(baseline, snapshot(diorama.root, false)) < 0.00001, `${id} must not move under reduced motion`);
     }
+  } finally {
+    diorama.dispose();
+  }
+});
+
+test('monitor RGB is isolated to each screen, keeps its interface moving, and resets to cyan', async () => {
+  const diorama = await createDiorama();
+  try {
+    const studioScreen = meshNamed(diorama.root, 'editing-screen-screen');
+    const craftScreen = meshNamed(diorama.root, 'craft-design-screen-screen');
+    const otherScreen = meshNamed(diorama.root, 'craft-static-screen');
+    const studioMaterial = studioScreen.material as THREE.MeshStandardMaterial;
+    const craftMaterial = craftScreen.material as THREE.MeshStandardMaterial;
+    const otherMaterial = otherScreen.material as THREE.MeshStandardMaterial;
+    const studioBaseColor = studioMaterial.color.clone();
+    const studioBaseEmissive = studioMaterial.emissive.clone();
+    const craftBaseColor = craftMaterial.color.clone();
+    const craftBaseEmissive = craftMaterial.emissive.clone();
+    const otherBaseColor = otherMaterial.color.clone();
+    const staticMeshes: THREE.Mesh[] = [];
+    diorama.root.traverse((object) => {
+      if (object instanceof THREE.Mesh && (object.name.startsWith('studio-static-') || object.name.startsWith('craft-static-'))) staticMeshes.push(object);
+    });
+    const staticBefore = staticMeshes.map((mesh) => [mesh, snapshot(mesh)] as const);
+    const cursor = diorama.root.getObjectByName('timeline-cursor');
+    const designModel = meshNamed(diorama.root, 'craft-cad-model-palette').parent!;
+
+    assert.notEqual(studioMaterial, otherMaterial, 'Studio screen must have an isolated material');
+    assert.notEqual(craftMaterial, otherMaterial, 'Craft screen must have an isolated material');
+    assert.notEqual(studioMaterial, craftMaterial, 'each workspace must own its screen color independently');
+    assert.equal(diorama.root.getObjectByName('editing-rgb-accents'), undefined, 'Studio RGB must use the screen surface, not overlay bars');
+    assert.equal(diorama.root.getObjectByName('craft-design-rgb-accents'), undefined, 'Craft RGB must use the screen surface, not overlay bars');
+
+    const frame = 1 / 60;
+    let time = 0;
+    for (let index = 0; index < 120; index += 1) diorama.update('editing', time += frame, frame, false);
+    assert.ok(colorDifference(studioMaterial.color, studioBaseColor) > 0.1, 'active Studio screen must change hue');
+    assert.ok(colorDifference(craftMaterial.color, craftBaseColor) < 0.0001, 'inactive Craft screen must remain cyan');
+    assert.ok(colorDifference(otherMaterial.color, otherBaseColor) < 0.0001, 'shared screen material must remain unchanged');
+    assert.ok(cursor && cursor.position.x > 0, 'the Studio editing cursor must remain animated');
+    assert.ok(colorDifference(studioMaterial.color, new THREE.Color('#579d9e')) > 0.1, 'screen hue must move over time');
+    const earlierStudioColor = studioMaterial.color.clone();
+    for (let index = 0; index < 180; index += 1) diorama.update('editing', time += frame, frame, false);
+    assert.ok(colorDifference(studioMaterial.color, earlierStudioColor) > 0.05, 'RGB hues must continue cycling while editing is active');
+    for (const [mesh, before] of staticBefore) {
+      assert.ok(largestDifference(before, snapshot(mesh)) < 0.00001, `${mesh.name} and its interface colors must stay unchanged`);
+    }
+
+    for (let index = 0; index < 180; index += 1) diorama.update(null, time += frame, frame, false);
+    assert.ok(colorDifference(studioMaterial.color, studioBaseColor) < 0.0001, 'Studio screen must return to its exact base color');
+    assert.ok(colorDifference(studioMaterial.emissive, studioBaseEmissive) < 0.0001, 'Studio emissive must return to its exact base state');
+    for (let index = 0; index < 60; index += 1) diorama.update('editing', time += frame, frame, true);
+    assert.ok(colorDifference(studioMaterial.color, studioBaseColor) < 0.0001, 'reduced motion must keep the Studio screen at its cyan base color');
+
+    for (let index = 0; index < 120; index += 1) diorama.update('design', time += frame, frame, false);
+    assert.ok(colorDifference(craftMaterial.color, craftBaseColor) > 0.1, 'active Craft screen must change hue');
+    assert.ok(colorDifference(studioMaterial.color, studioBaseColor) < 0.0001, 'Studio screen must stay cyan while Craft is active');
+    assert.ok(Math.abs(designModel.rotation.y) > 0.01, 'the Craft model-design animation must remain active');
+    for (let index = 0; index < 180; index += 1) diorama.update(null, time += frame, frame, false);
+    assert.ok(colorDifference(craftMaterial.color, craftBaseColor) < 0.0001, 'Craft screen must return to its exact base color');
+    assert.ok(colorDifference(craftMaterial.emissive, craftBaseEmissive) < 0.0001, 'Craft emissive must return to its exact base state');
+
+    let studioDisposals = 0;
+    let craftDisposals = 0;
+    studioMaterial.addEventListener('dispose', () => { studioDisposals += 1; });
+    craftMaterial.addEventListener('dispose', () => { craftDisposals += 1; });
+    diorama.dispose();
+    assert.equal(studioDisposals, 1, 'isolated Studio material must be disposed');
+    assert.equal(craftDisposals, 1, 'isolated Craft material must be disposed');
   } finally {
     diorama.dispose();
   }

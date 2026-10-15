@@ -476,13 +476,11 @@ const PageContent = ({
   if (isCursor) {
     return (
       <div className="w-full flex flex-col relative z-10 pointer-events-none">
-        {/* Placeholder spacer for the 100vh Hero and its 40vh transition band. */}
-        <div className="relative w-full h-[140vh]">
-          <div className="absolute inset-x-0 bottom-0 h-[40vh] bg-gradient-to-b from-[#202121] to-[#f0f0f0]" />
-        </div>
+        {/* Placeholder for the Hero and its scroll-driven transition range. */}
+        <div className="w-full h-[130vh]" />
         
         {/* About Us Section */}
-        <div className="w-full flex flex-col z-10 bg-[#f0f0f0]">
+        <div className="w-full flex flex-col z-10">
           <AboutIntroPresentation />
           <AboutVisionMissionStoryPreview />
           <FilmRollSection filmRollXVal={filmRollXVal} isCursor={true} />
@@ -495,12 +493,12 @@ const PageContent = ({
     <div className="w-full flex flex-col relative z-10">
       <IsometricHero />
 
-      {/* Empty ScrollStory band: keep the Hero dark, then blend before About begins. */}
-      <div ref={heroTransitionRef} className="w-full h-[40vh] relative z-10 pointer-events-none bg-gradient-to-b from-[#202121] to-[#f0f0f0]" />
+      {/* ScrollStory transition range; the shared background supplies its color. */}
+      <div ref={heroTransitionRef} className="w-full h-[30vh] relative z-10 pointer-events-none" />
 
       {/* About Us Section Wrapper (Extends zoom area comfort zone) */}
       <div
-        className={`w-full flex flex-col relative z-10 bg-[#f0f0f0] ${isInAboutUs ? 'hide-cursor' : ''}`}
+        className={`w-full flex flex-col relative z-10 ${isInAboutUs ? 'hide-cursor' : ''}`}
         onMouseEnter={() => setIsInAboutUs?.(true)}
         onMouseLeave={() => setIsInAboutUs?.(false)}
       >
@@ -572,8 +570,8 @@ const useTransitionInterpolations = (
   const fromBg = isDarkToLight ? '#202121' : '#f0f0f0';
   const toBg = isDarkToLight ? '#f0f0f0' : '#202121';
   
-  const fromNavBg = isDarkToLight ? '#202121' : '#f0f0f0';
-  const toNavBg = isDarkToLight ? '#f0f0f0' : '#202121';
+  const fromNavBg = isDarkToLight ? 'rgba(32,33,33,0.85)' : 'rgba(240,240,240,0.85)';
+  const toNavBg = isDarkToLight ? 'rgba(240,240,240,0.85)' : 'rgba(32,33,33,0.85)';
   
   const fromNavText = isDarkToLight ? '#ffffff' : '#202121';
   const toNavText = isDarkToLight ? '#202121' : '#ffffff';
@@ -583,10 +581,9 @@ const useTransitionInterpolations = (
 
   const bg = useTransform(progress, [0, 1], [fromBg, toBg]);
   const navBg = useTransform(progress, [0, 1], [fromNavBg, toNavBg]);
-  const navContrastSwitch = isDarkToLight ? 0.42 : 0.58;
-  const navText = useTransform(progress, (value: number) => value < navContrastSwitch ? fromNavText : toNavText);
-  const logoDark = useTransform(progress, (value: number) => value < navContrastSwitch ? fromLogoDark : toLogoDark);
-  const logoLight = useTransform(progress, (value: number) => value < navContrastSwitch ? 1 - fromLogoDark : 1 - toLogoDark);
+  const navText = useTransform(progress, [0, 1], [fromNavText, toNavText]);
+  const logoDark = useTransform(progress, [0, 1], [fromLogoDark, toLogoDark]);
+  const logoLight = useTransform(progress, [0, 1], [1 - fromLogoDark, 1 - toLogoDark]);
 
   return { bg, navBg, navText, logoDark, logoLight };
 };
@@ -875,9 +872,9 @@ export default function App() {
     achievements: '#202121', contact: '#f0f0f0',
   };
   const SECTION_NAV_BG: Record<string, string> = {
-    hero: '#202121', about: '#f0f0f0', team: '#202121',
-    products: '#f0f0f0', services: '#202121', events: '#f0f0f0',
-    achievements: '#202121', contact: '#f0f0f0',
+    hero: 'rgba(32,33,33,0.85)', about: 'rgba(240,240,240,0.85)', team: 'rgba(32,33,33,0.85)',
+    products: 'rgba(240,240,240,0.85)', services: 'rgba(32,33,33,0.85)', events: 'rgba(240,240,240,0.85)',
+    achievements: 'rgba(32,33,33,0.85)', contact: 'rgba(240,240,240,0.85)',
   };
   const SECTION_NAV_TEXT: Record<string, string> = {
     hero: '#ffffff', about: '#202121', team: '#ffffff',
@@ -890,102 +887,58 @@ export default function App() {
     achievements: 1, contact: 0,
   };
 
-  const finalBg = useTransform(() => {
+  const getActiveTransition = () => {
     const ac = achievementsContactTransitionProgress.get();
-    if (ac > 0 && ac < 1) return achievementsContact.bg.get();
+    if (ac > 0 && ac < 1) return achievementsContact;
 
     const ea = eventsAchievementsTransitionProgress.get();
-    if (ea > 0 && ea < 1) return eventsAchievements.bg.get();
+    if (ea > 0 && ea < 1) return eventsAchievements;
 
     const tp = teamProductsTransitionProgress.get();
-    if (tp > 0 && tp < 1) return teamProducts.bg.get();
+    if (tp > 0 && tp < 1) return teamProducts;
 
     const atp = aboutTeamTransitionProgress.get();
-    if (atp > 0 && atp < 1) return aboutTeam.bg.get();
+    if (atp > 0 && atp < 1) return aboutTeam;
 
     const p = heroTransitionProgress.get();
-    if (p >= 0 && p < 1) return heroAbout.bg.get();
+    if (p >= 0 && p < 1) return heroAbout;
+
+    return null;
+  };
+
+  // Every global surface reads the same active scroll profile, so color, logo,
+  // text, and the glossy navbar cannot select different section boundaries.
+  const finalBg = useTransform(() => {
+    const transition = getActiveTransition();
+    if (transition) return transition.bg.get();
 
     return SECTION_BG[activeSection] ?? '#202121';
   });
 
   const finalNavBg = useTransform(() => {
-    const ac = achievementsContactTransitionProgress.get();
-    if (ac > 0 && ac < 1) return achievementsContact.navBg.get();
+    const transition = getActiveTransition();
+    if (transition) return transition.navBg.get();
 
-    const ea = eventsAchievementsTransitionProgress.get();
-    if (ea > 0 && ea < 1) return eventsAchievements.navBg.get();
-
-    const tp = teamProductsTransitionProgress.get();
-    if (tp > 0 && tp < 1) return teamProducts.navBg.get();
-
-    const atp = aboutTeamTransitionProgress.get();
-    if (atp > 0 && atp < 1) return aboutTeam.navBg.get();
-
-    const p = heroTransitionProgress.get();
-    if (p >= 0 && p < 1) return heroAbout.navBg.get();
-
-    return SECTION_NAV_BG[activeSection] ?? '#202121';
-  });
-
-  const finalNavGradient = useTransform(() => {
-    const color = finalNavBg.get();
-    return `linear-gradient(to bottom, ${color} 0%, ${color} 20%, ${color} 40%, ${color} 60%, color-mix(in srgb, ${color} 20%, transparent) 80%, transparent 100%)`;
+    return SECTION_NAV_BG[activeSection] ?? 'rgba(32,33,33,0.85)';
   });
 
   const finalNavText = useTransform(() => {
-    const ac = achievementsContactTransitionProgress.get();
-    if (ac > 0 && ac < 1) return achievementsContact.navText.get();
-
-    const ea = eventsAchievementsTransitionProgress.get();
-    if (ea > 0 && ea < 1) return eventsAchievements.navText.get();
-
-    const tp = teamProductsTransitionProgress.get();
-    if (tp > 0 && tp < 1) return teamProducts.navText.get();
-
-    const atp = aboutTeamTransitionProgress.get();
-    if (atp > 0 && atp < 1) return aboutTeam.navText.get();
-
-    const p = heroTransitionProgress.get();
-    if (p >= 0 && p < 1) return heroAbout.navText.get();
+    const transition = getActiveTransition();
+    if (transition) return transition.navText.get();
 
     return SECTION_NAV_TEXT[activeSection] ?? '#ffffff';
   });
 
   const finalLogoDarkOpacity = useTransform(() => {
-    const ac = achievementsContactTransitionProgress.get();
-    if (ac > 0 && ac < 1) return achievementsContact.logoDark.get();
-
-    const ea = eventsAchievementsTransitionProgress.get();
-    if (ea > 0 && ea < 1) return eventsAchievements.logoDark.get();
-
-    const tp = teamProductsTransitionProgress.get();
-    if (tp > 0 && tp < 1) return teamProducts.logoDark.get();
-
-    const atp = aboutTeamTransitionProgress.get();
-    if (atp > 0 && atp < 1) return aboutTeam.logoDark.get();
-
-    const p = heroTransitionProgress.get();
-    if (p >= 0 && p < 1) return heroAbout.logoDark.get();
+    const transition = getActiveTransition();
+    if (transition) return transition.logoDark.get();
 
     return SECTION_LOGO_DARK[activeSection] ?? 1;
   });
 
   const finalLogoLightOpacity = useTransform(() => {
-    const ac = achievementsContactTransitionProgress.get();
-    if (ac > 0 && ac < 1) return achievementsContact.logoLight.get();
-
-    const ea = eventsAchievementsTransitionProgress.get();
-    if (ea > 0 && ea < 1) return eventsAchievements.logoLight.get();
-
-    const tp = teamProductsTransitionProgress.get();
-    if (tp > 0 && tp < 1) return teamProducts.logoLight.get();
-
-    const atp = aboutTeamTransitionProgress.get();
-    if (atp > 0 && atp < 1) return aboutTeam.logoLight.get();
-
-    const p = heroTransitionProgress.get();
-    if (p >= 0 && p < 1) return heroAbout.logoLight.get();
+    const transition = getActiveTransition();
+    if (transition) return transition.logoLight.get();
 
     return 1 - (SECTION_LOGO_DARK[activeSection] ?? 1);
   });
@@ -1014,6 +967,8 @@ export default function App() {
 
   return (
     <div className="w-full relative font-sans overflow-hidden min-h-screen">
+      <link rel="preload" as="image" href={logoDarkTheme} />
+      <link rel="preload" as="image" href={logoLightTheme} />
       <style>{`
         .hide-cursor, .hide-cursor * {
           cursor: none !important;
@@ -1034,20 +989,24 @@ export default function App() {
       <motion.nav 
         className="fixed top-0 left-0 w-full flex justify-between items-center px-8 lg:px-12 py-3 z-[100]"
         style={{
-          backgroundImage: finalNavGradient,
+          backgroundColor: finalNavBg,
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
         }}
       >
-        <a href="#" className="flex items-center gap-3 flex-shrink-0 cursor-pointer">
+        <a href="#" aria-label="Uni-Inside home" className="flex items-center gap-3 flex-shrink-0 cursor-pointer">
           <div className="relative w-[60px] h-[60px] sm:w-[66px] sm:h-[66px] flex items-center justify-center">
             <motion.img
               src={logoDarkTheme}
-              alt="Uni-Inside Logo Dark Theme"
+              alt=""
+              aria-hidden="true"
               className="absolute inset-0 w-full h-full object-contain"
               style={{ opacity: finalLogoDarkOpacity }}
             />
             <motion.img
               src={logoLightTheme}
-              alt="Uni-Inside Logo Light Theme"
+              alt=""
+              aria-hidden="true"
               className="absolute inset-0 w-full h-full object-contain"
               style={{ opacity: finalLogoLightOpacity }}
             />
@@ -1079,12 +1038,12 @@ export default function App() {
                     }
                   }
                 }}
-                className={`text-[12px] xl:text-[14px] font-[800] uppercase tracking-[0.025em] cursor-pointer transition-colors ${
-                  isHighlightActive ? '!text-[#f9d02d]' : 'hover:!text-[#f9d02d]'
+                className={`text-[12px] xl:text-[14px] font-[800] uppercase tracking-[0.025em] cursor-pointer ${
+                  isHighlightActive ? '!text-[#f9d02d]' : 'hover:!text-[#f9d02d] focus-visible:!text-[#f9d02d]'
                 }`}
                 style={{
                   color: isHighlightActive ? '#f9d02d' : finalNavText,
-                  '--nav-color': isHighlightActive ? '#f9d02d' : finalNavText 
+                  WebkitTextStroke: '0.35px rgba(32,33,33,0.8)',
                 } as any}
               >
                 {link}

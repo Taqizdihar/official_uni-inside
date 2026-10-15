@@ -1,11 +1,11 @@
 import * as THREE from 'three';
 import type { HotspotId } from './heroConfig';
-import { smoothStep } from './heroMotion';
+import { smoothStep, updateRgbScreen } from './heroMotion';
 import type { Point, RoomBuilderContext } from './roomGeometry';
 
 /** The workshop is authored in its own coordinates, then turned with the room. */
 export function buildCraftRoom(context: RoomBuilderContext) {
-  const { room, static: furniture, resources, materials } = context;
+  const { room, static: furniture, resources, materials, ownMaterial } = context;
   const moving = new THREE.Object3D();
 
   function object(id: HotspotId, position: Point, rotationY = 0) {
@@ -146,16 +146,14 @@ export function buildCraftRoom(context: RoomBuilderContext) {
   const designScreen = context.batch();
   designScreen.box('screen', [0.86, 0.48, 0.012], [0, 0.48, 0.045]);
   const designHits: THREE.Object3D[] = designScreen.compile(design, 'craft-design-screen');
-  const designScreenColors = (designHits[0] as THREE.Mesh).geometry.getAttribute('color') as THREE.BufferAttribute;
-  const designAccents = context.batch();
-  for (let index = 0; index < 6; index++) designAccents.box('screen', [0.12, 0.016, 0.008], [-0.34 + index * 0.135, 0.69, 0.058]);
-  designAccents.box('screen', [0.016, 0.2, 0.008], [0.408, 0.52, 0.058]);
-  const designAccentMeshes = designAccents.compile(design, 'craft-design-rgb-accents');
-  const designAccentColors = designAccentMeshes[0].geometry.getAttribute('color') as THREE.BufferAttribute;
-  const accentColor = new THREE.Color();
-  let lastDesignAccentHue = Number.NaN;
-  let lastDesignAccentSpread = Number.NaN;
-  designHits.push(...designAccentMeshes);
+  const designScreenMaterial = ((designHits[0] as THREE.Mesh).material as THREE.MeshStandardMaterial).clone();
+  (designHits[0] as THREE.Mesh).material = designScreenMaterial;
+  ownMaterial(designScreenMaterial);
+  const baseDesignScreenColor = designScreenMaterial.color.clone();
+  const baseDesignScreenEmissive = designScreenMaterial.emissive.clone();
+  const rgbDesignScreenColor = new THREE.Color();
+  const nextDesignScreenColor = new THREE.Color();
+  const nextDesignScreenEmissive = new THREE.Color();
   const designModel = new THREE.Group();
   designModel.position.set(0.09, 0.485, 0.08);
   design.add(designModel);
@@ -423,7 +421,6 @@ export function buildCraftRoom(context: RoomBuilderContext) {
   let filamentWasActive = false;
   let productsStartedAt = 0;
   let productsWereActive = false;
-  let lastDesignScreenLevel = Number.NaN;
   const lastSpoolOffsets = new Float32Array(spoolPositions.length).fill(Number.NaN);
   const lastSpoolRotations = new Float32Array(spoolPositions.length).fill(Number.NaN);
   const pathPosition = new THREE.Vector3();
@@ -436,27 +433,8 @@ export function buildCraftRoom(context: RoomBuilderContext) {
     printBed.position.z = 0.12 + activity.printer * (reducedMotion ? 0.025 : Math.sin(time * 1.8) * 0.07);
     feedSpool.rotation.x = activity.printer * (reducedMotion ? 0.18 : Math.sin(time * 0.5) * 0.4);
     designModel.rotation.y = activity.design * (reducedMotion ? 0.22 : Math.sin(time * 0.65) * 0.65);
-    const designScreenLevel = 0.86 + activity.design * 0.14;
-    if (designScreenLevel !== lastDesignScreenLevel) {
-      (designScreenColors.array as Float32Array).fill(designScreenLevel);
-      designScreenColors.needsUpdate = true;
-      lastDesignScreenLevel = designScreenLevel;
-    }
-    const designAccentActivity = reducedMotion ? 0 : activity.design;
-    const designAccentHue = (0.12 + designAccentActivity * ((time * 0.08) % 1)) % 1;
-    if (designAccentHue !== lastDesignAccentHue || designAccentActivity !== lastDesignAccentSpread) {
-      const values = designAccentColors.array as Float32Array;
-      for (let vertex = 0; vertex < designAccentColors.count; vertex++) {
-        const segment = Math.floor(vertex / 36);
-        accentColor.setHSL((designAccentHue + segment * designAccentActivity / 7) % 1, 0.86 * designAccentActivity + 0.48 * (1 - designAccentActivity), 0.76);
-        values[vertex * 3] = accentColor.r;
-        values[vertex * 3 + 1] = accentColor.g;
-        values[vertex * 3 + 2] = accentColor.b;
-      }
-      designAccentColors.needsUpdate = true;
-      lastDesignAccentHue = designAccentHue;
-      lastDesignAccentSpread = designAccentActivity;
-    }
+    updateRgbScreen(designScreenMaterial, baseDesignScreenColor, baseDesignScreenEmissive, activity.design, time, reducedMotion,
+      rgbDesignScreenColor, nextDesignScreenColor, nextDesignScreenEmissive);
 
     const paintingActive = !reducedMotion && activity.painting > 0.02;
     if (paintingActive && !paintingWasActive) paintingStartedAt = time;
