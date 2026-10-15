@@ -66,6 +66,23 @@ function findProjection(points: readonly ProjectedHotspot[], id: HotspotId | nul
   }
 }
 
+function leaderRoute(anchor: ProjectedHotspot, x: number, y: number, width: number, height: number) {
+  if (anchor.x < x - 8 || anchor.x > x + width + 8) {
+    const edgeX = anchor.x < x ? x : x + width;
+    const elbowX = edgeX + (anchor.x < x ? -22 : 22);
+    const edgeY = y + height / 2;
+    return `${anchor.x},${anchor.y} ${elbowX},${anchor.y} ${elbowX},${edgeY} ${edgeX},${edgeY}`;
+  }
+  const edgeY = anchor.y < y + height / 2 ? y : y + height;
+  const elbowY = edgeY + (anchor.y < edgeY ? -22 : 22);
+  const edgeX = clamp(anchor.x, x + 16, x + width - 16);
+  return `${anchor.x},${anchor.y} ${anchor.x},${elbowY} ${edgeX},${elbowY} ${edgeX},${edgeY}`;
+}
+
+function anchorOverlap(points: readonly ProjectedHotspot[], x: number, y: number, width: number, height: number) {
+  return points.reduce((total, point) => total + (point.visible && point.x >= x - 18 && point.x <= x + width + 18 && point.y >= y - 18 && point.y <= y + height + 18 ? 50000 : 0), 0);
+}
+
 export function IsometricHero() {
   const [reducedMotion, setReducedMotion] = useState(() =>
     typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -77,7 +94,7 @@ export function IsometricHero() {
   const [busy, setBusy] = useState(false);
   const [fallback, setFallback] = useState(false);
   const [activeHotspot, setActiveHotspot] = useState<HotspotId | null>(null);
-  const [replayPhase, setReplayPhase] = useState<'idle' | 'bulb-lit' | 'rewinding' | 'replaying-intro'>('idle');
+  const [replayPhase, setReplayPhase] = useState<'idle' | 'bulb-lit' | 'exiting' | 'rewinding' | 'replaying-intro'>('idle');
   const [counterCycle, setCounterCycle] = useState(0);
   const [ctaWorkspace, setCtaWorkspace] = useState<Workspace>('studio');
   const [ctaPhase, setCtaPhase] = useState<'idle' | 'exit' | 'enter'>('idle');
@@ -86,7 +103,7 @@ export function IsometricHero() {
   const [tour, setTour] = useState<GuidedTour | null>(null);
   const interactionsReady = countersComplete && (sceneSettled || fallback);
   const canInteract = interactionsReady && !busy && replayPhase === 'idle';
-  const controlsHaveBeenRevealed = interactionsReady && replayPhase === 'idle';
+  const controlsHaveBeenRevealed = interactionsReady && (replayPhase === 'idle' || replayPhase === 'bulb-lit' || replayPhase === 'exiting');
   const cordReady = sceneSettled && countersComplete && !fallback && (replayPhase === 'idle' || replayPhase === 'bulb-lit');
   const heroRef = useRef<HTMLElement>(null);
   const copyRef = useRef<HTMLDivElement>(null);
@@ -97,6 +114,7 @@ export function IsometricHero() {
   const radarRefs = useRef(new Map<HotspotId, HTMLSpanElement>());
   const controllerRef = useRef<HeroSceneController | null>(null);
   const pullTimerRef = useRef<number | null>(null);
+  const exitTimerRef = useRef<number | null>(null);
   const ctaPendingRef = useRef<Workspace | null>(null);
   const tourStartedRef = useRef(-1);
   const tourRef = useRef<GuidedTour | null>(null);
@@ -161,18 +179,15 @@ export function IsometricHero() {
         for (const dy of verticalOffsets) {
           const x = clamp(baseX + dx, minimumX, width - panelWidth - 8);
           const y = clamp(baseY + dy, minimumY, height - panelHeight - 8);
-          const overlap = occupied.reduce((total, other) => total + Math.max(0, Math.min(x + panelWidth + 5, other.x + other.width + 5) - Math.max(x - 5, other.x - 5)) * Math.max(0, Math.min(y + panelHeight + 5, other.y + other.height + 5) - Math.max(y - 5, other.y - 5)), 0);
+          const overlap = occupied.reduce((total, other) => total + Math.max(0, Math.min(x + panelWidth + 5, other.x + other.width + 5) - Math.max(x - 5, other.x - 5)) * Math.max(0, Math.min(y + panelHeight + 5, other.y + other.height + 5) - Math.max(y - 5, other.y - 5)), 0) + anchorOverlap(projectedRef.current, x, y, panelWidth, panelHeight);
           if (overlap < best.overlap) best = { x, y, overlap };
           if (overlap === 0) break;
         }
         if (best.overlap === 0) break;
       }
       occupied.push({ x: best.x, y: best.y, width: panelWidth, height: panelHeight });
-      const endX = leftSide ? best.x + panelWidth : best.x;
-      const endY = best.y + panelHeight / 2;
-      const elbowX = anchor.x + (leftSide ? -23 : 23);
       elements.panel.style.transform = `translate3d(${best.x}px, ${best.y}px, 0)`;
-      elements.line?.setAttribute('points', `${anchor.x},${anchor.y} ${elbowX},${endY} ${endX},${endY}`);
+      elements.line?.setAttribute('points', leaderRoute(anchor, best.x, best.y, panelWidth, panelHeight));
       elements.marker?.setAttribute('cx', String(anchor.x));
       elements.marker?.setAttribute('cy', String(anchor.y));
     }
@@ -192,11 +207,8 @@ export function IsometricHero() {
     const leftSide = anchor.x > (minimumX + width) / 2;
     const panelX = clamp(leftSide ? anchor.x - panelWidth - 46 : anchor.x + 46, minimumX, width - panelWidth - 12);
     const panelY = clamp(anchor.y - 94, width >= 768 ? 100 : 12, height - panelHeight - 12);
-    const endX = leftSide ? panelX + panelWidth : panelX;
-    const endY = panelY + panelHeight / 2;
-    const elbowX = anchor.x + (leftSide ? -26 : 26);
     panel.style.transform = `translate3d(${panelX}px, ${panelY}px, 0)`;
-    lineRef.current?.setAttribute('points', `${anchor.x},${anchor.y} ${elbowX},${endY} ${endX},${endY}`);
+    lineRef.current?.setAttribute('points', leaderRoute(anchor, panelX, panelY, panelWidth, panelHeight));
     markerRef.current?.setAttribute('cx', String(anchor.x));
     markerRef.current?.setAttribute('cy', String(anchor.y));
   }, []);
@@ -302,7 +314,6 @@ export function IsometricHero() {
     setBusy(true);
     stopTour();
     ctaPendingRef.current = null;
-    setCtaPhase('exit');
     pinnedRef.current = null;
     focusedRef.current = null;
     selectHotspot(null);
@@ -310,29 +321,36 @@ export function IsometricHero() {
     pullTimerRef.current = window.setTimeout(() => {
       pullTimerRef.current = null;
       if (replayPhaseRef.current !== 'bulb-lit') return;
-      replayPhaseRef.current = 'rewinding';
-      setReplayPhase('rewinding');
-      setContentVisible(false);
-      setRollStarted(false);
-      setCountersComplete(false);
-      setCounterCycle(cycle => cycle + 1);
-      setSceneSettled(false);
-      if (!controllerRef.current?.replayIntro()) {
-        replayPhaseRef.current = 'idle';
-        setReplayPhase('idle');
-        setSceneSettled(true);
-        setContentVisible(true);
-        setRollStarted(true);
-        enterCta(workspaceRef.current);
-        busyRef.current = false;
-        setBusy(false);
-      }
+      replayPhaseRef.current = 'exiting';
+      setReplayPhase('exiting');
+      exitTimerRef.current = window.setTimeout(() => {
+        exitTimerRef.current = null;
+        if (replayPhaseRef.current !== 'exiting') return;
+        replayPhaseRef.current = 'rewinding';
+        setReplayPhase('rewinding');
+        setContentVisible(false);
+        setRollStarted(false);
+        setCountersComplete(false);
+        setCounterCycle(cycle => cycle + 1);
+        setSceneSettled(false);
+        if (!controllerRef.current?.replayIntro()) {
+          replayPhaseRef.current = 'idle';
+          setReplayPhase('idle');
+          setSceneSettled(true);
+          setContentVisible(true);
+          setRollStarted(true);
+          enterCta(workspaceRef.current);
+          busyRef.current = false;
+          setBusy(false);
+        }
+      }, reducedMotion ? 0 : 330);
     }, reducedMotion ? 240 : 1500);
     return true;
   }, [enterCta, reducedMotion, selectHotspot, stopTour]);
 
   useEffect(() => () => {
     if (pullTimerRef.current !== null) window.clearTimeout(pullTimerRef.current);
+    if (exitTimerRef.current !== null) window.clearTimeout(exitTimerRef.current);
   }, []);
 
   useEffect(() => {
@@ -425,6 +443,8 @@ export function IsometricHero() {
       if (cancelled) return;
       if (pullTimerRef.current !== null) window.clearTimeout(pullTimerRef.current);
       pullTimerRef.current = null;
+      if (exitTimerRef.current !== null) window.clearTimeout(exitTimerRef.current);
+      exitTimerRef.current = null;
       replayPhaseRef.current = 'idle';
       setReplayPhase('idle');
       if (introLayerRef.current) introLayerRef.current.style.display = 'none';
@@ -701,78 +721,82 @@ export function IsometricHero() {
             </div>
           </div>
         )}
-        {tour && tour.workspace === workspace && !fallback && tour.order.slice(0, tour.visibleCount).map((id, index) => {
-          const hotspot = HOTSPOTS.find(item => item.id === id)!;
-          return (
-            <div className={styles.calloutOverlay} data-hero-guided-callout={id} data-exiting={index < tour.dismissedCount} aria-hidden="true" key={id}>
-              <svg className={styles.leader} aria-hidden="true">
-                <polyline ref={element => {
-                  const entry = guidedRefs.current.get(id) ?? { panel: null, line: null, marker: null };
-                  entry.line = element;
-                  if (element) guidedRefs.current.set(id, entry);
-                  else if (!entry.panel && !entry.marker) guidedRefs.current.delete(id);
-                }} className={styles.leaderLine} pathLength="1" />
-                <circle ref={element => {
-                  const entry = guidedRefs.current.get(id) ?? { panel: null, line: null, marker: null };
-                  entry.marker = element;
-                  if (element) guidedRefs.current.set(id, entry);
-                  else if (!entry.panel && !entry.line) guidedRefs.current.delete(id);
-                }} className={styles.targetMarker} r="10" />
-              </svg>
-              <div ref={element => {
+        {tour && tour.workspace === workspace && !fallback && (
+          <div className={styles.calloutOverlay} aria-hidden="true">
+            <svg className={styles.leader} aria-hidden="true">
+              {tour.order.slice(0, tour.visibleCount).map((id, index) => (
+                <g key={id} data-exiting={index < tour.dismissedCount} className={styles.guidedLeader}>
+                  <polyline ref={element => {
+                    const entry = guidedRefs.current.get(id) ?? { panel: null, line: null, marker: null };
+                    entry.line = element;
+                    if (element) guidedRefs.current.set(id, entry);
+                    else if (!entry.panel && !entry.marker) guidedRefs.current.delete(id);
+                  }} className={styles.leaderLine} pathLength="1" />
+                  <circle ref={element => {
+                    const entry = guidedRefs.current.get(id) ?? { panel: null, line: null, marker: null };
+                    entry.marker = element;
+                    if (element) guidedRefs.current.set(id, entry);
+                    else if (!entry.panel && !entry.line) guidedRefs.current.delete(id);
+                  }} className={styles.targetMarker} r="10" />
+                </g>
+              ))}
+            </svg>
+            {tour.order.slice(0, tour.visibleCount).map((id, index) => (
+              <div key={id} ref={element => {
                 const entry = guidedRefs.current.get(id) ?? { panel: null, line: null, marker: null };
                 entry.panel = element;
                 if (element) guidedRefs.current.set(id, entry);
                 else if (!entry.line && !entry.marker) guidedRefs.current.delete(id);
-              }} className={styles.calloutPosition}>
-                <div className={styles.calloutLabel}>{hotspot.label}</div>
+              }} className={styles.calloutPosition} data-hero-guided-callout={id} data-exiting={index < tour.dismissedCount}>
+                <div className={styles.calloutLabel}>{HOTSPOTS.find(item => item.id === id)!.label}</div>
               </div>
-            </div>
-          );
-        })}
+            ))}
+          </div>
+        )}
       </div>
 
       <RollingCounters key={counterCycle} start={rollStarted} reducedMotion={reducedMotion || fallback} onComplete={onCountersComplete} />
 
       {cordReady && <HeroPullCord reducedMotion={reducedMotion} disabled={replayPhase !== 'idle' || busy} onPull={pullCord} />}
 
-      <div
-        className={styles.actions}
-        data-cta-phase={ctaPhase}
-        data-cta-workspace={ctaWorkspace}
-        onAnimationEnd={event => {
-          if (event.target !== event.currentTarget) return;
-          if (ctaPhase === 'exit' && ctaPendingRef.current) enterCta(ctaPendingRef.current);
-          else if (ctaPhase === 'enter') setCtaPhase('idle');
-        }}
-      >
-        {ctaWorkspace === 'studio' ? (
-          <>
-            <Link className={styles.primaryCta} to="/#contact-us">{cta.primary}</Link>
-            <Link className={styles.secondaryCta} to="/services">{cta.secondary}</Link>
-          </>
-        ) : (
-          <>
-            <Link className={styles.primaryCta} to="/products">{cta.primary}</Link>
-            <Link className={styles.secondaryCta} to="/#contact-us">{cta.secondary}</Link>
-          </>
-        )}
-      </div>
-
-      <div className={styles.switcherPosition}>
-        <button
-          type="button"
-          className={styles.switcher}
-          onClick={switchWorkspace}
-          disabled={!canInteract}
-          aria-label={`Switch to ${WORKSPACES[workspace === 'studio' ? 'craft' : 'studio'].name}`}
-          aria-pressed={workspace === 'craft'}
+      <div className={styles.actions}>
+        <div
+          className={styles.ctaGroup}
+          data-cta-phase={ctaPhase}
+          data-cta-workspace={ctaWorkspace}
+          onAnimationEnd={event => {
+            if (event.target !== event.currentTarget) return;
+            if (ctaPhase === 'exit' && ctaPendingRef.current) enterCta(ctaPendingRef.current);
+            else if (ctaPhase === 'enter') setCtaPhase('idle');
+          }}
         >
-          <span className={styles.switcherThumb}>
-            <img src={workspace === 'studio' ? studioLogo : craftLogo} alt="" />
-          </span>
-        </button>
-        <span className={styles.srOnly} role="status">{current.name} active</span>
+          {ctaWorkspace === 'studio' ? (
+            <>
+              <Link className={styles.primaryCta} to="/#contact-us">{cta.primary}</Link>
+              <Link className={styles.secondaryCta} to="/services">{cta.secondary}</Link>
+            </>
+          ) : (
+            <>
+              <Link className={styles.primaryCta} to="/products">{cta.primary}</Link>
+              <Link className={styles.secondaryCta} to="/#contact-us">{cta.secondary}</Link>
+            </>
+          )}
+        </div>
+        <div className={styles.switcherPosition}>
+          <button
+            type="button"
+            className={styles.switcher}
+            onClick={switchWorkspace}
+            disabled={!canInteract}
+            aria-label={`Switch to ${WORKSPACES[workspace === 'studio' ? 'craft' : 'studio'].name}`}
+            aria-pressed={workspace === 'craft'}
+          >
+            <span className={styles.switcherThumb}>
+              <img src={workspace === 'studio' ? studioLogo : craftLogo} alt="" />
+            </span>
+          </button>
+          <span className={styles.srOnly} role="status">{current.name} active</span>
+        </div>
       </div>
     </section>
   );

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { HOTSPOTS, type HotspotId } from './heroConfig';
+import { HOTSPOTS, type HotspotId, type Workspace } from './heroConfig';
 import { GeometryBatch, type Point, type RoomMaterial, type RoomBuilderContext } from './roomGeometry';
 import { buildStudioRoom } from './studioRoom';
 import { buildCraftRoom } from './craftRoom';
@@ -12,6 +12,7 @@ export interface DioramaHotspot {
 export interface Diorama {
   root: THREE.Group;
   hotspots: Map<HotspotId, DioramaHotspot>;
+  setVisibleWorkspace(workspace: Workspace | null): void;
   update(activeId: HotspotId | null, time: number, delta: number, reducedMotion: boolean): boolean;
   dispose(): void;
 }
@@ -57,11 +58,12 @@ export function buildDiorama({ studioLogo, craftLogo, invalidate }: DioramaOptio
   }
 
   function walls(fixed: GeometryBatch) {
-    // The side walls sit inside their angled platform edges, so their thickness
-    // cannot reintroduce the triangular voids removed from the floor plan.
+    // Keep the original interior planes fixed while extending thickness outward.
+    // This hides room furniture seen from the opposite workspace at oblique angles.
     const length = Math.sqrt(8);
-    fixed.box('wall', [length, 2.8, 0.13], [-2.95, 1.4, 1.05], [0, Math.PI / 4, 0]);
-    fixed.box('wall', [length, 2.8, 0.13], [2.95, 1.4, 1.05], [0, -Math.PI / 4, 0]);
+    const outward = (0.68 - 0.13) / (2 * Math.SQRT2);
+    fixed.box('wall', [length, 2.8, 0.68], [-2.95 - outward, 1.4, 1.05 - outward], [0, Math.PI / 4, 0]);
+    fixed.box('wall', [length, 2.8, 0.68], [2.95 + outward, 1.4, 1.05 - outward], [0, -Math.PI / 4, 0]);
   }
 
   function logo(room: THREE.Group, url: string, aspect: number) {
@@ -110,9 +112,9 @@ export function buildDiorama({ studioLogo, craftLogo, invalidate }: DioramaOptio
   logo(craft, craftLogo, 1034 / 1160);
   const craftContext: RoomBuilderContext = { room: craft, static: craftStatic, materials, resources: geometries, batch, register };
   const animateCraft = buildCraftRoom(craftContext);
-  structural.append(studioStatic);
-  structural.append(craftStatic, Math.PI);
-  structural.compile(root, 'static');
+  structural.compile(root, 'shared-wall');
+  studioStatic.compile(studio, 'studio-static');
+  craftStatic.compile(craft, 'craft-static');
 
   const activity = Object.fromEntries(HOTSPOTS.map(({ id }) => [id, 0])) as Record<HotspotId, number>;
   const ids = HOTSPOTS.map(({ id }) => id);
@@ -121,6 +123,10 @@ export function buildDiorama({ studioLogo, craftLogo, invalidate }: DioramaOptio
 
   return {
     root, hotspots,
+    setVisibleWorkspace(workspace) {
+      studio.visible = workspace !== 'craft';
+      craft.visible = workspace !== 'studio';
+    },
     update(activeId, time, delta, reducedMotion) {
       if (disposed) return false;
       let resetting = false;
@@ -131,8 +137,8 @@ export function buildDiorama({ studioLogo, craftLogo, invalidate }: DioramaOptio
         activity[id] = next;
         resetting ||= next !== target;
       }
-      animateStudio(activity, time, reducedMotion);
-      animateCraft(activity, time, reducedMotion);
+      if (studio.visible) animateStudio(activity, time, reducedMotion);
+      if (craft.visible) animateCraft(activity, time, reducedMotion);
       return !reducedMotion && (activeId !== null || resetting);
     },
     dispose() {

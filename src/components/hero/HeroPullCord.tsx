@@ -3,13 +3,21 @@ import styles from './Hero.module.css';
 
 interface Point { x: number; y: number; oldX: number; oldY: number }
 
-const INITIAL_ANCHOR_X = 90;
-const ANCHOR_Y = 7;
-const REST_Y = 575;
+const ANCHOR_Y = -153;
 const SEGMENTS = 16;
-const REST_SEGMENT = (REST_Y - ANCHOR_Y) / SEGMENTS;
 
 function clamp(value: number, min: number, max: number) { return Math.min(max, Math.max(min, value)); }
+function measurements(root: HTMLDivElement) {
+  const width = root.clientWidth;
+  const height = root.clientHeight;
+  const mobile = width < 768;
+  return {
+    width, height, mobile,
+    anchorX: mobile ? width - 27 : width * (width < 1100 ? 0.445 : 0.372),
+    restY: mobile ? 285 : 415,
+    maxRadius: mobile ? 780 : 950,
+  };
+}
 
 /** A small, locally scoped Verlet rope; its only interactive surface is the grip. */
 export function HeroPullCord({ reducedMotion, disabled, onPull }: {
@@ -48,30 +56,31 @@ export function HeroPullCord({ reducedMotion, disabled, onPull }: {
     const grip = gripRef.current;
     if (!root || !path || !grip) return;
     const drawing = root.querySelector('svg');
-    const getAnchorX = () => window.innerWidth >= 768 ? root.offsetWidth * 0.44 : root.offsetWidth / 2;
-    let anchorX = getAnchorX();
-    drawing?.setAttribute('viewBox', `0 0 ${root.offsetWidth} 700`);
-    grip.style.left = `${anchorX}px`;
+    let metrics = measurements(root);
+    drawing?.setAttribute('viewBox', `0 0 ${metrics.width} ${metrics.height}`);
+    grip.style.left = `${metrics.anchorX}px`;
+    grip.style.top = `${metrics.restY}px`;
     if (reducedMotion) {
       setDropped(true);
-      path.setAttribute('d', `M ${anchorX} ${ANCHOR_Y} L ${anchorX} ${REST_Y}`);
+      path.setAttribute('d', `M ${metrics.anchorX} ${ANCHOR_Y} L ${metrics.anchorX} ${metrics.restY}`);
       const observer = new ResizeObserver(() => {
-        anchorX = getAnchorX();
-        drawing?.setAttribute('viewBox', `0 0 ${root.offsetWidth} 700`);
-        path.setAttribute('d', `M ${anchorX} ${ANCHOR_Y} L ${anchorX} ${REST_Y}`);
-        grip.style.left = `${anchorX}px`;
+        metrics = measurements(root);
+        drawing?.setAttribute('viewBox', `0 0 ${metrics.width} ${metrics.height}`);
+        path.setAttribute('d', `M ${metrics.anchorX} ${ANCHOR_Y} L ${metrics.anchorX} ${metrics.restY}`);
+        grip.style.left = `${metrics.anchorX}px`;
+        grip.style.top = `${metrics.restY}px`;
       });
       observer.observe(root);
       return () => observer.disconnect();
     }
     setDropped(false);
     const points: Point[] = Array.from({ length: SEGMENTS + 1 }, (_, index) => ({
-      x: anchorX, y: ANCHOR_Y + index * 2, oldX: anchorX, oldY: ANCHOR_Y + index * 2,
+      x: metrics.anchorX, y: ANCHOR_Y + index * 2, oldX: metrics.anchorX, oldY: ANCHOR_Y + index * 2,
     }));
     const physics = {
       points, dragging: false, pointerId: null as number | null,
-      targetX: anchorX, targetY: REST_Y, dragStartY: REST_Y, maxPull: 0,
-      lastY: REST_Y, lastMoveTime: 0, releaseVelocity: 0,
+      targetX: metrics.anchorX, targetY: metrics.restY, dragStartY: metrics.restY, maxPull: 0,
+      lastY: metrics.restY, lastMoveTime: 0, releaseVelocity: 0,
       extension: 0, growth: 0, ready: false, fired: false,
     };
     physicsRef.current = physics;
@@ -89,9 +98,9 @@ export function HeroPullCord({ reducedMotion, disabled, onPull }: {
         physics.ready = true;
         setDropped(true);
       }
-      if (physics.dragging) physics.extension = Math.max(0, physics.targetY - REST_Y) * 0.78;
+      if (physics.dragging) physics.extension = Math.max(0, Math.hypot(physics.targetX - metrics.anchorX, physics.targetY - ANCHOR_Y) - (metrics.restY - ANCHOR_Y));
       else physics.extension *= Math.exp(-dt * 9);
-      const segmentLength = 2 + (REST_SEGMENT - 2) * physics.growth + physics.extension / SEGMENTS;
+      const segmentLength = 2 + ((metrics.restY - ANCHOR_Y) / SEGMENTS - 2) * physics.growth + physics.extension / SEGMENTS;
 
       for (let index = 1; index < points.length; index++) {
         const point = points[index];
@@ -103,7 +112,7 @@ export function HeroPullCord({ reducedMotion, disabled, onPull }: {
         point.y += velocityY + 1100 * dt * dt;
       }
       for (let iteration = 0; iteration < 9; iteration++) {
-        points[0].x = anchorX;
+        points[0].x = metrics.anchorX;
         points[0].y = ANCHOR_Y;
         if (physics.dragging) {
           points[SEGMENTS].x = physics.targetX;
@@ -130,7 +139,7 @@ export function HeroPullCord({ reducedMotion, disabled, onPull }: {
           }
         }
       }
-      const pathData = [`M ${anchorX.toFixed(1)} ${ANCHOR_Y.toFixed(1)}`];
+      const pathData = [`M ${metrics.anchorX.toFixed(1)} ${ANCHOR_Y.toFixed(1)}`];
       for (let index = 1; index < points.length; index++) {
         pathData.push(`L ${points[index].x.toFixed(1)} ${points[index].y.toFixed(1)}`);
       }
@@ -153,15 +162,23 @@ export function HeroPullCord({ reducedMotion, disabled, onPull }: {
     }, { threshold: 0.01 });
     observer.observe(root);
     const resizeObserver = new ResizeObserver(() => {
-      const nextAnchorX = getAnchorX();
-      const shift = nextAnchorX - anchorX;
-      anchorX = nextAnchorX;
-      drawing?.setAttribute('viewBox', `0 0 ${root.offsetWidth} 700`);
+      const next = measurements(root);
+      const shift = next.anchorX - metrics.anchorX;
+      const verticalShift = next.restY - metrics.restY;
+      const previousLength = metrics.restY - ANCHOR_Y;
+      metrics = next;
+      drawing?.setAttribute('viewBox', `0 0 ${metrics.width} ${metrics.height}`);
       for (const point of points) {
         point.x += shift;
         point.oldX += shift;
+        const ratio = Math.max(0, (point.y - ANCHOR_Y) / previousLength);
+        point.y += verticalShift * ratio;
+        point.oldY += verticalShift * ratio;
       }
       physics.targetX += shift;
+      physics.targetY += verticalShift;
+      physics.dragStartY += verticalShift;
+      physics.lastY += verticalShift;
       if (!physics.dragging) grip.style.left = `${points[SEGMENTS].x}px`;
     });
     resizeObserver.observe(root);
@@ -179,24 +196,27 @@ export function HeroPullCord({ reducedMotion, disabled, onPull }: {
   const pointerPoint = (event: ReactPointerEvent) => {
     const root = rootRef.current!;
     const rect = root.getBoundingClientRect();
-    const anchorX = window.innerWidth >= 768 ? root.offsetWidth * 0.44 : root.offsetWidth / 2;
-    const reach = window.innerWidth >= 768 ? Math.min(root.offsetWidth * 0.38, 420) : 70;
+    const { width, height, mobile, anchorX, restY, maxRadius } = measurements(root);
+    const y = clamp(event.clientY - rect.top, Math.max(mobile ? 95 : 110, restY - 45), Math.min(height - 78, restY + 180));
+    const radialReach = Math.sqrt(Math.max(0, maxRadius ** 2 - (y - ANCHOR_Y) ** 2));
+    const minX = Math.max(mobile ? 27 : 38, anchorX - radialReach);
+    const maxX = Math.min(width - (mobile ? 27 : 38), anchorX + radialReach);
     return {
-      x: clamp((event.clientX - rect.left) * root.offsetWidth / rect.width, anchorX - reach, anchorX + reach),
-      y: clamp((event.clientY - rect.top) * root.offsetHeight / rect.height, REST_Y - 35, REST_Y + 170),
+      x: clamp(event.clientX - rect.left, minX, maxX),
+      y,
     };
   };
 
   return (
     <div ref={rootRef} className={styles.pullCord} data-hero-cord="" data-cord-ready={dropped}>
-      <svg className={styles.cordDrawing} viewBox="0 0 180 700" aria-hidden="true">
-        <path ref={pathRef} d={`M ${INITIAL_ANCHOR_X} ${ANCHOR_Y} L ${INITIAL_ANCHOR_X} ${reducedMotion ? REST_Y : ANCHOR_Y + SEGMENTS * 2}`} className={styles.cordPath} />
+      <svg className={styles.cordDrawing} aria-hidden="true">
+        <path ref={pathRef} d="" className={styles.cordPath} />
       </svg>
       <button
         ref={gripRef}
         type="button"
         className={styles.cordHandle}
-        style={{ top: reducedMotion ? REST_Y : ANCHOR_Y + SEGMENTS * 2 }}
+        style={reducedMotion ? undefined : { top: ANCHOR_Y + SEGMENTS * 2 }}
         aria-label="Replay hero animation"
         data-dragging={physicsRef.current?.dragging ?? false}
         disabled={disabled || !dropped}

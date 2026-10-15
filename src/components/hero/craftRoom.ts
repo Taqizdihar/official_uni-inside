@@ -29,7 +29,7 @@ export function buildCraftRoom(context: RoomBuilderContext) {
   }
 
   // The Craft room turns with the diorama: negative local X reads as screen-left.
-  const printerBench: Point = [-2.87, 0, 1.37];
+  const printerBench: Point = [-2.97, 0, 1.47];
   const designDesk: Point = [2.55, 0, 1.3];
   const printerYaw = Math.PI / 4;
   const designYaw = -Math.PI / 4;
@@ -55,17 +55,12 @@ export function buildCraftRoom(context: RoomBuilderContext) {
     paintingFurniture.box('charcoal', [0.055, 0.48, 0.055], [x, 0.24, 1.52]);
     paintingFurniture.box('charcoal', [0.055, 0.48, 0.055], [x, 0.24, 1.87]);
   }
-  // The left unit has drawers; the right one has an open shelf and a door.
-  paintingFurniture.box('charcoal', [0.39, 0.96, 0.53], [-1.09, 0.48, 0.77]);
+  // A single drawer cabinet sits to the right of the painting bench.
+  paintingFurniture.box('charcoal', [0.39, 0.96, 0.53], [1.13, 0.48, 0.77]);
   for (const y of [0.25, 0.51, 0.77]) {
-    paintingFurniture.box('ivory', [0.32, 0.2, 0.018], [-1.09, y, 1.045]);
-    paintingFurniture.box('metal', [0.13, 0.019, 0.025], [-1.09, y, 1.06]);
+    paintingFurniture.box('ivory', [0.32, 0.2, 0.018], [1.13, y, 1.045]);
+    paintingFurniture.box('metal', [0.13, 0.019, 0.025], [1.13, y, 1.06]);
   }
-  paintingFurniture.box('charcoal', [0.49, 1.12, 0.51], [1.13, 0.56, 0.74]);
-  paintingFurniture.box('black', [0.4, 0.31, 0.015], [1.13, 0.79, 1.005]);
-  paintingFurniture.box('ivory', [0.42, 0.55, 0.025], [1.13, 0.32, 1.01]);
-  paintingFurniture.box('yellow', [0.035, 0.12, 0.026], [1.29, 0.36, 1.032]);
-  paintingFurniture.box('ivory', [0.42, 0.05, 0.47], [1.13, 1.145, 0.74]);
   furniture.append(paintingFurniture);
   const designChair = context.batch();
   designChair.box('yellow', [0.49, 0.09, 0.43], [0, 0.53, 1.03]);
@@ -192,22 +187,22 @@ export function buildCraftRoom(context: RoomBuilderContext) {
   paintingHits.push(...brushParts.compileColored(brush, 'craft-paint-brush'));
   context.register('painting', brush, [0, 0.1, 0.035], paintingHits);
 
-  const filamentPosition: Point = [-1.86, 0, 0.49];
+  const filamentPosition: Point = [-2.12, 0, 0.73];
   const filament = object('filament', filamentPosition, Math.PI / 4);
   const rack = context.batch();
-  // A floor-standing cabinet keeps two columns of spools beside the printer.
-  rack.box('charcoal', [0.84, 0.14, 0.48], [0, 0.07, 0]);
-  rack.box('charcoal', [0.84, 0.12, 0.48], [0, 1.85, 0]);
-  rack.box('black', [0.8, 1.66, 0.045], [0, 0.96, -0.22]);
-  for (const x of [-0.4, 0.4]) {
-    rack.box('charcoal', [0.055, 1.75, 0.48], [x, 0.93, 0]);
+  // One spool per shelf makes the floor-standing filament tower read clearly.
+  rack.box('charcoal', [0.5, 0.14, 0.45], [0, 0.07, 0]);
+  rack.box('charcoal', [0.5, 0.1, 0.45], [0, 2.62, 0]);
+  rack.box('black', [0.46, 2.38, 0.035], [0, 1.38, -0.215]);
+  for (const x of [-0.225, 0.225]) {
+    rack.box('charcoal', [0.05, 2.48, 0.45], [x, 1.32, 0]);
   }
-  for (const height of [0.44, 0.96, 1.43]) {
-    rack.box('charcoal', [0.78, 0.045, 0.46], [0, height, 0]);
+  for (const height of [0.44, 0.89, 1.34, 1.79, 2.24]) {
+    rack.box('charcoal', [0.45, 0.045, 0.43], [0, height, 0]);
   }
-  rack.box('ivory', [0.73, 0.37, 0.028], [0, 0.26, 0.25]);
-  rack.box('metal', [0.19, 0.025, 0.028], [0, 0.31, 0.274]);
-  rack.box('yellow', [0.84, 0.03, 0.06], [0, 1.925, 0.19]);
+  rack.box('ivory', [0.4, 0.27, 0.028], [0, 0.27, 0.24]);
+  rack.box('metal', [0.16, 0.025, 0.028], [0, 0.31, 0.264]);
+  rack.box('yellow', [0.5, 0.03, 0.06], [0, 2.685, 0.18]);
   furniture.append(rack, Math.PI / 4, filamentPosition);
   const filamentHits: THREE.Object3D[] = [];
   const spoolCoreGeometry = new THREE.CylinderGeometry(0.13, 0.13, 0.14, 8);
@@ -238,8 +233,8 @@ export function buildCraftRoom(context: RoomBuilderContext) {
   }
   resources.add(spoolCoreGeometry);
   resources.add(spoolFlangeGeometry);
-  const cores = new THREE.InstancedMesh(spoolCoreGeometry, materials.ivory, 6);
-  const flanges = new THREE.InstancedMesh(spoolFlangeGeometry, materials.charcoal, 12);
+  const cores = new THREE.InstancedMesh(spoolCoreGeometry, materials.ivory, 5);
+  const flanges = new THREE.InstancedMesh(spoolFlangeGeometry, materials.charcoal, 10);
   cores.name = 'craft-filament-cores';
   flanges.name = 'craft-filament-flanges';
   for (const mesh of [cores, flanges]) {
@@ -249,11 +244,10 @@ export function buildCraftRoom(context: RoomBuilderContext) {
     filamentHits.push(mesh);
   }
   const spoolPositions: Point[] = [
-    [-0.2, 0.69, 0.08], [0.2, 0.69, 0.08],
-    [-0.2, 1.16, 0.08], [0.2, 1.16, 0.08],
-    [-0.2, 1.63, 0.08], [0.2, 1.63, 0.08],
+    [0, 0.68, 0.08], [0, 1.13, 0.08], [0, 1.58, 0.08],
+    [0, 2.03, 0.08], [0, 2.48, 0.08],
   ];
-  const spoolColors = ['#e5ae34', '#252a2d', '#e7e4d9', '#e5ae34', '#e7e4d9', '#252a2d'];
+  const spoolColors = ['#e5ae34', '#252a2d', '#e7e4d9', '#e5ae34', '#252a2d'];
   const spoolAxis = new THREE.Vector3();
   function setSpool(index: number, rotation: number) {
     const position = spoolPositions[index];
@@ -277,7 +271,7 @@ export function buildCraftRoom(context: RoomBuilderContext) {
   for (const mesh of [cores, flanges]) {
     mesh.computeBoundingSphere();
   }
-  context.register('filament', filament, [0, 1.63, 0.15], filamentHits);
+  context.register('filament', filament, [0, 1.58, 0.15], filamentHits);
 
   const packagingCenter: Point = [0, 0, 2.9];
   const products = object('products', [packagingCenter[0], 1.055, packagingCenter[2]]);
@@ -375,7 +369,22 @@ export function buildCraftRoom(context: RoomBuilderContext) {
   rightTools.beam('metal', [0.07, 0.22, 0.08], [0.07, -0.19, 0.08], 0.022);
   rightTools.box('charcoal', [0.16, 0.045, 0.05], [0.07, -0.09, 0.09]);
   rightTools.beam('yellow', [0.25, 0.12, 0.08], [0.17, -0.19, 0.08], 0.027);
-  furniture.append(rightTools, 0, [1.19, 2.38, 0.18]);
+  // Pliers, hex keys, scraper and wrench sit on the same pegboard as the hooks.
+  rightTools.beam('metal', [-0.36, 0.14, 0.08], [-0.3, -0.17, 0.08], 0.018);
+  rightTools.beam('metal', [-0.29, 0.14, 0.08], [-0.35, -0.17, 0.08], 0.018);
+  rightTools.box('yellow', [0.055, 0.1, 0.04], [-0.35, -0.21, 0.08]);
+  for (const x of [-0.01, 0.03, 0.07]) {
+    rightTools.beam('charcoal', [x, 0.04, 0.078], [x, -0.22, 0.078], 0.012);
+    rightTools.beam('charcoal', [x, -0.22, 0.078], [x + 0.035, -0.22, 0.078], 0.012);
+  }
+  rightTools.box('metal', [0.19, 0.035, 0.045], [0.31, -0.22, 0.083]);
+  rightTools.beam('metal', [0.37, 0.2, 0.08], [0.37, -0.08, 0.08], 0.023);
+  rightTools.beam('metal', [0.32, 0.2, 0.08], [0.37, 0.13, 0.08], 0.018);
+  rightTools.beam('metal', [0.42, 0.2, 0.08], [0.37, 0.13, 0.08], 0.018);
+  for (const x of [-0.38, -0.19, 0, 0.19, 0.38]) {
+    for (const y of [-0.3, -0.05, 0.3]) rightTools.box('charcoal', [0.011, 0.011, 0.012], [x, y, 0.052]);
+  }
+  furniture.append(rightTools, 0, [1.19, 1.92, 0.18]);
 
   let lastSpoolRotation = Number.NaN;
   return (activity: Readonly<Record<HotspotId, number>>, time: number, reducedMotion: boolean) => {
