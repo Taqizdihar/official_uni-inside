@@ -37,6 +37,21 @@ interface HitTarget {
   visible: boolean;
 }
 
+interface GuidedTour {
+  cycle: number;
+  workspace: Workspace;
+  order: HotspotId[];
+  phase: 'revealing' | 'holding' | 'dismissing';
+  visibleCount: number;
+  dismissedCount: number;
+}
+
+interface GuidedCalloutElements {
+  panel: HTMLDivElement | null;
+  line: SVGPolylineElement | null;
+  marker: SVGCircleElement | null;
+}
+
 function targetFits(targets: readonly HitTarget[], x: number, y: number) {
   for (let index = 0; index < targets.length; index += 1) {
     const placed = targets[index];
@@ -64,6 +79,11 @@ export function IsometricHero() {
   const [activeHotspot, setActiveHotspot] = useState<HotspotId | null>(null);
   const [replayPhase, setReplayPhase] = useState<'idle' | 'bulb-lit' | 'rewinding' | 'replaying-intro'>('idle');
   const [counterCycle, setCounterCycle] = useState(0);
+  const [ctaWorkspace, setCtaWorkspace] = useState<Workspace>('studio');
+  const [ctaPhase, setCtaPhase] = useState<'idle' | 'exit' | 'enter'>('idle');
+  const [radarOrder, setRadarOrder] = useState<HotspotId[]>([]);
+  const [tourCycle, setTourCycle] = useState(0);
+  const [tour, setTour] = useState<GuidedTour | null>(null);
   const interactionsReady = countersComplete && (sceneSettled || fallback);
   const canInteract = interactionsReady && !busy && replayPhase === 'idle';
   const controlsHaveBeenRevealed = interactionsReady && replayPhase === 'idle';
@@ -77,6 +97,10 @@ export function IsometricHero() {
   const radarRefs = useRef(new Map<HotspotId, HTMLSpanElement>());
   const controllerRef = useRef<HeroSceneController | null>(null);
   const pullTimerRef = useRef<number | null>(null);
+  const ctaPendingRef = useRef<Workspace | null>(null);
+  const tourStartedRef = useRef(-1);
+  const tourRef = useRef<GuidedTour | null>(null);
+  const guidedRefs = useRef(new Map<HotspotId, GuidedCalloutElements>());
   const replayPhaseRef = useRef(replayPhase);
   const hotspotRefs = useRef(new Map<HotspotId, HTMLButtonElement>());
   const hitTargetsRef = useRef<HitTarget[]>(HOTSPOTS.map(({ id }) => ({ id, x: 0, y: 0, offsetX: 0, offsetY: 0, visible: false })));
@@ -95,6 +119,64 @@ export function IsometricHero() {
   busyRef.current = busy;
   workspaceRef.current = workspace;
   replayPhaseRef.current = replayPhase;
+  tourRef.current = tour;
+
+  const stopTour = useCallback(() => {
+    tourRef.current = null;
+    setTour(null);
+    controllerRef.current?.setShowcasePaused(false);
+  }, []);
+
+  const enterCta = useCallback((next: Workspace) => {
+    ctaPendingRef.current = null;
+    setCtaWorkspace(next);
+    setCtaPhase(reducedMotion ? 'idle' : 'enter');
+  }, [reducedMotion]);
+
+  const repositionGuidedCallouts = useCallback(() => {
+    const host = hostRef.current;
+    const currentTour = tourRef.current;
+    if (!host || !currentTour || currentTour.workspace !== workspaceRef.current) return;
+    const width = host.clientWidth;
+    const height = host.clientHeight;
+    const minimumX = width >= 768
+      ? Math.max(width * 0.42, (copyRef.current?.offsetLeft ?? 0) + (copyRef.current?.offsetWidth ?? 0) - host.offsetLeft + 20)
+      : 8;
+    const minimumY = width >= 768 ? 100 : 8;
+    const occupied: { x: number; y: number; width: number; height: number }[] = [];
+    for (const id of currentTour.order.slice(0, currentTour.visibleCount)) {
+      const elements = guidedRefs.current.get(id);
+      const anchor = findProjection(projectedRef.current, id);
+      if (!elements?.panel || !anchor?.visible) continue;
+      const panelWidth = elements.panel.offsetWidth;
+      const panelHeight = elements.panel.offsetHeight;
+      const leftSide = anchor.x > (minimumX + width) / 2;
+      const desiredX = leftSide ? anchor.x - panelWidth - 35 : anchor.x + 35;
+      const baseX = clamp(desiredX, minimumX, width - panelWidth - 8);
+      const baseY = clamp(anchor.y - 85, minimumY, height - panelHeight - 8);
+      let best = { x: baseX, y: baseY, overlap: Infinity };
+      const verticalOffsets = [0, -48, 48, -96, 96, -144, 144, -192, 192, -240, 240];
+      const horizontalOffsets = [0, leftSide ? -72 : 72, leftSide ? 72 : -72];
+      for (const dx of horizontalOffsets) {
+        for (const dy of verticalOffsets) {
+          const x = clamp(baseX + dx, minimumX, width - panelWidth - 8);
+          const y = clamp(baseY + dy, minimumY, height - panelHeight - 8);
+          const overlap = occupied.reduce((total, other) => total + Math.max(0, Math.min(x + panelWidth + 5, other.x + other.width + 5) - Math.max(x - 5, other.x - 5)) * Math.max(0, Math.min(y + panelHeight + 5, other.y + other.height + 5) - Math.max(y - 5, other.y - 5)), 0);
+          if (overlap < best.overlap) best = { x, y, overlap };
+          if (overlap === 0) break;
+        }
+        if (best.overlap === 0) break;
+      }
+      occupied.push({ x: best.x, y: best.y, width: panelWidth, height: panelHeight });
+      const endX = leftSide ? best.x + panelWidth : best.x;
+      const endY = best.y + panelHeight / 2;
+      const elbowX = anchor.x + (leftSide ? -23 : 23);
+      elements.panel.style.transform = `translate3d(${best.x}px, ${best.y}px, 0)`;
+      elements.line?.setAttribute('points', `${anchor.x},${anchor.y} ${elbowX},${endY} ${endX},${endY}`);
+      elements.marker?.setAttribute('cx', String(anchor.x));
+      elements.marker?.setAttribute('cy', String(anchor.y));
+    }
+  }, []);
 
   const repositionCallout = useCallback(() => {
     const host = hostRef.current;
@@ -109,7 +191,7 @@ export function IsometricHero() {
       : 12;
     const leftSide = anchor.x > (minimumX + width) / 2;
     const panelX = clamp(leftSide ? anchor.x - panelWidth - 46 : anchor.x + 46, minimumX, width - panelWidth - 12);
-    const panelY = clamp(anchor.y - 94, 12, height - panelHeight - 12);
+    const panelY = clamp(anchor.y - 94, width >= 768 ? 100 : 12, height - panelHeight - 12);
     const endX = leftSide ? panelX + panelWidth : panelX;
     const endY = panelY + panelHeight / 2;
     const elbowX = anchor.x + (leftSide ? -26 : 26);
@@ -121,11 +203,12 @@ export function IsometricHero() {
 
   const selectHotspot = useCallback((id: HotspotId | null) => {
     if (id && (!readyRef.current || busyRef.current || HOTSPOTS.find((hotspot) => hotspot.id === id)?.workspace !== workspaceRef.current)) return;
+    if (id && tourRef.current) stopTour();
     activeRef.current = id;
     setActiveHotspot(id);
     controllerRef.current?.setActiveHotspot(id);
     repositionCallout();
-  }, [repositionCallout]);
+  }, [repositionCallout, stopTour]);
 
   const onIntroProgress = useCallback((progress: number) => {
     const stageWidth = hostRef.current?.clientWidth ?? 0;
@@ -153,6 +236,7 @@ export function IsometricHero() {
   const onRadarOrder = useCallback((ids: readonly HotspotId[]) => {
     if (hostRef.current) hostRef.current.dataset.radarReady = String(ids.length === 5);
     ids.forEach((id, index) => radarRefs.current.get(id)?.style.setProperty('--radar-index', String(index)));
+    setRadarOrder(previous => previous.length === ids.length && previous.every((id, index) => id === ids[index]) ? previous : [...ids]);
   }, []);
 
   const projectHotspots = useCallback((points: ProjectedHotspot[]) => {
@@ -169,7 +253,7 @@ export function IsometricHero() {
       const button = hotspotRefs.current.get(point.id);
       const marker = radarRefs.current.get(point.id);
       if (marker) {
-        marker.style.transform = `translate3d(${point.x - 4}px, ${point.y - 4}px, 0)`;
+        marker.style.transform = `translate3d(${point.x - 9}px, ${point.y - 9}px, 0)`;
         marker.style.visibility = point.visible ? 'visible' : 'hidden';
       }
       if (!button) continue;
@@ -205,7 +289,8 @@ export function IsometricHero() {
       button.style.visibility = point.visible ? 'visible' : 'hidden';
     }
     repositionCallout();
-  }, [repositionCallout]);
+    repositionGuidedCallouts();
+  }, [repositionCallout, repositionGuidedCallouts]);
 
   const onCountersComplete = useCallback(() => setCountersComplete(true), []);
 
@@ -215,6 +300,9 @@ export function IsometricHero() {
     setReplayPhase('bulb-lit');
     busyRef.current = true;
     setBusy(true);
+    stopTour();
+    ctaPendingRef.current = null;
+    setCtaPhase('exit');
     pinnedRef.current = null;
     focusedRef.current = null;
     selectHotspot(null);
@@ -235,12 +323,13 @@ export function IsometricHero() {
         setSceneSettled(true);
         setContentVisible(true);
         setRollStarted(true);
+        enterCta(workspaceRef.current);
         busyRef.current = false;
         setBusy(false);
       }
     }, reducedMotion ? 240 : 1500);
     return true;
-  }, [reducedMotion, selectHotspot]);
+  }, [enterCta, reducedMotion, selectHotspot, stopTour]);
 
   useEffect(() => () => {
     if (pullTimerRef.current !== null) window.clearTimeout(pullTimerRef.current);
@@ -249,6 +338,49 @@ export function IsometricHero() {
   useEffect(() => {
     controllerRef.current?.setInteractive(canInteract && !fallback);
   }, [canInteract, fallback]);
+
+  useEffect(() => {
+    if (reducedMotion && ctaPendingRef.current) enterCta(ctaPendingRef.current);
+  }, [enterCta, reducedMotion]);
+
+  useEffect(() => {
+    if (!canInteract || fallback || radarOrder.length !== 5 || tourCycle === 0 || tourStartedRef.current === tourCycle) return;
+    if (radarOrder.some(id => HOTSPOTS.find(hotspot => hotspot.id === id)?.workspace !== workspace)) return;
+    tourStartedRef.current = tourCycle;
+    controllerRef.current?.setShowcasePaused(true);
+    setTour({ cycle: tourCycle, workspace, order: [...radarOrder], phase: 'revealing', visibleCount: 1, dismissedCount: 0 });
+  }, [canInteract, fallback, radarOrder, tourCycle, workspace]);
+
+  useEffect(() => {
+    if (!tour) return;
+    let timer: number;
+    if (tour.phase === 'revealing') {
+      timer = window.setTimeout(() => setTour(current => {
+        if (!current || current.cycle !== tour.cycle || current.workspace !== tour.workspace) return current;
+        return current.visibleCount === current.order.length
+          ? { ...current, phase: 'holding' }
+          : { ...current, visibleCount: current.visibleCount + 1 };
+      }), reducedMotion ? 100 : 420);
+    } else if (tour.phase === 'holding') {
+      timer = window.setTimeout(() => setTour(current => current?.cycle === tour.cycle
+        ? { ...current, phase: 'dismissing', dismissedCount: 1 } : current), reducedMotion ? 550 : 1600);
+    } else {
+      timer = window.setTimeout(() => {
+        if (tour.dismissedCount === tour.order.length) stopTour();
+        else setTour(current => current?.cycle === tour.cycle
+          ? { ...current, dismissedCount: current.dismissedCount + 1 } : current);
+      }, reducedMotion ? 90 : 310);
+    }
+    return () => window.clearTimeout(timer);
+  }, [reducedMotion, stopTour, tour]);
+
+  useEffect(() => {
+    if (!tour) return;
+    repositionGuidedCallouts();
+    const observer = new ResizeObserver(repositionGuidedCallouts);
+    for (const elements of guidedRefs.current.values()) if (elements.panel) observer.observe(elements.panel);
+    return () => observer.disconnect();
+  }, [repositionGuidedCallouts, tour]);
 
   useEffect(() => {
     const preference = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -297,6 +429,7 @@ export function IsometricHero() {
       setReplayPhase('idle');
       if (introLayerRef.current) introLayerRef.current.style.display = 'none';
       setFallback(true);
+      stopTour();
       setContentVisible(true);
       setRollStarted(true);
       setCountersComplete(true);
@@ -315,12 +448,14 @@ export function IsometricHero() {
           if (introLayerRef.current) introLayerRef.current.style.display = 'none';
           if (!cancelled) {
             setSceneSettled(true);
+            if (replayed || workspaceRef.current === 'studio') setTourCycle(cycle => cycle + 1);
             if (replayed || workspaceRef.current === 'studio') {
               busyRef.current = false;
               setBusy(false);
               if (replayed) {
                 replayPhaseRef.current = 'idle';
                 setReplayPhase('idle');
+                enterCta(workspaceRef.current);
               }
             } else {
               busyRef.current = true;
@@ -342,6 +477,7 @@ export function IsometricHero() {
           if (!cancelled) {
             busyRef.current = false;
             setBusy(false);
+            setTourCycle(cycle => cycle + 1);
           }
           saveStats();
         },
@@ -365,7 +501,7 @@ export function IsometricHero() {
       instance?.dispose();
       if (controllerRef.current === instance) controllerRef.current = null;
     };
-  }, [reducedMotion, projectHotspots, selectHotspot, onIntroProgress, onShowcase, onRadarOrder]);
+  }, [reducedMotion, projectHotspots, selectHotspot, onIntroProgress, onShowcase, onRadarOrder, enterCta, stopTour]);
 
   useEffect(() => {
     if (!activeHotspot || !calloutRef.current || fallback) return;
@@ -409,6 +545,12 @@ export function IsometricHero() {
   const switchWorkspace = () => {
     if (!readyRef.current || busyRef.current) return;
     const next = workspace === 'studio' ? 'craft' : 'studio';
+    stopTour();
+    if (reducedMotion || fallback) enterCta(next);
+    else {
+      ctaPendingRef.current = next;
+      setCtaPhase('exit');
+    }
     pinnedRef.current = null;
     focusedRef.current = null;
     selectHotspot(null);
@@ -419,6 +561,7 @@ export function IsometricHero() {
     if (!fallback) controllerRef.current?.setWorkspace(next);
   };
   const current = WORKSPACES[workspace];
+  const cta = WORKSPACES[ctaWorkspace];
   const active = HOTSPOTS.find((hotspot) => hotspot.id === activeHotspot);
 
   return (
@@ -457,6 +600,8 @@ export function IsometricHero() {
         data-radar-ready="false"
         data-showcase-active="false"
         data-showcase-id=""
+        data-tour-active={Boolean(tour && tour.workspace === workspace)}
+        data-tour-phase={tour?.workspace === workspace ? tour.phase : 'idle'}
         aria-label={`${current.name} interactive workspace`}
       >
         {!reducedMotion && !fallback && (
@@ -477,6 +622,8 @@ export function IsometricHero() {
                 className={styles.radarMarker}
                 data-hero-radar={hotspot.id}
                 data-showcase-selected="false"
+                data-tour-revealed={!tour || tour.workspace !== workspace || tour.order.indexOf(hotspot.id) < tour.visibleCount}
+                data-tour-selected={Boolean(tour && tour.workspace === workspace && tour.phase === 'revealing' && tour.order[tour.visibleCount - 1] === hotspot.id)}
               >
                 <span className={styles.radarPoint} />
                 <span className={styles.radarRing} />
@@ -554,22 +701,60 @@ export function IsometricHero() {
             </div>
           </div>
         )}
+        {tour && tour.workspace === workspace && !fallback && tour.order.slice(0, tour.visibleCount).map((id, index) => {
+          const hotspot = HOTSPOTS.find(item => item.id === id)!;
+          return (
+            <div className={styles.calloutOverlay} data-hero-guided-callout={id} data-exiting={index < tour.dismissedCount} aria-hidden="true" key={id}>
+              <svg className={styles.leader} aria-hidden="true">
+                <polyline ref={element => {
+                  const entry = guidedRefs.current.get(id) ?? { panel: null, line: null, marker: null };
+                  entry.line = element;
+                  if (element) guidedRefs.current.set(id, entry);
+                  else if (!entry.panel && !entry.marker) guidedRefs.current.delete(id);
+                }} className={styles.leaderLine} pathLength="1" />
+                <circle ref={element => {
+                  const entry = guidedRefs.current.get(id) ?? { panel: null, line: null, marker: null };
+                  entry.marker = element;
+                  if (element) guidedRefs.current.set(id, entry);
+                  else if (!entry.panel && !entry.line) guidedRefs.current.delete(id);
+                }} className={styles.targetMarker} r="10" />
+              </svg>
+              <div ref={element => {
+                const entry = guidedRefs.current.get(id) ?? { panel: null, line: null, marker: null };
+                entry.panel = element;
+                if (element) guidedRefs.current.set(id, entry);
+                else if (!entry.line && !entry.marker) guidedRefs.current.delete(id);
+              }} className={styles.calloutPosition}>
+                <div className={styles.calloutLabel}>{hotspot.label}</div>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       <RollingCounters key={counterCycle} start={rollStarted} reducedMotion={reducedMotion || fallback} onComplete={onCountersComplete} />
 
       {cordReady && <HeroPullCord reducedMotion={reducedMotion} disabled={replayPhase !== 'idle' || busy} onPull={pullCord} />}
 
-      <div className={styles.actions} key={workspace}>
-        {workspace === 'studio' ? (
+      <div
+        className={styles.actions}
+        data-cta-phase={ctaPhase}
+        data-cta-workspace={ctaWorkspace}
+        onAnimationEnd={event => {
+          if (event.target !== event.currentTarget) return;
+          if (ctaPhase === 'exit' && ctaPendingRef.current) enterCta(ctaPendingRef.current);
+          else if (ctaPhase === 'enter') setCtaPhase('idle');
+        }}
+      >
+        {ctaWorkspace === 'studio' ? (
           <>
-            <Link className={styles.primaryCta} to="/#contact-us">{current.primary}</Link>
-            <Link className={styles.secondaryCta} to="/services">{current.secondary}</Link>
+            <Link className={styles.primaryCta} to="/#contact-us">{cta.primary}</Link>
+            <Link className={styles.secondaryCta} to="/services">{cta.secondary}</Link>
           </>
         ) : (
           <>
-            <Link className={styles.primaryCta} to="/products">{current.primary}</Link>
-            <Link className={styles.secondaryCta} to="/#contact-us">{current.secondary}</Link>
+            <Link className={styles.primaryCta} to="/products">{cta.primary}</Link>
+            <Link className={styles.secondaryCta} to="/#contact-us">{cta.secondary}</Link>
           </>
         )}
       </div>

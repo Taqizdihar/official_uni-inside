@@ -29,10 +29,10 @@ export const HOTSPOTS: readonly { id: HotspotId; workspace: Workspace; object: s
   { id: 'lighting', workspace: 'studio', object: 'Studio light', label: 'CONTROLLED STUDIO LIGHTING' },
   { id: 'microphone', workspace: 'studio', object: 'Microphone', label: 'CLEAN AUDIO CAPTURE' },
   { id: 'printer', workspace: 'craft', object: '3D printer', label: '2000+ PRINT HOURS' },
-  { id: 'filament', workspace: 'craft', object: 'Filament rack and spools', label: '15+ FILAMENT SPOOLS USED' },
+  { id: 'filament', workspace: 'craft', object: 'Filament cabinet and spools', label: '15+ FILAMENT SPOOLS USED' },
   { id: 'design', workspace: 'craft', object: 'Design monitor', label: '50+ MODELS DESIGNED' },
   { id: 'painting', workspace: 'craft', object: 'Painting table', label: 'QUALITY HAND-PAINTED FINISH' },
-  { id: 'products', workspace: 'craft', object: 'Product shelf', label: 'READY-MADE & CUSTOM PRODUCTS' },
+  { id: 'products', workspace: 'craft', object: 'Printed products on packaging table', label: 'READY-MADE & CUSTOM PRODUCTS' },
 ];
 
 export const WORKSPACES = {

@@ -3,7 +3,7 @@ import styles from './Hero.module.css';
 
 interface Point { x: number; y: number; oldX: number; oldY: number }
 
-const ANCHOR_X = 90;
+const INITIAL_ANCHOR_X = 90;
 const ANCHOR_Y = 7;
 const REST_Y = 575;
 const SEGMENTS = 16;
@@ -43,22 +43,34 @@ export function HeroPullCord({ reducedMotion, disabled, onPull }: {
   disabledRef.current = disabled;
 
   useEffect(() => {
-    if (reducedMotion) {
-      setDropped(true);
-      pathRef.current?.setAttribute('d', `M ${ANCHOR_X} ${ANCHOR_Y} L ${ANCHOR_X} ${REST_Y}`);
-      return;
-    }
-    setDropped(false);
     const root = rootRef.current;
     const path = pathRef.current;
     const grip = gripRef.current;
     if (!root || !path || !grip) return;
+    const drawing = root.querySelector('svg');
+    const getAnchorX = () => window.innerWidth >= 768 ? root.offsetWidth * 0.44 : root.offsetWidth / 2;
+    let anchorX = getAnchorX();
+    drawing?.setAttribute('viewBox', `0 0 ${root.offsetWidth} 700`);
+    grip.style.left = `${anchorX}px`;
+    if (reducedMotion) {
+      setDropped(true);
+      path.setAttribute('d', `M ${anchorX} ${ANCHOR_Y} L ${anchorX} ${REST_Y}`);
+      const observer = new ResizeObserver(() => {
+        anchorX = getAnchorX();
+        drawing?.setAttribute('viewBox', `0 0 ${root.offsetWidth} 700`);
+        path.setAttribute('d', `M ${anchorX} ${ANCHOR_Y} L ${anchorX} ${REST_Y}`);
+        grip.style.left = `${anchorX}px`;
+      });
+      observer.observe(root);
+      return () => observer.disconnect();
+    }
+    setDropped(false);
     const points: Point[] = Array.from({ length: SEGMENTS + 1 }, (_, index) => ({
-      x: ANCHOR_X, y: ANCHOR_Y + index * 2, oldX: ANCHOR_X, oldY: ANCHOR_Y + index * 2,
+      x: anchorX, y: ANCHOR_Y + index * 2, oldX: anchorX, oldY: ANCHOR_Y + index * 2,
     }));
     const physics = {
       points, dragging: false, pointerId: null as number | null,
-      targetX: ANCHOR_X, targetY: REST_Y, dragStartY: REST_Y, maxPull: 0,
+      targetX: anchorX, targetY: REST_Y, dragStartY: REST_Y, maxPull: 0,
       lastY: REST_Y, lastMoveTime: 0, releaseVelocity: 0,
       extension: 0, growth: 0, ready: false, fired: false,
     };
@@ -91,7 +103,7 @@ export function HeroPullCord({ reducedMotion, disabled, onPull }: {
         point.y += velocityY + 1100 * dt * dt;
       }
       for (let iteration = 0; iteration < 9; iteration++) {
-        points[0].x = ANCHOR_X;
+        points[0].x = anchorX;
         points[0].y = ANCHOR_Y;
         if (physics.dragging) {
           points[SEGMENTS].x = physics.targetX;
@@ -118,7 +130,7 @@ export function HeroPullCord({ reducedMotion, disabled, onPull }: {
           }
         }
       }
-      const pathData = [`M ${ANCHOR_X.toFixed(1)} ${ANCHOR_Y.toFixed(1)}`];
+      const pathData = [`M ${anchorX.toFixed(1)} ${ANCHOR_Y.toFixed(1)}`];
       for (let index = 1; index < points.length; index++) {
         pathData.push(`L ${points[index].x.toFixed(1)} ${points[index].y.toFixed(1)}`);
       }
@@ -140,9 +152,23 @@ export function HeroPullCord({ reducedMotion, disabled, onPull }: {
       resume();
     }, { threshold: 0.01 });
     observer.observe(root);
+    const resizeObserver = new ResizeObserver(() => {
+      const nextAnchorX = getAnchorX();
+      const shift = nextAnchorX - anchorX;
+      anchorX = nextAnchorX;
+      drawing?.setAttribute('viewBox', `0 0 ${root.offsetWidth} 700`);
+      for (const point of points) {
+        point.x += shift;
+        point.oldX += shift;
+      }
+      physics.targetX += shift;
+      if (!physics.dragging) grip.style.left = `${points[SEGMENTS].x}px`;
+    });
+    resizeObserver.observe(root);
     document.addEventListener('visibilitychange', resume);
     return () => {
       observer.disconnect();
+      resizeObserver.disconnect();
       document.removeEventListener('visibilitychange', resume);
       if (frame !== null) window.cancelAnimationFrame(frame);
       if (physics.pointerId !== null && grip.hasPointerCapture(physics.pointerId)) grip.releasePointerCapture(physics.pointerId);
@@ -153,8 +179,10 @@ export function HeroPullCord({ reducedMotion, disabled, onPull }: {
   const pointerPoint = (event: ReactPointerEvent) => {
     const root = rootRef.current!;
     const rect = root.getBoundingClientRect();
+    const anchorX = window.innerWidth >= 768 ? root.offsetWidth * 0.44 : root.offsetWidth / 2;
+    const reach = window.innerWidth >= 768 ? Math.min(root.offsetWidth * 0.38, 420) : 70;
     return {
-      x: clamp((event.clientX - rect.left) * root.offsetWidth / rect.width, ANCHOR_X - 70, ANCHOR_X + 70),
+      x: clamp((event.clientX - rect.left) * root.offsetWidth / rect.width, anchorX - reach, anchorX + reach),
       y: clamp((event.clientY - rect.top) * root.offsetHeight / rect.height, REST_Y - 35, REST_Y + 170),
     };
   };
@@ -162,7 +190,7 @@ export function HeroPullCord({ reducedMotion, disabled, onPull }: {
   return (
     <div ref={rootRef} className={styles.pullCord} data-hero-cord="" data-cord-ready={dropped}>
       <svg className={styles.cordDrawing} viewBox="0 0 180 700" aria-hidden="true">
-        <path ref={pathRef} d={`M ${ANCHOR_X} ${ANCHOR_Y} L ${ANCHOR_X} ${reducedMotion ? REST_Y : ANCHOR_Y + SEGMENTS * 2}`} className={styles.cordPath} />
+        <path ref={pathRef} d={`M ${INITIAL_ANCHOR_X} ${ANCHOR_Y} L ${INITIAL_ANCHOR_X} ${reducedMotion ? REST_Y : ANCHOR_Y + SEGMENTS * 2}`} className={styles.cordPath} />
       </svg>
       <button
         ref={gripRef}

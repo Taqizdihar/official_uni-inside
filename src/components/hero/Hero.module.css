@@ -74,23 +74,24 @@
 
 .hero[data-bulb-lit='true'] .bulbFill {
   fill: #ffe860;
-  filter: drop-shadow(0 0 4px #fff2a0) drop-shadow(0 0 11px #ffda31) drop-shadow(0 0 22px #ffc400);
+  filter: drop-shadow(0 0 5px #fff5bc) drop-shadow(0 0 15px #ffe45a) drop-shadow(0 0 31px #ffca32) drop-shadow(0 0 47px #ffc3229c);
 }
 
 .pullCord {
   position: absolute;
-  z-index: 2;
+  z-index: 10;
   top: -160px;
-  left: calc(39% - 90px);
-  width: 180px;
+  left: clamp(32px, 5.5vw, 128px);
+  width: 72vw;
   height: 700px;
   pointer-events: none;
+  clip-path: inset(250px 0 0 0);
 }
 
 .cordDrawing {
   position: absolute;
   inset: 0;
-  width: 180px;
+  width: 100%;
   height: 700px;
   overflow: visible;
   filter: drop-shadow(0 1px 2px #0009);
@@ -279,7 +280,16 @@
   gap: 18px;
   margin-top: clamp(28px, 3.7vh, 38px);
   transition-delay: 140ms;
-  animation: ctaEntrance 250ms ease both;
+}
+
+.hero[data-content-visible='true'] .actions[data-cta-phase='exit'] {
+  animation: ctaSlideDown 230ms cubic-bezier(0.4, 0, 0.7, 0.2) both;
+  transition-delay: 0ms;
+}
+
+.hero[data-content-visible='true'] .actions[data-cta-phase='enter'] {
+  animation: ctaSlideUp 290ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  transition-delay: 0ms;
 }
 
 .primaryCta,
@@ -424,8 +434,8 @@
   position: absolute;
   top: 0;
   left: 0;
-  width: 8px;
-  height: 8px;
+  width: 18px;
+  height: 18px;
   visibility: hidden;
   pointer-events: none;
   will-change: transform;
@@ -433,21 +443,21 @@
 
 .radarPoint {
   display: block;
-  width: 8px;
-  height: 8px;
-  border: 1px solid #202121b0;
+  width: 18px;
+  height: 18px;
+  border: 2px solid #fff;
   border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 0 0 1px #fff6, 0 1px 4px #0008;
+  background: transparent;
+  box-shadow: 0 0 0 1px #20212188, inset 0 0 0 1px #20212166, 0 1px 6px #000a;
 }
 
 .radarRing {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 30px;
-  height: 30px;
-  margin: -15px 0 0 -15px;
+  width: 52px;
+  height: 52px;
+  margin: -26px 0 0 -26px;
   border: 2px solid #fff;
   border-radius: 50%;
   opacity: 0;
@@ -455,14 +465,27 @@
   pointer-events: none;
 }
 
-.stage[data-radar-active='true'][data-radar-ready='true'][data-scene-visible='true'][data-showcase-active='false'] .radarRing {
+.stage[data-tour-active='true'] .radarMarker[data-tour-revealed='false'] { opacity: 0; }
+
+.stage[data-tour-active='true'] .radarMarker[data-showcase-selected='true'] .radarRing { opacity: 0; animation: none; }
+
+.stage[data-tour-phase='revealing'] .radarMarker[data-tour-selected='true'] .radarRing {
+  animation: guidedRadarPulse 1.15s ease-out infinite;
+}
+
+.stage[data-tour-phase='holding'] .radarMarker[data-tour-revealed='true'] .radarRing,
+.stage[data-tour-phase='dismissing'] .radarMarker[data-tour-revealed='true'] .radarRing {
+  animation: radarPulse 5.8s linear infinite;
+  animation-delay: calc(var(--radar-index, 0) * 0.95s);
+}
+
+.stage[data-tour-active='false'][data-radar-active='true'][data-radar-ready='true'][data-scene-visible='true'][data-showcase-active='false'] .radarRing {
   animation: radarPulse 9s linear infinite;
   animation-delay: calc(var(--radar-index, 0) * 1.2s);
 }
 
 .radarMarker[data-showcase-selected='true'] .radarRing {
-  opacity: 0.85;
-  transform: scale(0.8);
+  animation: guidedRadarPulse 1.35s ease-out infinite;
 }
 
 .hotspot {
@@ -546,6 +569,20 @@
   font-weight: 700;
   line-height: 1.35;
   animation: calloutEntrance 230ms ease 150ms both;
+}
+
+.calloutOverlay[data-hero-guided-callout] {
+  transition: opacity 210ms ease;
+}
+
+.calloutOverlay[data-hero-guided-callout][data-exiting='true'] {
+  opacity: 0;
+}
+
+.calloutOverlay[data-hero-guided-callout][data-exiting='true'] .calloutLabel {
+  animation: none;
+  transform: translateY(7px);
+  transition: transform 210ms ease;
 }
 
 .fallback {
@@ -649,9 +686,14 @@
 }
 
 @keyframes radarPulse {
-  0% { opacity: 0.75; transform: scale(0.2); }
-  12.4% { opacity: 0; transform: scale(1.35); }
-  12.5%, 100% { opacity: 0; transform: scale(1.35); }
+  0% { opacity: 0.75; transform: scale(0.25); }
+  16% { opacity: 0; transform: scale(1.35); }
+  16.1%, 100% { opacity: 0; transform: scale(1.35); }
+}
+
+@keyframes guidedRadarPulse {
+  from { opacity: 0.78; transform: scale(0.28); }
+  to { opacity: 0; transform: scale(1.38); }
 }
 
 @keyframes calloutEntrance {
@@ -661,9 +703,14 @@
   100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-@keyframes ctaEntrance {
-  from { opacity: 0; }
-  to { opacity: 1; }
+@keyframes ctaSlideUp {
+  from { opacity: 0; transform: translateY(23px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes ctaSlideDown {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(23px); }
 }
 
 @media (min-width: 768px) and (max-height: 780px) {
@@ -692,7 +739,7 @@
   .actions { gap: 10px; }
   .primaryCta, .secondaryCta { min-height: 46px; padding: 10px 16px; font-size: 12px; }
   .switcherPosition { right: 28px; }
-  .pullCord { left: calc(40% - 90px); }
+  .pullCord { left: clamp(32px, 4.5vw, 49px); }
 }
 
 @media (max-width: 767px) {
@@ -733,7 +780,7 @@
   .switcherThumb { width: 50px; height: 50px; }
   .switcherThumb img { width: 38px; height: 38px; }
   .hero[data-workspace='craft'] .switcherThumb { transform: translateX(64px); }
-  .pullCord { top: -160px; right: -47px; left: auto; transform: scale(0.75); transform-origin: top right; }
+  .pullCord { top: -160px; right: -47px; left: auto; width: 180px; transform: scale(0.75); transform-origin: top right; clip-path: inset(325px 0 0 0); }
   .calloutLabel { max-width: 245px; padding: 9px 12px; font-size: 11px; }
   .fallback { width: 100%; margin-left: 0; padding: 24px 6px; }
   .fallbackLogoFrame { width: 145px; border-radius: 20px; }

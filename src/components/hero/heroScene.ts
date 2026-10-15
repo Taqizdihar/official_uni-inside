@@ -6,6 +6,7 @@ import { HERO_TIMING, HOTSPOTS, WORKSPACES, type HotspotId, type ProjectedHotspo
 export interface HeroSceneController {
   setWorkspace(workspace: Workspace): void;
   setInteractive(enabled: boolean): void;
+  setShowcasePaused(paused: boolean): void;
   setActiveHotspot(id: HotspotId | null): void;
   replayIntro(): boolean;
   dispose(): void;
@@ -67,6 +68,7 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
   let pointerHotspot: HotspotId | null = null;
   let pointerInside = false;
   let interactive = false;
+  let showcasePaused = false;
   let showcasePhase: 'off' | 'playing' | 'returning' = 'off';
   let showcaseId: HotspotId | null = null;
   let showcaseIndex = 0;
@@ -128,7 +130,7 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
   }
 
   function canShowcase() {
-    return canRender() && settled && replayPhase === 'off' && interactive && !transitioning && !activeHotspot && !options.reducedMotion;
+    return canRender() && settled && replayPhase === 'off' && interactive && !showcasePaused && !transitioning && !activeHotspot && !options.reducedMotion;
   }
 
   function scheduleShowcase() {
@@ -516,6 +518,13 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
         targetParallax.set(0, 0);
         emitHover(null);
       }
+      else scheduleShowcase();
+      requestRender();
+    },
+    setShowcasePaused(paused) {
+      if (disposed || failed || showcasePaused === paused) return;
+      showcasePaused = paused;
+      if (paused) cancelShowcase();
       else scheduleShowcase();
       requestRender();
     },
