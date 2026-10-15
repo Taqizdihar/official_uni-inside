@@ -964,6 +964,7 @@ export default function App() {
   };
 
   const activeHighlight = getActiveNavHighlight();
+  const activeSectionHasLightBackground = SECTION_BG[activeSection] === '#f0f0f0';
   const preloadStory = useCallback(() => scrollStoryRef.current?.preload(), []);
 
   return (
@@ -1043,7 +1044,9 @@ export default function App() {
                   }
                 }}
                 className={`text-[12px] xl:text-[14px] font-[800] uppercase tracking-[0.025em] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f9d02d] focus-visible:ring-offset-2 ${
-                  isHighlightActive ? `!text-[#f9d02d] ${navbarStyles.activeLink}` : 'hover:!text-[#f9d02d] focus-visible:!text-[#f9d02d]'
+                  isHighlightActive
+                    ? `!text-[#f9d02d] ${activeSectionHasLightBackground ? navbarStyles.activeLinkOnLight : ''}`
+                    : 'hover:!text-[#f9d02d] focus-visible:!text-[#f9d02d]'
                 }`}
                 style={{
                   color: isHighlightActive ? '#f9d02d' : finalNavText,

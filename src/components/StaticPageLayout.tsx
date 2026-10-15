@@ -55,7 +55,7 @@ export const StaticPageLayout: React.FC<StaticPageLayoutProps> = ({ activePage, 
               key={item.label}
               to={item.to}
               className={`rounded-sm text-[12px] font-[800] uppercase tracking-[0.12em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f9d02d] xl:text-[14px] ${
-                isActive ? `text-[#f9d02d] ${navbarStyles.activeLink}` : 'text-white hover:text-[#f9d02d]'
+                isActive ? `text-[#f9d02d] ${navbarStyles.activeLinkOnLight}` : 'text-white hover:text-[#f9d02d]'
               }`}
             >
               {item.label}
