@@ -1,6 +1,4 @@
 import * as THREE from 'three';
-import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
-import studioEnvironmentUrl from '../../assets/hdri/studio-soft.hdr?url';
 import { buildDiorama } from './diorama';
 import { HERO_CAMERA, createHeroCameraPoses, fitHeroCameraFrames, introCameraProgress, introSpinRotation } from './heroCamera';
 import { HERO_TIMING, HOTSPOTS, WORKSPACES, type HotspotId, type ProjectedHotspot, type Workspace } from './heroConfig';
@@ -30,18 +28,13 @@ interface HeroSceneOptions {
 }
 
 const PARALLAX_DISTANCE = 0.1;
-const SHOWCASE_IDLE_MS = 10000;
-const SHOWCASE_REPEAT_MS = 9000;
 const SHOWCASE_OBJECT_MS = 1050;
-const SHOWCASE_PAUSE_MS = 420;
 const REWIND_MS = 1000;
 const easeInOutCubic = (value: number) => value < 0.5 ? 4 * value ** 3 : 1 - (-2 * value + 2) ** 3 / 2;
 
 /** One demand-driven scheduler owns animation, projection, and rendering. */
 export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): HeroSceneController {
   let renderer: THREE.WebGLRenderer | null = null;
-  let pmremGenerator: THREE.PMREMGenerator | null = null;
-  let environmentTexture: THREE.Texture | null = null;
   let diorama: ReturnType<typeof buildDiorama> | null = null;
   let disposed = false;
   let failed = false;
@@ -74,8 +67,7 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
   let pointerHotspot: HotspotId | null = null;
   let pointerInside = false;
   let interactive = false;
-  let idleTimer: number | null = null;
-  let showcasePhase: 'off' | 'playing' | 'returning' | 'between' = 'off';
+  let showcasePhase: 'off' | 'playing' | 'returning' = 'off';
   let showcaseId: HotspotId | null = null;
   let showcaseIndex = 0;
   let showcaseElapsed = 0;
@@ -124,10 +116,9 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
     options.project(projections);
   }
 
-  function cancelShowcase() {
-    if (idleTimer !== null) window.clearTimeout(idleTimer);
-    idleTimer = null;
+  function cancelShowcase(advance = false) {
     if (showcasePhase !== 'off') {
+      if (advance && radarOrder.length) showcaseIndex = (showcaseIndex + 1) % radarOrder.length;
       showcasePhase = 'off';
       showcaseId = null;
       showcaseElapsed = 0;
@@ -140,21 +131,15 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
     return canRender() && settled && replayPhase === 'off' && interactive && !transitioning && !activeHotspot && !options.reducedMotion;
   }
 
-  function scheduleShowcase(delay = SHOWCASE_IDLE_MS) {
-    if (idleTimer !== null) window.clearTimeout(idleTimer);
-    idleTimer = null;
+  function scheduleShowcase() {
     if (!canShowcase() || showcasePhase !== 'off') return;
-    idleTimer = window.setTimeout(() => {
-      idleTimer = null;
-      if (!canShowcase()) return;
-      if (radarOrder.length !== 5) { scheduleShowcase(500); return; }
-      showcaseIndex = 0;
-      showcaseElapsed = 0;
-      showcasePhase = 'playing';
-      showcaseId = radarOrder[showcaseIndex];
-      options.onShowcase(showcaseId, true);
-      requestRender();
-    }, delay);
+    if (radarOrder.length !== 5) return;
+    showcaseIndex %= radarOrder.length;
+    showcaseElapsed = 0;
+    showcasePhase = 'playing';
+    showcaseId = radarOrder[showcaseIndex];
+    options.onShowcase(showcaseId, true);
+    requestRender();
   }
 
   function disposeScene() {
@@ -170,11 +155,9 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
     renderer?.domElement.removeEventListener('webglcontextlost', onContextLost);
     diorama?.dispose();
     diorama = null;
-    scene.environment = null;
-    environmentTexture?.dispose();
-    environmentTexture = null;
-    pmremGenerator?.dispose();
-    pmremGenerator = null;
+    scene.traverse(object => {
+      if (object instanceof THREE.DirectionalLight) object.shadow.dispose();
+    });
     renderer?.dispose();
     renderer?.forceContextLoss();
     renderer?.domElement.remove();
@@ -389,7 +372,7 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
         visible.sort((left, right) => left.x - right.x);
         radarOrder = visible.map(point => point.id);
         options.onRadarOrder(radarOrder);
-        if (showcasePhase === 'off' && idleTimer === null) scheduleShowcase();
+        if (showcasePhase === 'off') scheduleShowcase();
       }
     }
   }
@@ -458,21 +441,7 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
           showcaseElapsed += timelineDelta * 1000;
           if (showcasePhase === 'playing' && showcaseElapsed >= SHOWCASE_OBJECT_MS) {
             showcasePhase = 'returning';
-            showcaseId = null;
             showcaseElapsed = 0;
-            options.onShowcase(null, true);
-          } else if (showcasePhase === 'between' && showcaseElapsed >= SHOWCASE_PAUSE_MS) {
-            showcaseIndex += 1;
-            showcaseElapsed = 0;
-            if (showcaseIndex < radarOrder.length) {
-              showcasePhase = 'playing';
-              showcaseId = radarOrder[showcaseIndex];
-              options.onShowcase(showcaseId, true);
-            } else {
-              showcasePhase = 'off';
-              options.onShowcase(null, false);
-              scheduleShowcase(SHOWCASE_REPEAT_MS);
-            }
           }
         }
         if (!pointerInside || !interactive || transitioning || options.reducedMotion) targetParallax.set(0, 0);
@@ -484,10 +453,14 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
         needsAnotherFrame = needsAnotherFrame || moving;
       }
 
-      const objectMoving = diorama.update(transitioning || replayPhase !== 'off' ? null : activeHotspot ?? showcaseId, elapsed, delta, options.reducedMotion);
-      if (showcasePhase === 'returning' && !objectMoving && showcaseElapsed >= 350) {
-        showcasePhase = 'between';
+      const automaticId = showcasePhase === 'playing' ? showcaseId : null;
+      const objectMoving = diorama.update(transitioning || replayPhase !== 'off' ? null : activeHotspot ?? automaticId, elapsed, delta, options.reducedMotion);
+      if (showcasePhase === 'returning' && !objectMoving && canShowcase() && radarOrder.length) {
+        showcaseIndex = (showcaseIndex + 1) % radarOrder.length;
+        showcaseId = radarOrder[showcaseIndex];
+        showcasePhase = 'playing';
         showcaseElapsed = 0;
+        options.onShowcase(showcaseId, true);
       }
       needsAnotherFrame = objectMoving || showcasePhase !== 'off' || needsAnotherFrame;
       renderer.render(scene, camera);
@@ -511,6 +484,7 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
       if (nextWorkspace === workspace) return;
       cancelShowcase();
       radarOrder = [];
+      showcaseIndex = 0;
       options.onRadarOrder(radarOrder);
       activeHotspot = null;
       pointerInside = false;
@@ -527,7 +501,7 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
     setActiveHotspot(id) {
       if (disposed || failed || !settled || !interactive || transitioning || (id && hotspotWorkspace.get(id) !== workspace)) return;
       if (activeHotspot === id && showcasePhase === 'off') return;
-      cancelShowcase();
+      cancelShowcase(id !== null);
       activeHotspot = id;
       if (!id) scheduleShowcase();
       requestRender();
@@ -549,6 +523,7 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
       if (disposed || failed || !ready || !settled || transitioning || replayPhase !== 'off' || !diorama) return false;
       cancelShowcase();
       radarOrder = [];
+      showcaseIndex = 0;
       options.onRadarOrder(radarOrder);
       interactive = false;
       activeHotspot = null;
@@ -589,13 +564,32 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.1;
-    renderer.shadowMap.enabled = false;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.domElement.setAttribute('aria-hidden', 'true');
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
     renderer.domElement.style.display = 'block';
     renderer.domElement.addEventListener('webglcontextlost', onContextLost);
     host.appendChild(renderer.domElement);
+
+    scene.add(new THREE.HemisphereLight(0xfff4dd, 0x373743, 2.2));
+    const keyLight = new THREE.DirectionalLight(0xffe7be, 3.3);
+    keyLight.position.set(-5, 12, 8);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.set(1024, 1024);
+    keyLight.shadow.camera.left = -9;
+    keyLight.shadow.camera.right = 9;
+    keyLight.shadow.camera.top = 9;
+    keyLight.shadow.camera.bottom = -9;
+    keyLight.shadow.camera.near = 0.5;
+    keyLight.shadow.camera.far = 35;
+    keyLight.shadow.bias = -0.0003;
+    keyLight.shadow.normalBias = 0.025;
+    scene.add(keyLight);
+    const fillLight = new THREE.DirectionalLight(0xe0e6ff, 1.3);
+    fillLight.position.set(6, 7, -6);
+    scene.add(fillLight);
 
     diorama = buildDiorama({ ...options.logos, invalidate: requestRender });
     scene.add(diorama.root);
@@ -631,24 +625,10 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
     }, { threshold: 0.01 });
     intersectionObserver.observe(host);
     host.dataset.sceneVisible = String(!document.hidden && inViewport);
-    pmremGenerator = new THREE.PMREMGenerator(renderer);
-    pmremGenerator.compileEquirectangularShader();
-    new RGBELoader().load(studioEnvironmentUrl, (source) => {
-      if (disposed || failed || !pmremGenerator) { source.dispose(); return; }
-      try {
-        environmentTexture = pmremGenerator.fromEquirectangular(source).texture;
-        source.dispose();
-        scene.environment = environmentTexture;
-        scene.environmentIntensity = 1;
-        ready = true;
-        resize();
-        options.onReady();
-        requestRender();
-      } catch {
-        source.dispose();
-        fallback();
-      }
-    }, undefined, fallback);
+    ready = true;
+    resize();
+    options.onReady();
+    requestRender();
     if (import.meta.env.DEV) {
       diagnosticAccessor = () => {
         const forward = camera.getWorldDirection(new THREE.Vector3());
@@ -696,7 +676,7 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
         return {
           phase: replayPhase === 'rewinding' ? 'rewinding' : replayPhase === 'forward' ? 'replayingIntro'
             : transitioning ? 'workspaceTransition' : settled ? 'settled' : introElapsed <= HERO_CAMERA.spinDuration ? 'topDown' : 'cameraTransition',
-          environmentReady: scene.environment === environmentTexture && environmentTexture !== null,
+          environmentAttached: scene.environment !== null,
           lights: scene.children.filter(object => object instanceof THREE.Light).length,
           introElapsedMs: introElapsed,
           orthographic: camera.isOrthographicCamera,
@@ -710,7 +690,7 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
           middleWall: { left: wallPoints[0], right: wallPoints[1] },
           projections: projections.map(point => ({ ...point })),
           interactionRegion: { x: desktop ? width * HERO_CAMERA.interactionStart : 0, width: desktop ? width * (1 - HERO_CAMERA.interactionStart) : width },
-          showcase: { phase: showcasePhase, id: showcaseId, order: [...radarOrder], idleTimerPending: idleTimer !== null },
+          showcase: { phase: showcasePhase, id: showcaseId, order: [...radarOrder] },
         };
       };
       (host as HTMLElement & { __heroDiagnostics?: () => object }).__heroDiagnostics = diagnosticAccessor;

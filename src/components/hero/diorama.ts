@@ -26,6 +26,7 @@ const PALETTE: Record<RoomMaterial, string> = {
   floor: '#d9d0b8', wall: '#e7e1ce', ivory: '#f5edd5', charcoal: '#373b3c',
   metal: '#737b7c', black: '#171c20', yellow: '#f8ca35', screen: '#579d9e',
   coral: '#c66b55', sage: '#9aab88',
+  kraftLight: '#c99c68', kraft: '#ad7947', kraftDark: '#755032', tape: '#e4cea8',
 };
 
 export function buildDiorama({ studioLogo, craftLogo, invalidate }: DioramaOptions): Diorama {

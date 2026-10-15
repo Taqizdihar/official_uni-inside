@@ -4,7 +4,7 @@ import type { HotspotId } from './heroConfig';
 
 export type Point = readonly [number, number, number];
 export type Size = readonly [number, number, number];
-export type RoomMaterial = 'floor' | 'wall' | 'ivory' | 'charcoal' | 'metal' | 'black' | 'yellow' | 'screen' | 'coral' | 'sage';
+export type RoomMaterial = 'floor' | 'wall' | 'ivory' | 'charcoal' | 'metal' | 'black' | 'yellow' | 'screen' | 'coral' | 'sage' | 'kraftLight' | 'kraft' | 'kraftDark' | 'tape';
 export interface RoomBuilderContext {
   room: THREE.Group;
   static: GeometryBatch;
@@ -157,7 +157,7 @@ export class GeometryBatch {
         geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
         parts.push(geometry);
       }
-      castsShadow ||= key === 'wall' || key === 'charcoal' || key === 'black';
+      castsShadow ||= key === 'wall' || key === 'charcoal' || key === 'black' || key.startsWith('kraft');
       this.parts.delete(key);
     }
     const meshes: THREE.Mesh[] = [];

@@ -45,6 +45,28 @@ export function buildCraftRoom(context: RoomBuilderContext) {
   furniture.append(printerStorage, printerYaw, printerBench);
   table(designDesk[0], designDesk[2], 1.4, 0.84, 'ivory', designYaw);
   table(0, 0.85, 1.63, 0.76, 'yellow');
+  const paintingFurniture = context.batch();
+  // A low chair faces the rear painting bench and leaves an aisle to packing.
+  paintingFurniture.box('charcoal', [0.46, 0.09, 0.43], [0, 0.49, 1.69]);
+  paintingFurniture.box('yellow', [0.42, 0.045, 0.39], [0, 0.56, 1.69]);
+  paintingFurniture.box('charcoal', [0.46, 0.58, 0.08], [0, 0.91, 1.91], [-0.12, 0, 0]);
+  paintingFurniture.box('yellow', [0.31, 0.26, 0.025], [0, 1.02, 1.959], [-0.12, 0, 0]);
+  for (const x of [-0.18, 0.18]) {
+    paintingFurniture.box('charcoal', [0.055, 0.48, 0.055], [x, 0.24, 1.52]);
+    paintingFurniture.box('charcoal', [0.055, 0.48, 0.055], [x, 0.24, 1.87]);
+  }
+  // The left unit has drawers; the right one has an open shelf and a door.
+  paintingFurniture.box('charcoal', [0.39, 0.96, 0.53], [-1.09, 0.48, 0.77]);
+  for (const y of [0.25, 0.51, 0.77]) {
+    paintingFurniture.box('ivory', [0.32, 0.2, 0.018], [-1.09, y, 1.045]);
+    paintingFurniture.box('metal', [0.13, 0.019, 0.025], [-1.09, y, 1.06]);
+  }
+  paintingFurniture.box('charcoal', [0.49, 1.12, 0.51], [1.13, 0.56, 0.74]);
+  paintingFurniture.box('black', [0.4, 0.31, 0.015], [1.13, 0.79, 1.005]);
+  paintingFurniture.box('ivory', [0.42, 0.55, 0.025], [1.13, 0.32, 1.01]);
+  paintingFurniture.box('yellow', [0.035, 0.12, 0.026], [1.29, 0.36, 1.032]);
+  paintingFurniture.box('ivory', [0.42, 0.05, 0.47], [1.13, 1.145, 0.74]);
+  furniture.append(paintingFurniture);
   const designChair = context.batch();
   designChair.box('yellow', [0.49, 0.09, 0.43], [0, 0.53, 1.03]);
   designChair.box('charcoal', [0.49, 0.5, 0.09], [0, 0.82, 1.23], [-0.1, 0, 0]);
@@ -170,7 +192,8 @@ export function buildCraftRoom(context: RoomBuilderContext) {
   paintingHits.push(...brushParts.compileColored(brush, 'craft-paint-brush'));
   context.register('painting', brush, [0, 0.1, 0.035], paintingHits);
 
-  const filament = object('filament', [-1.12, 0, 0.92], Math.PI / 4);
+  const filamentPosition: Point = [-2.02, 0, 0.32];
+  const filament = object('filament', filamentPosition, Math.PI / 4);
   const rack = context.batch();
   for (const x of [-0.28, 0.28]) {
     rack.box('charcoal', [0.05, 2.25, 0.055], [x, 1.125, -0.13]);
@@ -179,7 +202,7 @@ export function buildCraftRoom(context: RoomBuilderContext) {
     rack.box('charcoal', [0.62, 0.052, 0.34], [0, height, 0]);
   }
   rack.box('yellow', [0.62, 0.035, 0.055], [0, 2.305, 0.16]);
-  furniture.append(rack, Math.PI / 4, [-1.12, 0, 0.92]);
+  furniture.append(rack, Math.PI / 4, filamentPosition);
   const filamentHits: THREE.Object3D[] = [];
   const spoolCoreGeometry = new THREE.CylinderGeometry(0.13, 0.13, 0.14, 8);
   const spoolFlange = new THREE.Shape();
@@ -249,7 +272,8 @@ export function buildCraftRoom(context: RoomBuilderContext) {
   }
   context.register('filament', filament, [0, 1.89, 0.105], filamentHits);
 
-  const products = object('products', [0.62, 1.055, 2.45]);
+  const packagingCenter: Point = [0.45, 0, 2.9];
+  const products = object('products', [packagingCenter[0], 1.055, packagingCenter[2]]);
   const display = context.batch();
   // Decorative wall shelf follows the design desk. Product interaction lives on the center table.
   display.box('yellow', [1.54, 0.06, 0.38], [0, 0, 0]);
@@ -271,16 +295,29 @@ export function buildCraftRoom(context: RoomBuilderContext) {
   display.beam('yellow', [0.05, 0.28, 0], [-0.01, 0.24, 0], 0.018);
   display.beam('yellow', [0.19, 0.28, 0], [0.25, 0.24, 0], 0.018);
   furniture.append(display, designYaw, [2.66, 1.95, 1.0]);
-  table(0.62, 2.45, 1.42, 0.82, 'ivory');
+  table(packagingCenter[0], packagingCenter[2], 2.02, 1.02, 'ivory');
   const packaging = context.batch();
-  // Varied cartons on top and an irregular stack beneath the working surface.
-  packaging.box('coral', [0.4, 0.26, 0.3], [-0.5, 1.18, -0.15], [0, 0.12, 0]);
-  packaging.box('ivory', [0.31, 0.2, 0.24], [-0.49, 1.41, -0.15], [0, -0.08, 0]);
-  packaging.box('yellow', [0.28, 0.18, 0.25], [0.46, 1.14, -0.2], [0, -0.11, 0]);
-  packaging.box('coral', [0.45, 0.32, 0.3], [-0.34, 0.17, 0.07], [0, -0.15, 0]);
-  packaging.box('ivory', [0.33, 0.24, 0.27], [0.14, 0.13, 0.04], [0, 0.09, 0]);
-  packaging.box('yellow', [0.29, 0.2, 0.23], [0.34, 0.41, 0.12], [0, -0.08, 0]);
-  furniture.append(packaging, 0, [0.62, 0, 2.45]);
+  // Stacked closed cartons have thin tape strips; an open carton exposes its darker interior.
+  packaging.box('kraft', [0.47, 0.27, 0.36], [-0.69, 1.19, -0.2], [0, 0.1, 0]);
+  packaging.box('tape', [0.075, 0.012, 0.37], [-0.69, 1.333, -0.2], [0, 0.1, 0]);
+  packaging.box('kraftLight', [0.3, 0.17, 0.27], [-0.67, 1.42, -0.2], [0, -0.06, 0]);
+  packaging.box('tape', [0.3, 0.012, 0.055], [-0.67, 1.512, -0.2], [0, -0.06, 0]);
+  packaging.box('kraftDark', [0.39, 0.025, 0.3], [0.68, 1.065, -0.2]);
+  for (const x of [0.475, 0.885]) packaging.box('kraftLight', [0.025, 0.24, 0.34], [x, 1.18, -0.2]);
+  for (const z of [-0.355, -0.045]) packaging.box('kraftLight', [0.43, 0.24, 0.025], [0.68, 1.18, z]);
+  packaging.box('kraft', [0.22, 0.018, 0.33], [0.39, 1.32, -0.2], [0, 0, -0.42]);
+  packaging.box('kraft', [0.22, 0.018, 0.33], [0.97, 1.32, -0.2], [0, 0, 0.42]);
+  packaging.box('kraftLight', [0.43, 0.018, 0.16], [0.68, 1.32, -0.43], [-0.35, 0, 0]);
+  packaging.box('kraftLight', [0.43, 0.018, 0.16], [0.68, 1.32, 0.03], [0.35, 0, 0]);
+  packaging.box('kraft', [0.56, 0.35, 0.43], [-0.62, 0.18, 0.14], [0, -0.14, 0]);
+  packaging.box('tape', [0.075, 0.012, 0.44], [-0.62, 0.362, 0.14], [0, -0.14, 0]);
+  packaging.box('kraftLight', [0.38, 0.26, 0.32], [0.08, 0.13, -0.08], [0, 0.1, 0]);
+  packaging.box('tape', [0.38, 0.012, 0.052], [0.08, 0.268, -0.08], [0, 0.1, 0]);
+  packaging.box('kraftDark', [0.31, 0.24, 0.29], [0.6, 0.42, 0.1], [0, -0.08, 0]);
+  const packagingGroup = new THREE.Group();
+  packagingGroup.position.set(...packagingCenter);
+  room.add(packagingGroup);
+  packaging.compileColored(packagingGroup, 'craft-cardboard-packaging');
   const productHits: THREE.Object3D[] = [];
   const featuredProduct = new THREE.Group();
   featuredProduct.position.set(0, 0, 0.05);
@@ -301,8 +338,8 @@ export function buildCraftRoom(context: RoomBuilderContext) {
   context.register('products', featuredProduct, [0.09, 0.27, 0.08], productHits);
 
   const tools = context.batch();
-  tools.box('charcoal', [0.88, 0.7, 0.045], [0, 0, 0]);
-  tools.box('ivory', [0.8, 0.62, 0.027], [0, 0, 0.028]);
+  tools.box('charcoal', [1.05, 0.84, 0.045], [0, 0, 0]);
+  tools.box('ivory', [0.96, 0.76, 0.027], [0, 0, 0.028]);
   for (let column = 0; column < 5; column++) {
     for (let row = 0; row < 3; row++) {
       tools.box('charcoal', [0.03, 0.03, 0.012], [-0.33 + column * 0.165, -0.23 + row * 0.23, 0.051]);
@@ -319,10 +356,10 @@ export function buildCraftRoom(context: RoomBuilderContext) {
   tools.beam('black', [0.3, 0.17, 0.066], [0.355, 0.01, 0.066], 0.018);
   tools.beam('black', [0.355, 0.01, 0.066], [0.3, -0.23, 0.066], 0.018);
   tools.beam('black', [0.3, -0.23, 0.066], [0.26, -0.09, 0.066], 0.018);
-  furniture.append(tools, 0, [-1.08, 2.25, 0.18]);
+  furniture.append(tools, 0, [-1.35, 1.9, 0.18]);
   const rightTools = context.batch();
-  rightTools.box('charcoal', [0.72, 0.62, 0.045], [0, 0, 0]);
-  rightTools.box('ivory', [0.66, 0.55, 0.026], [0, 0, 0.028]);
+  rightTools.box('charcoal', [1.05, 0.84, 0.045], [0, 0, 0]);
+  rightTools.box('ivory', [0.96, 0.76, 0.026], [0, 0, 0.028]);
   for (const x of [-0.25, -0.08, 0.09, 0.26]) {
     rightTools.box('charcoal', [0.026, 0.025, 0.012], [x, 0.19, 0.051]);
   }
@@ -331,7 +368,7 @@ export function buildCraftRoom(context: RoomBuilderContext) {
   rightTools.beam('metal', [0.07, 0.22, 0.08], [0.07, -0.19, 0.08], 0.022);
   rightTools.box('charcoal', [0.16, 0.045, 0.05], [0.07, -0.09, 0.09]);
   rightTools.beam('yellow', [0.25, 0.12, 0.08], [0.17, -0.19, 0.08], 0.027);
-  furniture.append(rightTools, 0, [1.4, 1.9, 0.18]);
+  furniture.append(rightTools, 0, [1.35, 2.42, 0.18]);
 
   let lastSpoolRotation = Number.NaN;
   return (activity: Readonly<Record<HotspotId, number>>, time: number, reducedMotion: boolean) => {

@@ -66,6 +66,7 @@ export function IsometricHero() {
   const [counterCycle, setCounterCycle] = useState(0);
   const interactionsReady = countersComplete && (sceneSettled || fallback);
   const canInteract = interactionsReady && !busy && replayPhase === 'idle';
+  const controlsHaveBeenRevealed = interactionsReady && replayPhase === 'idle';
   const cordReady = sceneSettled && countersComplete && !fallback && (replayPhase === 'idle' || replayPhase === 'bulb-lit');
   const heroRef = useRef<HTMLElement>(null);
   const copyRef = useRef<HTMLDivElement>(null);
@@ -429,7 +430,7 @@ export function IsometricHero() {
       data-workspace={workspace}
       data-stage={canInteract ? 'interactive' : contentVisible ? 'settled' : 'intro'}
       data-content-visible={contentVisible}
-      data-controls-visible={canInteract}
+      data-controls-visible={controlsHaveBeenRevealed}
       data-interactions-ready={canInteract}
       data-reduced-motion={reducedMotion}
       data-fallback={fallback}

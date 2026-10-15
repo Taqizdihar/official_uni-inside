@@ -3,10 +3,10 @@ import styles from './Hero.module.css';
 
 interface Point { x: number; y: number; oldX: number; oldY: number }
 
-const ANCHOR_X = 70;
+const ANCHOR_X = 90;
 const ANCHOR_Y = 7;
-const REST_Y = 162;
-const SEGMENTS = 10;
+const REST_Y = 575;
+const SEGMENTS = 16;
 const REST_SEGMENT = (REST_Y - ANCHOR_Y) / SEGMENTS;
 
 function clamp(value: number, min: number, max: number) { return Math.min(max, Math.max(min, value)); }
@@ -72,13 +72,13 @@ export function HeroPullCord({ reducedMotion, disabled, onPull }: {
       if (!visible || document.hidden) { lastTime = 0; return; }
       const dt = lastTime ? clamp((timestamp - lastTime) / 1000, 0, 0.033) : 1 / 60;
       lastTime = timestamp;
-      physics.growth = Math.min(1, physics.growth + dt / 0.85);
-      if (physics.growth >= 0.95 && !physics.ready) {
+      physics.growth = Math.min(1, physics.growth + dt / 1.1);
+      if (physics.growth >= 0.98 && !physics.ready) {
         physics.ready = true;
         setDropped(true);
       }
       if (physics.dragging) physics.extension = Math.max(0, physics.targetY - REST_Y) * 0.78;
-      else physics.extension *= Math.exp(-dt * 5.5);
+      else physics.extension *= Math.exp(-dt * 9);
       const segmentLength = 2 + (REST_SEGMENT - 2) * physics.growth + physics.extension / SEGMENTS;
 
       for (let index = 1; index < points.length; index++) {
@@ -154,15 +154,14 @@ export function HeroPullCord({ reducedMotion, disabled, onPull }: {
     const root = rootRef.current!;
     const rect = root.getBoundingClientRect();
     return {
-      x: clamp((event.clientX - rect.left) * root.offsetWidth / rect.width, ANCHOR_X - 38, ANCHOR_X + 38),
-      y: clamp((event.clientY - rect.top) * root.offsetHeight / rect.height, REST_Y - 25, REST_Y + 120),
+      x: clamp((event.clientX - rect.left) * root.offsetWidth / rect.width, ANCHOR_X - 70, ANCHOR_X + 70),
+      y: clamp((event.clientY - rect.top) * root.offsetHeight / rect.height, REST_Y - 35, REST_Y + 170),
     };
   };
 
   return (
     <div ref={rootRef} className={styles.pullCord} data-hero-cord="" data-cord-ready={dropped}>
-      <svg className={styles.cordDrawing} viewBox="0 0 140 285" aria-hidden="true">
-        <circle cx={ANCHOR_X} cy={ANCHOR_Y} r="4" className={styles.cordAnchor} />
+      <svg className={styles.cordDrawing} viewBox="0 0 180 700" aria-hidden="true">
         <path ref={pathRef} d={`M ${ANCHOR_X} ${ANCHOR_Y} L ${ANCHOR_X} ${reducedMotion ? REST_Y : ANCHOR_Y + SEGMENTS * 2}`} className={styles.cordPath} />
       </svg>
       <button
@@ -176,7 +175,7 @@ export function HeroPullCord({ reducedMotion, disabled, onPull }: {
         onPointerDown={(event) => {
           if (disabledRef.current || reducedMotion) return;
           const physics = physicsRef.current;
-          if (!physics || physics.fired || physics.growth < 0.95) return;
+          if (!physics || physics.fired || !physics.ready) return;
           event.preventDefault();
           event.currentTarget.setPointerCapture(event.pointerId);
           physics.dragging = true;

@@ -570,8 +570,8 @@ const useTransitionInterpolations = (
   const fromBg = isDarkToLight ? '#202121' : '#f0f0f0';
   const toBg = isDarkToLight ? '#f0f0f0' : '#202121';
   
-  const fromNavBg = isDarkToLight ? 'rgba(32,33,33,0.85)' : 'rgba(240,240,240,0.85)';
-  const toNavBg = isDarkToLight ? 'rgba(240,240,240,0.85)' : 'rgba(32,33,33,0.85)';
+  const fromNavBg = isDarkToLight ? '#202121' : '#f0f0f0';
+  const toNavBg = isDarkToLight ? '#f0f0f0' : '#202121';
   
   const fromNavText = isDarkToLight ? '#ffffff' : '#202121';
   const toNavText = isDarkToLight ? '#202121' : '#ffffff';
@@ -872,9 +872,9 @@ export default function App() {
     achievements: '#202121', contact: '#f0f0f0',
   };
   const SECTION_NAV_BG: Record<string, string> = {
-    hero: 'rgba(32,33,33,0.85)', about: 'rgba(240,240,240,0.85)', team: 'rgba(32,33,33,0.85)',
-    products: 'rgba(240,240,240,0.85)', services: 'rgba(32,33,33,0.85)', events: 'rgba(240,240,240,0.85)',
-    achievements: 'rgba(32,33,33,0.85)', contact: 'rgba(240,240,240,0.85)',
+    hero: '#202121', about: '#f0f0f0', team: '#202121',
+    products: '#f0f0f0', services: '#202121', events: '#f0f0f0',
+    achievements: '#202121', contact: '#f0f0f0',
   };
   const SECTION_NAV_TEXT: Record<string, string> = {
     hero: '#ffffff', about: '#202121', team: '#ffffff',
@@ -922,7 +922,7 @@ export default function App() {
     const p = heroTransitionProgress.get();
     if (p > 0 && p < 1) return heroAbout.navBg.get();
 
-    return SECTION_NAV_BG[activeSection] ?? 'rgba(32,33,33,0.85)';
+    return SECTION_NAV_BG[activeSection] ?? '#202121';
   });
 
   const finalNavGradient = useTransform(() => {
@@ -1032,8 +1032,6 @@ export default function App() {
         className="fixed top-0 left-0 w-full flex justify-between items-center px-8 lg:px-12 py-3 z-[100]"
         style={{
           backgroundImage: finalNavGradient,
-          backdropFilter: 'blur(12px)',
-          WebkitBackdropFilter: 'blur(12px)'
         }}
       >
         <a href="#" className="flex items-center gap-3 flex-shrink-0 cursor-pointer">
