@@ -7,6 +7,7 @@ import craftIntroLogo from '../../assets/global/Uni-Inside Craft White.avif';
 import { HERO_COPY, HERO_TIMING, HOTSPOTS, WORKSPACES, type HotspotId, type ProjectedHotspot, type Workspace } from './heroConfig';
 import type { HeroSceneController } from './heroScene';
 import { RollingCounters } from './RollingCounters';
+import { HeroPullCord } from './HeroPullCord';
 import { smoothStep } from './heroMotion';
 import styles from './Hero.module.css';
 
@@ -61,8 +62,11 @@ export function IsometricHero() {
   const [busy, setBusy] = useState(false);
   const [fallback, setFallback] = useState(false);
   const [activeHotspot, setActiveHotspot] = useState<HotspotId | null>(null);
+  const [replayPhase, setReplayPhase] = useState<'idle' | 'bulb-lit' | 'rewinding' | 'replaying-intro'>('idle');
+  const [counterCycle, setCounterCycle] = useState(0);
   const interactionsReady = countersComplete && (sceneSettled || fallback);
-  const canInteract = interactionsReady && !busy;
+  const canInteract = interactionsReady && !busy && replayPhase === 'idle';
+  const cordReady = sceneSettled && countersComplete && !fallback && (replayPhase === 'idle' || replayPhase === 'bulb-lit');
   const heroRef = useRef<HTMLElement>(null);
   const copyRef = useRef<HTMLDivElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
@@ -71,6 +75,8 @@ export function IsometricHero() {
   const craftIntroRef = useRef<HTMLImageElement>(null);
   const radarRefs = useRef(new Map<HotspotId, HTMLSpanElement>());
   const controllerRef = useRef<HeroSceneController | null>(null);
+  const pullTimerRef = useRef<number | null>(null);
+  const replayPhaseRef = useRef(replayPhase);
   const hotspotRefs = useRef(new Map<HotspotId, HTMLButtonElement>());
   const hitTargetsRef = useRef<HitTarget[]>(HOTSPOTS.map(({ id }) => ({ id, x: 0, y: 0, offsetX: 0, offsetY: 0, visible: false })));
   const projectedRef = useRef<readonly ProjectedHotspot[]>([]);
@@ -87,6 +93,7 @@ export function IsometricHero() {
   readyRef.current = interactionsReady;
   busyRef.current = busy;
   workspaceRef.current = workspace;
+  replayPhaseRef.current = replayPhase;
 
   const repositionCallout = useCallback(() => {
     const host = hostRef.current;
@@ -201,6 +208,43 @@ export function IsometricHero() {
 
   const onCountersComplete = useCallback(() => setCountersComplete(true), []);
 
+  const pullCord = useCallback(() => {
+    if (!readyRef.current || busyRef.current || replayPhaseRef.current !== 'idle' || !controllerRef.current) return false;
+    replayPhaseRef.current = 'bulb-lit';
+    setReplayPhase('bulb-lit');
+    busyRef.current = true;
+    setBusy(true);
+    pinnedRef.current = null;
+    focusedRef.current = null;
+    selectHotspot(null);
+    controllerRef.current.setInteractive(false);
+    pullTimerRef.current = window.setTimeout(() => {
+      pullTimerRef.current = null;
+      if (replayPhaseRef.current !== 'bulb-lit') return;
+      replayPhaseRef.current = 'rewinding';
+      setReplayPhase('rewinding');
+      setContentVisible(false);
+      setRollStarted(false);
+      setCountersComplete(false);
+      setCounterCycle(cycle => cycle + 1);
+      setSceneSettled(false);
+      if (!controllerRef.current?.replayIntro()) {
+        replayPhaseRef.current = 'idle';
+        setReplayPhase('idle');
+        setSceneSettled(true);
+        setContentVisible(true);
+        setRollStarted(true);
+        busyRef.current = false;
+        setBusy(false);
+      }
+    }, reducedMotion ? 240 : 1500);
+    return true;
+  }, [reducedMotion, selectHotspot]);
+
+  useEffect(() => () => {
+    if (pullTimerRef.current !== null) window.clearTimeout(pullTimerRef.current);
+  }, []);
+
   useEffect(() => {
     controllerRef.current?.setInteractive(canInteract && !fallback);
   }, [canInteract, fallback]);
@@ -246,6 +290,10 @@ export function IsometricHero() {
     };
     const useFallback = () => {
       if (cancelled) return;
+      if (pullTimerRef.current !== null) window.clearTimeout(pullTimerRef.current);
+      pullTimerRef.current = null;
+      replayPhaseRef.current = 'idle';
+      setReplayPhase('idle');
       if (introLayerRef.current) introLayerRef.current.style.display = 'none';
       setFallback(true);
       setContentVisible(true);
@@ -262,13 +310,17 @@ export function IsometricHero() {
         onReady: () => {
           if (!cancelled) setFallback(false);
         },
-        onSettled: () => {
+        onSettled: (replayed) => {
           if (introLayerRef.current) introLayerRef.current.style.display = 'none';
           if (!cancelled) {
             setSceneSettled(true);
-            if (workspaceRef.current === 'studio') {
+            if (replayed || workspaceRef.current === 'studio') {
               busyRef.current = false;
               setBusy(false);
+              if (replayed) {
+                replayPhaseRef.current = 'idle';
+                setReplayPhase('idle');
+              }
             } else {
               busyRef.current = true;
               setBusy(true);
@@ -276,9 +328,14 @@ export function IsometricHero() {
           }
           reveal();
           saveStats();
-          queueMicrotask(() => {
+          if (!replayed) queueMicrotask(() => {
             if (!cancelled && workspaceRef.current !== 'studio') instance?.setWorkspace(workspaceRef.current);
           });
+        },
+        onReplayIntroStart: () => {
+          if (introLayerRef.current) introLayerRef.current.style.display = '';
+          replayPhaseRef.current = 'replaying-intro';
+          if (!cancelled) setReplayPhase('replaying-intro');
         },
         onTransitionEnd: () => {
           if (!cancelled) {
@@ -372,14 +429,16 @@ export function IsometricHero() {
       data-workspace={workspace}
       data-stage={canInteract ? 'interactive' : contentVisible ? 'settled' : 'intro'}
       data-content-visible={contentVisible}
-      data-controls-visible={interactionsReady}
+      data-controls-visible={canInteract}
       data-interactions-ready={canInteract}
       data-reduced-motion={reducedMotion}
       data-fallback={fallback}
+      data-replay-phase={replayPhase}
+      data-bulb-lit={replayPhase === 'bulb-lit'}
     >
       <div ref={copyRef} className={styles.headingCopy}>
         <h1 id="isometric-hero-title" className={styles.title} aria-label={HERO_COPY.title}>
-          <span className={styles.titleLine}><span className={styles.accent}>Ideas</span>{' '}captured</span>{' '}
+          <span className={styles.titleLine}><span className={styles.accent}><svg className={styles.bulbIcon} viewBox="0 0 48 72" aria-hidden="true" focusable="false"><path className={styles.bulbFill} d="M24 4c-10 0-17 7-17 17 0 7 4 12 9 17v10h16V38c5-5 9-10 9-17C41 11 34 4 24 4Z" /><path d="M24 4c-10 0-17 7-17 17 0 7 4 12 9 17v10h16V38c5-5 9-10 9-17C41 11 34 4 24 4ZM17 54h14M19 60h10M22 66h4" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg>deas</span>{' '}captured</span>{' '}
           <span className={styles.titleLine}>and made</span>{' '}
           <span className={styles.titleLine}>tangible</span>
         </h1>
@@ -496,7 +555,9 @@ export function IsometricHero() {
         )}
       </div>
 
-      <RollingCounters start={rollStarted} reducedMotion={reducedMotion || fallback} onComplete={onCountersComplete} />
+      <RollingCounters key={counterCycle} start={rollStarted} reducedMotion={reducedMotion || fallback} onComplete={onCountersComplete} />
+
+      {cordReady && <HeroPullCord reducedMotion={reducedMotion} disabled={replayPhase !== 'idle' || busy} onPull={pullCord} />}
 
       <div className={styles.actions} key={workspace}>
         {workspace === 'studio' ? (

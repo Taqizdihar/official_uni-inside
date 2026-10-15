@@ -925,6 +925,11 @@ export default function App() {
     return SECTION_NAV_BG[activeSection] ?? 'rgba(32,33,33,0.85)';
   });
 
+  const finalNavGradient = useTransform(() => {
+    const color = finalNavBg.get();
+    return `linear-gradient(to bottom, ${color} 0%, ${color} 40%, color-mix(in srgb, ${color} 75%, transparent) 60%, color-mix(in srgb, ${color} 50%, transparent) 80%, transparent 100%)`;
+  });
+
   const finalNavText = useTransform(() => {
     const ac = achievementsContactTransitionProgress.get();
     if (ac > 0 && ac < 1) return achievementsContact.navText.get();
@@ -1026,7 +1031,7 @@ export default function App() {
       <motion.nav 
         className="fixed top-0 left-0 w-full flex justify-between items-center px-8 lg:px-12 py-3 z-[100]"
         style={{
-          backgroundColor: finalNavBg,
+          backgroundImage: finalNavGradient,
           backdropFilter: 'blur(12px)',
           WebkitBackdropFilter: 'blur(12px)'
         }}

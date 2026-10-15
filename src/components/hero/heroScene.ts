@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
+import studioEnvironmentUrl from '../../assets/hdri/studio-soft.hdr?url';
 import { buildDiorama } from './diorama';
 import { HERO_CAMERA, createHeroCameraPoses, fitHeroCameraFrames, introCameraProgress, introSpinRotation } from './heroCamera';
 import { HERO_TIMING, HOTSPOTS, WORKSPACES, type HotspotId, type ProjectedHotspot, type Workspace } from './heroConfig';
@@ -7,6 +9,7 @@ export interface HeroSceneController {
   setWorkspace(workspace: Workspace): void;
   setInteractive(enabled: boolean): void;
   setActiveHotspot(id: HotspotId | null): void;
+  replayIntro(): boolean;
   dispose(): void;
   getStats(): { triangles: number; calls: number; materials: number };
 }
@@ -14,7 +17,8 @@ export interface HeroSceneController {
 interface HeroSceneOptions {
   reducedMotion: boolean;
   onReady: () => void;
-  onSettled: () => void;
+  onSettled: (replayed: boolean) => void;
+  onReplayIntroStart: () => void;
   onTransitionEnd: () => void;
   onFallback: () => void;
   onHover: (id: HotspotId | null) => void;
@@ -30,11 +34,14 @@ const SHOWCASE_IDLE_MS = 10000;
 const SHOWCASE_REPEAT_MS = 9000;
 const SHOWCASE_OBJECT_MS = 1050;
 const SHOWCASE_PAUSE_MS = 420;
+const REWIND_MS = 1000;
 const easeInOutCubic = (value: number) => value < 0.5 ? 4 * value ** 3 : 1 - (-2 * value + 2) ** 3 / 2;
 
 /** One demand-driven scheduler owns animation, projection, and rendering. */
 export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): HeroSceneController {
   let renderer: THREE.WebGLRenderer | null = null;
+  let pmremGenerator: THREE.PMREMGenerator | null = null;
+  let environmentTexture: THREE.Texture | null = null;
   let diorama: ReturnType<typeof buildDiorama> | null = null;
   let disposed = false;
   let failed = false;
@@ -47,6 +54,9 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
   let introElapsed = 0;
   let transitionElapsed = 0;
   let transitioning = false;
+  let replayPhase: 'off' | 'rewinding' | 'forward' = 'off';
+  let rewindElapsed = 0;
+  let rewindFromRotation = 0;
   let workspace: Workspace = 'studio';
   let queuedWorkspace: Workspace | null = null;
   let rotationFrom = 0;
@@ -127,7 +137,7 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
   }
 
   function canShowcase() {
-    return canRender() && settled && interactive && !transitioning && !activeHotspot && !options.reducedMotion;
+    return canRender() && settled && replayPhase === 'off' && interactive && !transitioning && !activeHotspot && !options.reducedMotion;
   }
 
   function scheduleShowcase(delay = SHOWCASE_IDLE_MS) {
@@ -160,9 +170,11 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
     renderer?.domElement.removeEventListener('webglcontextlost', onContextLost);
     diorama?.dispose();
     diorama = null;
-    scene.traverse(object => {
-      if (object instanceof THREE.DirectionalLight || object instanceof THREE.SpotLight || object instanceof THREE.PointLight) object.shadow.dispose();
-    });
+    scene.environment = null;
+    environmentTexture?.dispose();
+    environmentTexture = null;
+    pmremGenerator?.dispose();
+    pmremGenerator = null;
     renderer?.dispose();
     renderer?.forceContextLoss();
     renderer?.domElement.remove();
@@ -215,7 +227,7 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
   }
 
   function hitTest(): HotspotId | null {
-    if (!settled || !interactive || transitioning || !diorama) return null;
+    if (!settled || !interactive || transitioning || replayPhase !== 'off' || !diorama) return null;
     scene.updateMatrixWorld();
     raycaster.setFromCamera(pointer, camera);
     hits.length = 0;
@@ -232,7 +244,7 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
   }
 
   function onPointerMove(event: PointerEvent) {
-    if (!settled || !interactive || transitioning || event.pointerType === 'touch' || isDOMControl(event)) return;
+    if (!settled || !interactive || transitioning || replayPhase !== 'off' || event.pointerType === 'touch' || isDOMControl(event)) return;
     if (!pointerCoordinates(event)) {
       onPointerLeave();
       return;
@@ -255,7 +267,7 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
   }
 
   function onPointerDown(event: PointerEvent) {
-    if (!settled || !interactive || transitioning || isDOMControl(event)) return;
+    if (!settled || !interactive || transitioning || replayPhase !== 'off' || isDOMControl(event)) return;
     const id = pointerCoordinates(event) ? hitTest() : null;
     pointerHotspot = id;
     options.onHover(id);
@@ -336,7 +348,22 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
     diorama.root.position.copy(previousPosition);
     diorama.root.rotation.y = previousRotation;
     cameraFrames = fitHeroCameraFrames(aspect, { minX, maxX, minY, maxY }, radius, desktop);
-    setCamera(settled ? 1 : introCameraProgress(introElapsed, HERO_TIMING.intro));
+    if (desktop) {
+      const activeHeight = maxY - minY;
+      const centeredTop = (height - activeHeight / cameraFrames.front.height * height) / 2;
+      const navbarClearance = 90;
+      if (centeredTop < navbarClearance) {
+        // On short, wide displays the larger stage can pass behind the navbar,
+        // while its active room still fits fully below the visible nav edge.
+        const visibleHeight = height - navbarClearance - 4;
+        cameraFrames.front.height = Math.max(cameraFrames.front.height, activeHeight * height / visibleHeight);
+        cameraFrames.front.width = cameraFrames.front.height * aspect;
+        cameraFrames.front.centerY += (navbarClearance / 2 - 2) * cameraFrames.front.height / height;
+      }
+    }
+    const rewindProgress = options.reducedMotion ? 1 : Math.min(1, rewindElapsed / REWIND_MS);
+    setCamera(replayPhase === 'rewinding' ? 1 - easeInOutCubic(rewindProgress)
+      : settled ? 1 : introCameraProgress(introElapsed, HERO_TIMING.intro));
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     renderer.setSize(width, height, false);
     requestRender();
@@ -347,7 +374,7 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
     for (const projection of projections) {
       const hotspot = diorama.hotspots.get(projection.id);
       projection.visible = false;
-      if (!hotspot || !settled || !interactive || transitioning || hotspotWorkspace.get(projection.id) !== workspace) continue;
+      if (!hotspot || !settled || !interactive || transitioning || replayPhase !== 'off' || hotspotWorkspace.get(projection.id) !== workspace) continue;
       hotspot.anchor.getWorldPosition(projectedPosition);
       projectedPosition.project(camera);
       projection.x = (projectedPosition.x * 0.5 + 0.5) * width;
@@ -356,7 +383,7 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
         projection.x >= 0 && projection.x <= width && projection.y >= 0 && projection.y <= height;
     }
     options.project(projections);
-    if (settled && interactive && !transitioning && radarOrder.length !== 5) {
+    if (settled && interactive && !transitioning && replayPhase === 'off' && radarOrder.length !== 5) {
       const visible = projections.filter(point => point.visible && hotspotWorkspace.get(point.id) === workspace);
       if (visible.length === 5) {
         visible.sort((left, right) => left.x - right.x);
@@ -372,22 +399,41 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
     if (!canRender() || !renderer || !diorama) return;
     const frameElapsed = previousTime ? (timestamp - previousTime) / 1000 : 0;
     const delta = Math.min(frameElapsed, 0.05);
+    const timelineDelta = Math.min(frameElapsed, 0.12);
     previousTime = timestamp;
     elapsed += frameElapsed;
     let needsAnotherFrame = false;
 
     try {
-      if (!settled) {
-        introElapsed += frameElapsed * 1000;
+      if (replayPhase === 'rewinding') {
+        rewindElapsed += timelineDelta * 1000;
+        const progress = options.reducedMotion ? 1 : Math.min(1, rewindElapsed / REWIND_MS);
+        const eased = easeInOutCubic(progress);
+        setCamera(1 - eased);
+        diorama.root.rotation.y = THREE.MathUtils.lerp(rewindFromRotation, WORKSPACES[workspace].rotation + Math.PI * 2, eased);
+        diorama.root.position.copy(screenRight).multiplyScalar(compositionOffset);
+        if (progress >= 1) {
+          introElapsed = 0;
+          settled = false;
+          replayPhase = 'forward';
+          options.onIntroProgress(0);
+          options.onReplayIntroStart();
+        }
+        needsAnotherFrame = true;
+      } else if (!settled) {
+        introElapsed += timelineDelta * 1000;
         const progress = options.reducedMotion ? 1 : Math.min(1, introElapsed / HERO_TIMING.intro);
         options.onIntroProgress(progress);
         setCamera(options.reducedMotion ? 1 : introCameraProgress(introElapsed, HERO_TIMING.intro));
-        diorama.root.rotation.y = options.reducedMotion ? WORKSPACES.studio.rotation : introSpinRotation(introElapsed);
+        diorama.root.rotation.y = options.reducedMotion ? WORKSPACES[workspace].rotation
+          : introSpinRotation(introElapsed) + (replayPhase === 'forward' ? WORKSPACES[workspace].rotation + Math.PI * 8 : 0);
         diorama.root.position.copy(screenRight).multiplyScalar(compositionOffset);
         if (progress >= 1) {
-          diorama.root.rotation.y = WORKSPACES.studio.rotation;
+          const replayed = replayPhase === 'forward';
+          diorama.root.rotation.y = WORKSPACES[workspace].rotation;
+          replayPhase = 'off';
           settled = true;
-          options.onSettled();
+          options.onSettled(replayed);
           if (queuedWorkspace) {
             const nextWorkspace = queuedWorkspace;
             queuedWorkspace = null;
@@ -395,7 +441,7 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
           }
         } else needsAnotherFrame = true;
       } else if (transitioning) {
-        transitionElapsed += frameElapsed * 1000;
+        transitionElapsed += timelineDelta * 1000;
         const duration = options.reducedMotion ? HERO_TIMING.reducedRotation : HERO_TIMING.rotation;
         const progress = Math.min(1, transitionElapsed / duration);
         diorama.root.rotation.y = THREE.MathUtils.lerp(rotationFrom, rotationTo, easeInOutCubic(progress));
@@ -407,9 +453,9 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
         } else needsAnotherFrame = true;
       }
 
-      if (settled) {
+      if (settled && replayPhase === 'off') {
         if (showcasePhase !== 'off') {
-          showcaseElapsed += frameElapsed * 1000;
+          showcaseElapsed += timelineDelta * 1000;
           if (showcasePhase === 'playing' && showcaseElapsed >= SHOWCASE_OBJECT_MS) {
             showcasePhase = 'returning';
             showcaseId = null;
@@ -438,7 +484,7 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
         needsAnotherFrame = needsAnotherFrame || moving;
       }
 
-      const objectMoving = diorama.update(transitioning ? null : activeHotspot ?? showcaseId, elapsed, delta, options.reducedMotion);
+      const objectMoving = diorama.update(transitioning || replayPhase !== 'off' ? null : activeHotspot ?? showcaseId, elapsed, delta, options.reducedMotion);
       if (showcasePhase === 'returning' && !objectMoving && showcaseElapsed >= 350) {
         showcasePhase = 'between';
         showcaseElapsed = 0;
@@ -456,7 +502,7 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
 
   const controller: HeroSceneController = {
     setWorkspace(nextWorkspace) {
-      if (disposed || failed || transitioning || !diorama) return;
+      if (disposed || failed || transitioning || replayPhase !== 'off' || !diorama) return;
       if (!settled) {
         queuedWorkspace = nextWorkspace;
         return;
@@ -499,6 +545,24 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
       else scheduleShowcase();
       requestRender();
     },
+    replayIntro() {
+      if (disposed || failed || !ready || !settled || transitioning || replayPhase !== 'off' || !diorama) return false;
+      cancelShowcase();
+      radarOrder = [];
+      options.onRadarOrder(radarOrder);
+      interactive = false;
+      activeHotspot = null;
+      pointerInside = false;
+      targetParallax.set(0, 0);
+      parallax.set(0, 0);
+      emitHover(null);
+      clearProjections();
+      rewindElapsed = 0;
+      rewindFromRotation = diorama.root.rotation.y;
+      replayPhase = 'rewinding';
+      requestRender();
+      return true;
+    },
     dispose() {
       if (disposed) return;
       disposed = true;
@@ -525,32 +589,13 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.1;
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.enabled = false;
     renderer.domElement.setAttribute('aria-hidden', 'true');
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
     renderer.domElement.style.display = 'block';
     renderer.domElement.addEventListener('webglcontextlost', onContextLost);
     host.appendChild(renderer.domElement);
-
-    scene.add(new THREE.HemisphereLight(0xfff4dd, 0x373743, 2.2));
-    const keyLight = new THREE.DirectionalLight(0xffe7be, 3.3);
-    keyLight.position.set(-5, 12, 8);
-    keyLight.castShadow = true;
-    keyLight.shadow.mapSize.set(1024, 1024);
-    keyLight.shadow.camera.left = -9;
-    keyLight.shadow.camera.right = 9;
-    keyLight.shadow.camera.top = 9;
-    keyLight.shadow.camera.bottom = -9;
-    keyLight.shadow.camera.near = 0.5;
-    keyLight.shadow.camera.far = 35;
-    keyLight.shadow.bias = -0.0003;
-    keyLight.shadow.normalBias = 0.025;
-    scene.add(keyLight);
-    const fillLight = new THREE.DirectionalLight(0xe0e6ff, 1.3);
-    fillLight.position.set(6, 7, -6);
-    scene.add(fillLight);
 
     diorama = buildDiorama({ ...options.logos, invalidate: requestRender });
     scene.add(diorama.root);
@@ -585,9 +630,25 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
       else { cancelShowcase(); pause(); }
     }, { threshold: 0.01 });
     intersectionObserver.observe(host);
-    ready = true;
     host.dataset.sceneVisible = String(!document.hidden && inViewport);
-    resize();
+    pmremGenerator = new THREE.PMREMGenerator(renderer);
+    pmremGenerator.compileEquirectangularShader();
+    new RGBELoader().load(studioEnvironmentUrl, (source) => {
+      if (disposed || failed || !pmremGenerator) { source.dispose(); return; }
+      try {
+        environmentTexture = pmremGenerator.fromEquirectangular(source).texture;
+        source.dispose();
+        scene.environment = environmentTexture;
+        scene.environmentIntensity = 1;
+        ready = true;
+        resize();
+        options.onReady();
+        requestRender();
+      } catch {
+        source.dispose();
+        fallback();
+      }
+    }, undefined, fallback);
     if (import.meta.env.DEV) {
       diagnosticAccessor = () => {
         const forward = camera.getWorldDirection(new THREE.Vector3());
@@ -633,7 +694,10 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
           return [(diagnosticVertex.x * 0.5 + 0.5) * width, (-diagnosticVertex.y * 0.5 + 0.5) * height];
         }).sort((left, right) => left[0] - right[0]);
         return {
-          phase: transitioning ? 'workspaceTransition' : settled ? 'settled' : introElapsed <= HERO_CAMERA.spinDuration ? 'topDown' : 'cameraTransition',
+          phase: replayPhase === 'rewinding' ? 'rewinding' : replayPhase === 'forward' ? 'replayingIntro'
+            : transitioning ? 'workspaceTransition' : settled ? 'settled' : introElapsed <= HERO_CAMERA.spinDuration ? 'topDown' : 'cameraTransition',
+          environmentReady: scene.environment === environmentTexture && environmentTexture !== null,
+          lights: scene.children.filter(object => object instanceof THREE.Light).length,
           introElapsedMs: introElapsed,
           orthographic: camera.isOrthographicCamera,
           topDownAngleDeg: THREE.MathUtils.radToDeg(Math.acos(THREE.MathUtils.clamp(-forward.y, -1, 1))),
@@ -651,8 +715,6 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
       };
       (host as HTMLElement & { __heroDiagnostics?: () => object }).__heroDiagnostics = diagnosticAccessor;
     }
-    options.onReady();
-    requestRender();
   } catch {
     // Report only after the consumer has received its controller, including Strict Mode cleanup.
     queueMicrotask(fallback);
