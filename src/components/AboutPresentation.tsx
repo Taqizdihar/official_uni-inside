@@ -1,42 +1,49 @@
 import React, { useRef } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
+import { Camera, Drone, Printer } from 'lucide-react';
 import { useElementVisibility } from '../hooks/useElementVisibility';
 import { AboutComplexLogoParallax } from './about/AboutComplexLogoParallax';
 
 const AboutIntroContent: React.FC<{ shouldFloat: boolean; parallaxActive: boolean; interactive: boolean }> = ({ shouldFloat, parallaxActive, interactive }) => {
   return (
-    <section aria-label="About Us" aria-hidden={!interactive || undefined} className="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-12 items-stretch px-6 sm:px-8 lg:px-12 py-20 sm:py-28">
-      <div className="order-1 flex min-h-[15rem] sm:min-h-[21rem] lg:min-h-[clamp(25rem,42vw,34rem)] items-center justify-center overflow-hidden">
+    <section aria-label="About Us" aria-hidden={!interactive || undefined} className="mx-auto grid w-full max-w-7xl grid-cols-1 items-center gap-8 px-6 pt-24 pb-10 sm:px-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1fr)] lg:gap-8 lg:px-10 lg:pt-[clamp(7.5rem,15vh,9.5rem)] lg:pb-4">
+      <div className="order-1 flex min-h-[15rem] items-center justify-center overflow-hidden lg:min-h-0">
         {interactive ? (
           <motion.div
-            className="relative aspect-square w-full max-w-[34rem] flex-none"
-            animate={shouldFloat ? { y: [0, -8, 0] } : { y: 0 }}
+            className="relative aspect-square w-full max-w-[24.5rem] flex-none xl:max-w-[30rem]"
+            style={{ scale: 1.08, x: 4 }}
+            animate={shouldFloat ? { y: [-4, -12, -4] } : { y: -4 }}
             transition={shouldFloat ? { duration: 5.2, ease: 'easeInOut', repeat: Infinity } : { duration: 0.2 }}
           >
             <AboutComplexLogoParallax active={parallaxActive} interactive />
           </motion.div>
         ) : (
-          <div className="relative aspect-square w-full max-w-[34rem] flex-none">
+          <div className="relative aspect-square w-full max-w-[24.5rem] flex-none scale-[1.08] -translate-x-1 -translate-y-1 xl:max-w-[30rem]">
             <AboutComplexLogoParallax active={false} interactive={false} />
           </div>
         )}
       </div>
-      <div className="order-2 flex min-h-[clamp(25rem,42vw,34rem)] flex-col justify-center text-[#202121]">
-        <p className="mb-5 text-xs font-extrabold uppercase tracking-[0.2em] sm:text-sm">ABOUT UNI-INSIDE STUDIO</p>
-        <h2 className="text-[clamp(3.25rem,8.9vw,8.125rem)] font-black leading-[0.82] tracking-[-0.065em] uppercase">
-          ABOUT<br />US
+      <div className="relative top-1 order-2 flex min-w-0 max-w-[27rem] flex-col justify-center text-[#202121] xl:max-w-[34rem]">
+        <h2 className="text-[clamp(3.75rem,9vw,7rem)] font-black leading-[0.94] tracking-normal uppercase">
+          <span className="block">ABOUT</span>
+          <span className="mt-2 flex items-center gap-3 sm:gap-4">
+            <span>US</span>
+            <span aria-hidden="true" className="flex min-w-0 items-center gap-3 sm:gap-4">
+              <Camera className="h-[clamp(3.25rem,8.2vw,5.5rem)] w-[clamp(3.25rem,8.2vw,5.5rem)] shrink-0 stroke-[2.4]" />
+              <Drone className="h-[clamp(3.25rem,8.2vw,5.5rem)] w-[clamp(3.25rem,8.2vw,5.5rem)] shrink-0 stroke-[2.4]" />
+              <Printer className="h-[clamp(3.25rem,8.2vw,5.5rem)] w-[clamp(3.25rem,8.2vw,5.5rem)] shrink-0 stroke-[2.4]" />
+            </span>
+          </span>
         </h2>
-        <p className="mt-7 max-w-[35rem] text-[clamp(1.35rem,3vw,2.25rem)] font-black leading-[1.03] tracking-[-0.035em]">
-          CREATIVE BY NATURE.<br />TECHNICAL BY DESIGN.
+        <p className="mt-4 max-w-[35rem] text-[clamp(0.85rem,1.8vw,1.15rem)] font-black leading-tight tracking-[-0.025em] sm:mt-4">
+          CREATIVE BY NATURE, TECHNICAL BY DESIGN
         </p>
-        <p className="mt-5 max-w-[35rem] text-base leading-relaxed sm:text-lg">
+        <p className="mt-7 max-w-[35rem] text-[clamp(0.95rem,1.65vw,1.1rem)] leading-[1.32]">
           We are a Bandung-based creative technology studio where visual production, digital experimentation, and 3D fabrication meet. We collaborate to turn ideas into stories, systems, and physical products with purpose.
         </p>
-        <ul aria-label="Studio disciplines" className="mt-7 flex flex-wrap gap-x-5 gap-y-2 border-t border-[#202121]/30 pt-4 text-[0.65rem] font-extrabold tracking-[0.12em] sm:text-xs">
-          <li>MULTIMEDIA</li>
-          <li>CREATIVE TECHNOLOGY</li>
-          <li>3D PRINTING</li>
-        </ul>
+        <p aria-label="Studio disciplines" className="mt-3 w-fit max-w-full border-t-2 border-[#202121] pt-2 text-[clamp(0.7rem,1.55vw,1rem)] font-extrabold leading-tight tracking-[-0.015em]">
+          <span className="inline-block bg-[#f9d02d] px-1 py-1">MULTIMEDIA • CREATIVE TECHNOLOGY • 3D PRINTING</span>
+        </p>
       </div>
     </section>
   );
