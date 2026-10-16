@@ -97,10 +97,7 @@ const RingCard = React.memo(({ index, width, radius, depth, rotation, flipped, o
   index: number; width: number; radius: number; depth: number; rotation: MotionValue<number>;
   flipped: boolean; onClick: (index: number) => void;
 }) => {
-  const baseAngle = index * (360 / members.length);
-  // A smooth angular easing keeps front neighbors close while retaining the
-  // full rear arc; every card still lies on the same oval ring.
-  const angle = baseAngle - (width < 200 ? 23 : 24) * Math.sin(baseAngle * Math.PI / 180);
+  const angle = index * (360 / members.length);
   const radians = angle * Math.PI / 180;
   const stackOrder = useTransform(rotation, (value) => Math.round(500 + 500 * Math.cos((angle + value) * Math.PI / 180)));
   const member = members[index];
@@ -165,8 +162,11 @@ export const OurTeamSection = forwardRef<HTMLDivElement>((_, ref) => {
   const radius = useTransform(scrollYProgress, [0, 0.5, 1], [1000, 700, 1000]);
   const transformOrigin = useTransform(radius, (value) => `50% ${value}px`);
   const badgeY = useTransform(radius, (value) => value - 180);
-  const ringRadius = Math.min(viewportWidth * 0.425, (viewportWidth - ringWidth * 0.45) / 2 - (viewportWidth < 600 ? 24 : 8));
-  const ringDepth = viewportWidth * 0.26;
+  // Equal horizontal and depth radii keep the carousel's center fixed as it turns.
+  const ringRadius = Math.min(viewportWidth * 0.335, (viewportWidth - ringWidth * 0.45) / 2 - (viewportWidth < 600 ? 24 : 8));
+  const ringDepth = ringRadius;
+  // Position the front card just below the instruction at each viewport width.
+  const ringTopPadding = Math.max(0, Math.min(188, 64 + (viewportWidth - 975) * 0.13));
   const setRefs = useCallback((node: HTMLDivElement | null) => {
     containerRef.current = node;
     if (typeof ref === 'function') ref(node);
@@ -309,14 +309,14 @@ export const OurTeamSection = forwardRef<HTMLDivElement>((_, ref) => {
 
   return (
     <div ref={setRefs} id="our-team" className="relative z-20 flex min-h-[300vh] w-full flex-col items-center overflow-x-clip pt-[clamp(120px,18vh,180px)] pb-40">
-      <div className="relative z-30 mb-20 flex w-full flex-col items-center px-4 text-center sm:px-8">
+      <div className={`relative z-30 flex w-full flex-col items-center px-4 text-center sm:px-8 ${mode === 'ring' ? 'mb-6' : 'mb-20'}`}>
         <div className="flex max-w-full items-center justify-center gap-3 sm:gap-5">
           <h2 className="min-w-0 text-[clamp(2.2rem,6vw,6.875rem)] leading-none font-black tracking-tight text-white uppercase drop-shadow-2xl">MEET OUR TEAM</h2>
           <button type="button" onClick={switchMode} disabled={switching} aria-label={mode === 'fan' ? 'Switch to ring view' : 'Switch to fan view'} aria-pressed={mode === 'ring'} title={mode === 'fan' ? 'Ring view' : 'Fan view'} className="relative z-50 grid h-24 w-24 shrink-0 place-items-center rounded-full focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[#f9d02d]"><ModeIcon mode={mode} /></button>
         </div>
-        <motion.p animate={{ opacity: mode === 'fan' && activeSlot !== null ? 0 : 1 }} className="mt-4 text-base font-medium tracking-wide text-white/80 sm:text-xl lg:text-2xl">{mode === 'fan' ? 'Click for preview, click again for details!' : 'Drag to rotate • Click a card for details'}</motion.p>
+        <motion.p animate={{ opacity: mode === 'fan' && activeSlot !== null ? 0 : 1 }} className="mt-4 text-base font-medium tracking-wide text-white/80 sm:text-xl lg:text-2xl">{mode === 'fan' ? 'Click for preview, click again for details!' : 'Drag to rotate, click a card for details'}</motion.p>
       </div>
-      <div ref={viewportRef} className={`z-40 w-full max-w-full overflow-visible ${mode === 'fan' ? 'relative -mt-32 h-[600px]' : 'sticky top-[min(8vh,72px)] h-[min(750px,95vh)]'}`} style={{ perspective: mode === 'ring' ? Math.max(850, viewportWidth * 0.94) : undefined }}>
+      <div ref={viewportRef} className={`z-40 w-full max-w-full overflow-visible ${mode === 'fan' ? 'relative -mt-32 h-[600px]' : 'sticky top-[min(8vh,72px)] h-[min(750px,95vh)]'}`} style={{ perspective: mode === 'ring' ? Math.max(850, viewportWidth * 0.94) : undefined, perspectiveOrigin: mode === 'ring' ? `50% calc(${ringTopPadding}px + min(150px, 22.5vh))` : undefined }}>
         <AnimatePresence initial={false} mode="sync">
           {mode === 'fan' ? (
             <motion.div key="fan" initial={{ opacity: 0, scale: reducedMotion ? 1 : 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: reducedMotion ? 1 : 0.98 }} transition={transition} className="absolute inset-0 flex justify-center" style={{ pointerEvents: switching ? 'none' : 'auto' }} onClick={() => { if (activeSlot !== null) { setActiveSlot(null); activeProgress.current = null; setFlipped(false); } }}>
@@ -329,8 +329,8 @@ export const OurTeamSection = forwardRef<HTMLDivElement>((_, ref) => {
               </motion.div>
             </motion.div>
           ) : (
-            <motion.div ref={ringStageRef} key="ring" initial={{ opacity: 0, scale: reducedMotion ? 1 : 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: reducedMotion ? 1 : 0.9 }} transition={transition} className="absolute inset-0 flex items-start justify-center pt-20 md:pt-32 pointer-events-none" style={{ pointerEvents: switching ? 'none' : 'auto', touchAction: 'pan-y', cursor: 'grab', transformStyle: 'preserve-3d' }} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={endDrag} onPointerCancel={endDrag}>
-              <motion.div data-team-ring className="relative h-[min(300px,45vh)] w-full" style={{ rotateY: ringRotation, rotateX: -8, transformStyle: 'preserve-3d', transformOrigin: 'center center', willChange: isTeamInView && pageVisible && !reducedMotion ? 'transform' : 'auto' }}>
+            <motion.div ref={ringStageRef} key="ring" initial={{ opacity: 0, scale: reducedMotion ? 1 : 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: reducedMotion ? 1 : 0.9 }} transition={transition} className="absolute inset-0 flex items-start justify-center pointer-events-none" style={{ paddingTop: ringTopPadding, pointerEvents: switching ? 'none' : 'auto', touchAction: 'pan-y', cursor: 'grab', transformStyle: 'preserve-3d' }} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={endDrag} onPointerCancel={endDrag}>
+              <motion.div data-team-ring className="relative h-[min(300px,45vh)] w-full" style={{ rotateY: ringRotation, transformStyle: 'preserve-3d', transformOrigin: 'center center', willChange: isTeamInView && pageVisible && !reducedMotion ? 'transform' : 'auto' }}>
                 {members.map((_, index) => <RingCard key={index} index={index} width={ringWidth} radius={ringRadius} depth={ringDepth} rotation={ringRotation} flipped={ringFlipped.has(index)} onClick={selectRing} />)}
               </motion.div>
             </motion.div>
