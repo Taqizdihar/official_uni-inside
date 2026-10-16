@@ -53,7 +53,6 @@ const PRINCIPLES: Principle[] = [
   },
 ];
 
-const PROCESS_STEPS = ['CAPTURE', 'CREATE', 'MAKE'];
 const RELATIONSHIPS = ['STARTUPS', 'ACADEMIC & RESEARCH TEAMS', 'COMMUNITY ORGANIZATIONS'];
 
 const Reveal: React.FC<{
@@ -129,32 +128,6 @@ const AboutEditorialMarkup: React.FC<{ animated: boolean; reduceMotion: boolean 
               </article>
             ))}
           </div>
-        </div>
-      </Reveal>
-
-      <Reveal {...revealProps} className="w-full py-20 sm:py-28 lg:py-32">
-        <div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
-          <div className="mb-10 flex items-center gap-4 sm:mb-14">
-            <span className="h-[3px] w-10 bg-[#f9d02d] sm:w-14" aria-hidden="true" />
-            <p className="text-xs font-extrabold uppercase tracking-[0.2em] sm:text-sm">OUR STORY</p>
-          </div>
-          <div className="grid gap-10 lg:grid-cols-[1.05fr_0.8fr] lg:gap-24">
-            <h3 className="max-w-3xl text-[clamp(2.7rem,6.4vw,6.2rem)] font-black leading-[0.9] tracking-[-0.065em]">
-              BUILT FROM MORE THAN ONE KIND OF MAKING.
-            </h3>
-            <div className="max-w-2xl space-y-6 self-end text-lg leading-relaxed sm:text-xl">
-              <p>Uni-Inside Studio grew from the belief that creative work should not be limited to one medium. A story may begin behind a camera, continue through a digital system, or become something tangible through 3D printing.</p>
-              <p>What connects every project is how we work: understand the idea, choose the right medium, and build it with care.</p>
-            </div>
-          </div>
-          <ol className="mt-14 grid grid-cols-3 border-y-2 border-[#202121] sm:mt-20">
-            {PROCESS_STEPS.map((step, index) => (
-              <li key={step} className={`flex items-center gap-2 py-5 sm:gap-4 sm:py-7 ${index > 0 ? 'border-l border-[#202121]/30 pl-3 sm:pl-7' : ''}`}>
-                <span className="text-xs font-bold text-[#806000] sm:text-sm">0{index + 1}</span>
-                <span className="text-[clamp(0.7rem,1.8vw,1.2rem)] font-black tracking-[0.08em]">{step}</span>
-              </li>
-            ))}
-          </ol>
         </div>
       </Reveal>
 
