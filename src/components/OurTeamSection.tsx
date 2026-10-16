@@ -110,7 +110,7 @@ const RingCard = React.memo(({ index, width, radius, depth, rotation, flipped, o
   useEffect(updateFacing, [updateFacing]);
   useMotionValueEvent(rotation, 'change', updateFacing);
   return (
-    <motion.div data-team-index={index} aria-hidden={!frontFacing} className="absolute top-1/2 left-1/2" style={{ width, height: width * 1.25, marginLeft: -width / 2, marginTop: -width * 0.625, transform: `translate3d(${Math.sin(radians) * radius}px, 0, ${Math.cos(radians) * depth + (flipped ? 165 : 0)}px) rotateY(${angle}deg)`, transition: 'transform 350ms ease', transformStyle: 'preserve-3d', zIndex: stackOrder, pointerEvents: frontFacing ? 'auto' : 'none', userSelect: 'none', WebkitUserSelect: 'none' }}>
+    <motion.div data-team-index={index} aria-hidden={!frontFacing} className="absolute top-1/2 left-1/2 [opacity:var(--ring-fade)]" style={{ width, height: width * 1.25, marginLeft: -width / 2, marginTop: -width * 0.625, transform: `translate3d(${Math.sin(radians) * radius}px, 0, ${Math.cos(radians) * depth}px) rotateY(${angle}deg)`, transition: 'transform 350ms ease', transformStyle: 'preserve-3d', zIndex: stackOrder, pointerEvents: frontFacing ? 'auto' : 'none', userSelect: 'none', WebkitUserSelect: 'none' }}>
       <div className="relative h-full w-full" style={{ transformStyle: 'preserve-3d' }}>
         <CardFaces member={member} flipped={flipped} interactive={frontFacing} onClick={() => onClick(index)} />
         <div aria-hidden="true" className="absolute inset-0 overflow-hidden rounded-2xl border-4 border-[#f9d02d]/70 bg-[#202121] shadow-[0_20px_45px_rgba(0,0,0,0.45)]" style={{ transform: 'rotateY(180deg) translateZ(3px)', backfaceVisibility: 'hidden', backgroundImage: 'repeating-linear-gradient(45deg,transparent 0,transparent 20px,rgba(249,208,45,.08) 21px,transparent 23px)' }}>
@@ -139,6 +139,7 @@ export const OurTeamSection = forwardRef<HTMLDivElement>((_, ref) => {
   const reducedMotion = Boolean(useReducedMotion());
   const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth);
   const [mode, setMode] = useState<TeamViewMode>('fan');
+  const [stageMode, setStageMode] = useState<TeamViewMode>('fan');
   const [switching, setSwitching] = useState(false);
   const switchTimer = useRef(0);
   const [activeSlot, setActiveSlot] = useState<number | null>(null);
@@ -213,7 +214,7 @@ export const OurTeamSection = forwardRef<HTMLDivElement>((_, ref) => {
           inertiaVelocity.current = 0;
           resumeAt.current = Date.now() + 2000;
         }
-      } else if (Date.now() >= resumeAt.current) {
+      } else if (ringFlipped.size === 0 && Date.now() >= resumeAt.current) {
         const blend = Math.min(1, (Date.now() - resumeAt.current) / 850);
         ringRotation.set(ringRotation.get() - 0.012 * blend * step);
       }
@@ -249,7 +250,7 @@ export const OurTeamSection = forwardRef<HTMLDivElement>((_, ref) => {
     resumeAt.current = Date.now() + 2000;
     setMode((current) => current === 'fan' ? 'ring' : 'fan');
     clearTimeout(switchTimer.current);
-    switchTimer.current = window.setTimeout(() => setSwitching(false), reducedMotion ? 180 : 800);
+    switchTimer.current = window.setTimeout(() => setSwitching(false), reducedMotion ? 350 : 1600);
   };
   const selectFan = (slot: number) => {
     if (switching) return;
@@ -261,6 +262,7 @@ export const OurTeamSection = forwardRef<HTMLDivElement>((_, ref) => {
   };
   const selectRing = (index: number) => {
     if (switching || Date.now() < suppressClickUntil.current) return;
+    resumeAt.current = Date.now() + 2000;
     setRingFlipped((previous) => {
       const next = new Set(previous);
       if (next.has(index)) next.delete(index); else next.add(index);
@@ -309,15 +311,15 @@ export const OurTeamSection = forwardRef<HTMLDivElement>((_, ref) => {
 
   return (
     <div ref={setRefs} id="our-team" className="relative z-20 flex min-h-[300vh] w-full flex-col items-center overflow-x-clip pt-[clamp(120px,18vh,180px)] pb-40">
-      <div className={`relative z-30 flex w-full flex-col items-center px-4 text-center sm:px-8 ${mode === 'ring' ? 'mb-6' : 'mb-20'}`}>
+      <div className={`relative z-30 flex w-full flex-col items-center px-4 text-center sm:px-8 ${stageMode === 'ring' ? 'mb-6' : 'mb-20'}`}>
         <div className="flex max-w-full items-center justify-center gap-3 sm:gap-5">
           <h2 className="min-w-0 text-[clamp(2.2rem,6vw,6.875rem)] leading-none font-black tracking-tight text-white uppercase drop-shadow-2xl">MEET OUR TEAM</h2>
           <button type="button" onClick={switchMode} disabled={switching} aria-label={mode === 'fan' ? 'Switch to ring view' : 'Switch to fan view'} aria-pressed={mode === 'ring'} title={mode === 'fan' ? 'Ring view' : 'Fan view'} className="relative z-50 grid h-24 w-24 shrink-0 place-items-center rounded-full focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[#f9d02d]"><ModeIcon mode={mode} /></button>
         </div>
         <motion.p animate={{ opacity: mode === 'fan' && activeSlot !== null ? 0 : 1 }} className="mt-4 text-base font-medium tracking-wide text-white/80 sm:text-xl lg:text-2xl">{mode === 'fan' ? 'Click for preview, click again for details!' : 'Drag to rotate, click a card for details'}</motion.p>
       </div>
-      <div ref={viewportRef} className={`z-40 w-full max-w-full overflow-visible ${mode === 'fan' ? 'relative -mt-32 h-[600px]' : 'sticky top-[min(8vh,72px)] h-[min(750px,95vh)]'}`} style={{ perspective: mode === 'ring' ? Math.max(850, viewportWidth * 0.94) : undefined, perspectiveOrigin: mode === 'ring' ? `50% calc(${ringTopPadding}px + min(150px, 22.5vh))` : undefined }}>
-        <AnimatePresence initial={false} mode="sync">
+      <div ref={viewportRef} className={`z-40 w-full max-w-full overflow-visible ${stageMode === 'fan' ? 'relative -mt-32 h-[600px]' : 'sticky top-[min(8vh,72px)] h-[min(750px,95vh)]'}`} style={{ perspective: stageMode === 'ring' ? Math.max(850, viewportWidth * 0.94) : undefined, perspectiveOrigin: stageMode === 'ring' ? `50% calc(${ringTopPadding}px + min(150px, 22.5vh))` : undefined }}>
+        <AnimatePresence initial={false} mode="wait" onExitComplete={() => setStageMode(mode)}>
           {mode === 'fan' ? (
             <motion.div key="fan" initial={{ opacity: 0, scale: reducedMotion ? 1 : 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: reducedMotion ? 1 : 0.98 }} transition={transition} className="absolute inset-0 flex justify-center" style={{ pointerEvents: switching ? 'none' : 'auto' }} onClick={() => { if (activeSlot !== null) { setActiveSlot(null); activeProgress.current = null; setFlipped(false); } }}>
               <motion.div className="relative h-0 w-0" style={{ transformOrigin, scale: 0.85, transformStyle: 'preserve-3d', perspective: 1600 }}>
@@ -329,7 +331,7 @@ export const OurTeamSection = forwardRef<HTMLDivElement>((_, ref) => {
               </motion.div>
             </motion.div>
           ) : (
-            <motion.div ref={ringStageRef} key="ring" initial={{ opacity: 0, scale: reducedMotion ? 1 : 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: reducedMotion ? 1 : 0.9 }} transition={transition} className="absolute inset-0 flex items-start justify-center pointer-events-none" style={{ paddingTop: ringTopPadding, pointerEvents: switching ? 'none' : 'auto', touchAction: 'pan-y', cursor: 'grab', transformStyle: 'preserve-3d' }} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={endDrag} onPointerCancel={endDrag}>
+            <motion.div ref={ringStageRef} key="ring" initial={{ '--ring-fade': 0 }} animate={{ '--ring-fade': 1 }} exit={{ '--ring-fade': 0 }} transition={transition} className="absolute inset-0 flex items-start justify-center pointer-events-none" style={{ paddingTop: ringTopPadding, pointerEvents: switching ? 'none' : 'auto', touchAction: 'pan-y', cursor: 'grab', transformStyle: 'preserve-3d' }} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={endDrag} onPointerCancel={endDrag}>
               <motion.div data-team-ring className="relative h-[min(300px,45vh)] w-full" style={{ rotateY: ringRotation, transformStyle: 'preserve-3d', transformOrigin: 'center center', willChange: isTeamInView && pageVisible && !reducedMotion ? 'transform' : 'auto' }}>
                 {members.map((_, index) => <RingCard key={index} index={index} width={ringWidth} radius={ringRadius} depth={ringDepth} rotation={ringRotation} flipped={ringFlipped.has(index)} onClick={selectRing} />)}
               </motion.div>
