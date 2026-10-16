@@ -1,0 +1,366 @@
+openapi: 3.1.0
+info:
+  title: Uni-Inside CMS API
+  version: 1.0.0
+  description: Backend-only Phase 1. Content changes are reflected by the future CMS; the current website still uses static content.
+servers:
+  - url: http://localhost:4000/api/v1
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: uniinside_session
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    Csrf:
+      name: X-CSRF-Token
+      in: header
+      required: true
+      description: Token returned by login or current-session lookup; must also match the CSRF cookie.
+      schema: { type: string }
+    Resource:
+      name: resource
+      in: path
+      required: true
+      description: An explicitly configured CMS resource; fixed resources support only GET and PATCH.
+      schema:
+        type: string
+        enum: [social-links, partners, team-members, product-categories, products, product-images, product-features, product-color-options, product-variants, product-purchase-links, service-categories, services, service-list-items, service-process-steps, service-images, projects, project-images, news-categories, news, news-images, achievements, contact-chat-messages, site-settings, page-settings, homepage-sections, hero-settings, hero-trust-signals, hero-workspaces, hero-hotspots, about-settings, about-workspaces, about-principles, team-section-settings, achievement-section-settings, contact-section-settings]
+    Key:
+      name: key
+      in: path
+      required: true
+      schema: { type: string }
+  schemas:
+    Envelope:
+      type: object
+      required: [data]
+      properties:
+        data: {}
+        meta: { type: object }
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, details, requestId]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: { type: array, items: {} }
+            requestId: { type: string }
+    Login:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, maxLength: 1024 }
+    Event:
+      type: object
+      additionalProperties: false
+      required: [eventUuid, eventName]
+      properties:
+        eventUuid: { type: string, format: uuid }
+        eventName: { type: string, enum: [page_view, product_view, product_purchase_link_click, service_view, news_view, cta_click] }
+        pagePath: { type: string, maxLength: 500 }
+        entityType: { type: string, enum: [product, service, news] }
+        entityId: { type: integer, minimum: 1 }
+        linkDestination: { type: string, format: uri }
+        referrerHost: { type: string, maxLength: 255 }
+    ContentInput:
+      type: object
+      minProperties: 1
+      description: Resource-specific, strict writable fields. Unknown fields are rejected. See backend/src/schemas/resources.ts for each explicit Zod schema; status transitions also run publish validation.
+paths:
+  /health:
+    get:
+      summary: Process liveness without database access
+      responses: { '200': { description: Live, content: { application/json: { schema: { $ref: '#/components/schemas/Envelope' } } } } }
+  /ready:
+    get:
+      summary: Database and schema readiness
+      responses:
+        '200': { description: Ready }
+        '503': { description: Database or migration unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /site:
+    get:
+      summary: Public site settings, social links, and page settings
+      responses: { '200': { description: Published settings } }
+  /homepage:
+    get:
+      summary: Bounded public homepage aggregate
+      responses: { '200': { description: Homepage data } }
+  /team-members:
+    get:
+      summary: Published team members
+      parameters: [{ $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/Limit' }]
+      responses: { '200': { description: Team members } }
+  /partners:
+    get:
+      summary: Published partners
+      parameters: [{ $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/Limit' }]
+      responses: { '200': { description: Partners } }
+  /products:
+    get:
+      summary: Published products
+      parameters: [{ $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/Limit' }]
+      responses: { '200': { description: Products } }
+  /products/{slug}:
+    get:
+      summary: Published product with images and child records
+      parameters: [{ name: slug, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: Product }, '404': { description: Not published or not found } }
+  /services:
+    get:
+      summary: Published services
+      parameters: [{ $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/Limit' }]
+      responses: { '200': { description: Services } }
+  /services/{slug}:
+    get:
+      summary: Published service with images, items, and process steps
+      parameters: [{ name: slug, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: Service }, '404': { description: Not published or not found } }
+  /projects:
+    get:
+      summary: Published projects
+      parameters: [{ $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/Limit' }]
+      responses: { '200': { description: Projects } }
+  /projects/{slug}:
+    get:
+      summary: Published project with related services, images and people
+      parameters: [{ name: slug, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: Project }, '404': { description: Not published or not found } }
+  /news:
+    get:
+      summary: Published news
+      parameters: [{ $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/Limit' }]
+      responses: { '200': { description: News } }
+  /news/{slug}:
+    get:
+      summary: Published article with gallery
+      parameters: [{ name: slug, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: Article }, '404': { description: Not published or not found } }
+  /achievements:
+    get:
+      summary: Published achievements
+      parameters: [{ $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/Limit' }]
+      responses: { '200': { description: Achievements } }
+  /analytics/events:
+    post:
+      summary: Privacy-conscious first-party event collection, deduplicated by UUID
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Event' } } } }
+      responses: { '201': { description: Accepted }, '200': { description: Duplicate event }, '400': { description: Invalid event } }
+  /auth/login:
+    post:
+      summary: Sign in and set HttpOnly session and readable CSRF cookies
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Login' } } } }
+      responses: { '200': { description: Session and CSRF token }, '401': { description: Invalid credentials } }
+  /auth/me:
+    get:
+      summary: Current user, fresh permissions, and CSRF token
+      security: [{ sessionCookie: [] }]
+      responses: { '200': { description: Current user }, '401': { description: No active session } }
+  /auth/profile:
+    get:
+      summary: View own profile
+      security: [{ sessionCookie: [] }]
+      responses: { '200': { description: Profile } }
+    patch:
+      summary: Update own display name, avatar, title, and biography
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      responses: { '200': { description: Profile updated } }
+  /auth/logout:
+    post:
+      summary: Revoke current session
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      responses: { '200': { description: Logged out } }
+  /auth/logout-all:
+    post:
+      summary: Revoke all user sessions
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      responses: { '200': { description: Logged out everywhere } }
+  /auth/password-change:
+    post:
+      summary: Change password, revoke old sessions, and set new session
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [currentPassword, newPassword], properties: { currentPassword: { type: string }, newPassword: { type: string } } } } } }
+      responses: { '200': { description: Password changed } }
+  /auth/invitations/accept:
+    post:
+      summary: Accept an invitation and set a password
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [token, password], properties: { token: { type: string }, password: { type: string } } } } } }
+      responses: { '200': { description: Invitation accepted } }
+  /auth/password-reset/request:
+    post:
+      summary: Request a password reset with generic account response
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [email], properties: { email: { type: string, format: email } } } } } }
+      responses: { '200': { description: Generic response } }
+  /auth/password-reset/complete:
+    post:
+      summary: Complete reset and revoke prior sessions
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [token, password], properties: { token: { type: string }, password: { type: string } } } } } }
+      responses: { '200': { description: Password reset } }
+  /admin/dashboard:
+    get:
+      summary: Content, engagement, and recent audit summary
+      security: [{ sessionCookie: [] }]
+      responses: { '200': { description: Dashboard } }
+  /admin/analytics:
+    get:
+      summary: Rolled-up analytics
+      security: [{ sessionCookie: [] }]
+      responses: { '200': { description: Metrics } }
+  /admin/audit:
+    get:
+      summary: Authorized audit log, omitting sensitive snapshots
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/Limit' }]
+      responses: { '200': { description: Audit entries } }
+  /admin/users:
+    get:
+      summary: List CMS users
+      security: [{ sessionCookie: [] }]
+      responses: { '200': { description: Users } }
+  /admin/users/{id}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }]
+    get:
+      summary: View CMS user
+      security: [{ sessionCookie: [] }]
+      responses: { '200': { description: User } }
+    patch:
+      summary: Update role or status, preserving last active super administrator
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      responses: { '200': { description: User updated } }
+  /admin/invitations:
+    get:
+      summary: List invitations
+      security: [{ sessionCookie: [] }]
+      responses: { '200': { description: Invitations } }
+    post:
+      summary: Invite a user
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      responses: { '201': { description: Invitation created } }
+  /admin/invitations/{id}/resend:
+    post:
+      summary: Revoke old token and resend pending invitation
+      security: [{ sessionCookie: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }, { $ref: '#/components/parameters/Csrf' }]
+      responses: { '200': { description: Resent } }
+  /admin/invitations/{id}/revoke:
+    post:
+      summary: Revoke pending invitation
+      security: [{ sessionCookie: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }, { $ref: '#/components/parameters/Csrf' }]
+      responses: { '200': { description: Revoked } }
+  /admin/roles:
+    get:
+      summary: List roles
+      security: [{ sessionCookie: [] }]
+      responses: { '200': { description: Roles } }
+  /admin/permissions:
+    get:
+      summary: List permissions
+      security: [{ sessionCookie: [] }]
+      responses: { '200': { description: Permissions } }
+  /admin/roles/{id}/permissions:
+    put:
+      summary: Replace a role's permissions; super administrator is immutable
+      security: [{ sessionCookie: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }, { $ref: '#/components/parameters/Csrf' }]
+      responses: { '200': { description: Permissions assigned } }
+  /admin/media:
+    get:
+      summary: Browse image library
+      security: [{ sessionCookie: [] }]
+      responses: { '200': { description: Media } }
+  /admin/media/sign-upload:
+    post:
+      summary: Signed Cloudinary image upload parameters for controlled folder
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      responses: { '200': { description: Signed payload }, '503': { description: Cloudinary unavailable } }
+  /admin/media/finalize:
+    post:
+      summary: Verify Cloudinary image and record metadata
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      responses: { '201': { description: Image recorded } }
+  /admin/media/{id}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: integer } }, { $ref: '#/components/parameters/Csrf' }]
+    patch:
+      summary: Update image alt text and caption
+      security: [{ sessionCookie: [] }]
+      responses: { '200': { description: Updated } }
+    delete:
+      summary: Soft delete unreferenced image
+      security: [{ sessionCookie: [] }]
+      responses: { '200': { description: Deleted }, '409': { description: Image is referenced } }
+  /admin/projects/{key}/services:
+    put:
+      summary: Transactionally replace project service links
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Key' }, { $ref: '#/components/parameters/Csrf' }]
+      responses: { '200': { description: Relations updated } }
+  /admin/projects/{key}/team-members:
+    put:
+      summary: Transactionally replace project team links
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Key' }, { $ref: '#/components/parameters/Csrf' }]
+      responses: { '200': { description: Relations updated } }
+  /admin/revisions/{resource}/{key}:
+    get:
+      summary: List a content item's revisions
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Resource' }, { $ref: '#/components/parameters/Key' }]
+      responses: { '200': { description: Revisions } }
+  /admin/revisions/{resource}/{key}/restore/{id}:
+    post:
+      summary: Restore approved writable values as a new audited revision
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Resource' }, { $ref: '#/components/parameters/Key' }, { name: id, in: path, required: true, schema: { type: integer } }, { $ref: '#/components/parameters/Csrf' }]
+      responses: { '200': { description: Restored } }
+  /admin/{resource}:
+    get:
+      summary: Paginated CMS records; requires resource view permission
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Resource' }, { $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/Limit' }]
+      responses: { '200': { description: Records } }
+    post:
+      summary: Create a dynamic resource draft; fixed resources return 405
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Resource' }, { $ref: '#/components/parameters/Csrf' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ContentInput' } } } }
+      responses: { '201': { description: Created }, '405': { description: Fixed content } }
+  /admin/{resource}/{key}:
+    get:
+      summary: View a CMS record
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Resource' }, { $ref: '#/components/parameters/Key' }]
+      responses: { '200': { description: Record } }
+    patch:
+      summary: Update approved values; publish validation and permission rules apply
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Resource' }, { $ref: '#/components/parameters/Key' }, { $ref: '#/components/parameters/Csrf' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ContentInput' } } } }
+      responses: { '200': { description: Updated }, '400': { description: Invalid publish state } }
+    delete:
+      summary: Remove dynamic content; fixed content returns 405
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Resource' }, { $ref: '#/components/parameters/Key' }, { $ref: '#/components/parameters/Csrf' }]
+      responses: { '200': { description: Removed }, '405': { description: Fixed content } }

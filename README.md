@@ -34,6 +34,8 @@ npm run dev
 
 The development server runs on `http://localhost:3000` by default.
 
+The CMS REST API is a separate Node package under [`backend/`](backend/README.md). Install and run it from that directory; the current React pages still use their existing static content. The frontend and backend have separate lockfiles and builds.
+
 ## Available scripts
 
 | Command | Purpose |
@@ -68,6 +70,7 @@ src/
 ├── App.tsx       Main landing-page composition
 └── main.tsx      Router and application bootstrap
 public/           Public static assets
+backend/          Independent CMS API, MySQL migration, tests, and deployment docs
 ```
 
 ## Content status

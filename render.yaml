@@ -1,0 +1,41 @@
+services:
+  - type: web
+    name: uni-inside-cms-api
+    runtime: node
+    rootDir: backend
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SESSION_COOKIE_SECURE
+        value: 'true'
+      - key: SESSION_COOKIE_SAME_SITE
+        sync: false
+      - key: TRUST_PROXY
+        value: 'true'
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        sync: false
+      - key: DB_NAME
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_SSL_MODE
+        value: required
+      - key: DB_SSL_CA_BASE64
+        sync: false
+      - key: AUTH_TOKEN_PEPPER
+        sync: false
+      - key: ANALYTICS_HASH_PEPPER
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: PUBLIC_FRONTEND_URL
+        sync: false
+      - key: ADMIN_FRONTEND_URL
+        sync: false
