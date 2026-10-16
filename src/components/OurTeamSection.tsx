@@ -1,7 +1,24 @@
-import React, { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { animate, AnimatePresence, motion, useAnimationFrame, useInView, useMotionValue, useMotionValueEvent, useReducedMotion, useScroll, useSpring, useTransform } from 'motion/react';
+import React, { forwardRef, useCallback, useEffect, useRef, useState } from 'react';
+import {
+  animate,
+  motion,
+  useAnimationFrame,
+  useInView,
+  useMotionValue,
+  useMotionValueEvent,
+  useReducedMotion,
+  useScroll,
+  useSpring,
+  useTransform,
+} from 'motion/react';
 import type { MotionValue } from 'motion/react';
-import { Instagram, Linkedin, Twitter } from 'lucide-react';
+import {
+  RiGithubLine,
+  RiInstagramLine,
+  RiLinkedinLine,
+  RiTwitterXLine,
+} from 'react-icons/ri';
+import type { IconType } from 'react-icons';
 import { usePageVisibility } from '../hooks/usePageVisibility';
 import member1 from '../assets/our-team/members/1 - April.avif';
 import member2 from '../assets/our-team/members/2 - Dian.avif';
@@ -13,162 +30,428 @@ import member7 from '../assets/our-team/members/7 - Anggi.avif';
 import member8 from '../assets/our-team/members/8 - Amany.avif';
 import member9 from '../assets/our-team/members/9 - Ropaldo.avif';
 import logoDarkTheme from '../assets/global/Logo - Dark Theme.svg';
+import normalModeIcon from '../assets/our-team/icons/normal-mode-icon.avif';
+import ringModeIcon from '../assets/our-team/icons/ring-mode-icon.avif';
 
-const members = [
-  { name: 'April', image: member1, role: 'Creative Director' },
-  { name: 'Dian', image: member2, role: 'Creative Director' },
-  { name: 'Taqi', image: member3, role: 'Creative Director' },
-  { name: 'Amadea', image: member4, role: 'Creative Director' },
-  { name: 'Nadine', image: member5, role: 'Creative Director' },
-  { name: 'Naura', image: member6, role: 'Creative Director' },
-  { name: 'Anggi', image: member7, role: 'Creative Director' },
-  { name: 'Amany', image: member8, role: 'Creative Director' },
-  { name: 'Ropaldo', image: member9, role: 'Creative Director' },
+type TeamMember = {
+  name: string;
+  image: string;
+  role: string;
+  description: string;
+  socials: {
+    linkedin: string;
+    instagram: string;
+    x: string;
+    github: string;
+  };
+};
+
+const placeholderSocials = {
+  linkedin: 'https://www.linkedin.com/',
+  instagram: 'https://www.instagram.com/',
+  x: 'https://x.com/',
+  github: 'https://github.com/',
+};
+
+const members: TeamMember[] = [
+  {
+    name: 'April', image: member1, role: 'Chief Executive Officer',
+    description: 'Leads the overall direction of Uni-Inside Studio and coordinates the team in turning creative ideas into focused, collaborative work.',
+    socials: { ...placeholderSocials },
+  },
+  {
+    name: 'Dian', image: member2, role: 'Chief Operating Officer',
+    description: 'Oversees day-to-day operations, coordinates project workflows, and helps collaboration across Uni-Inside Studio and Uni-Inside Craft run effectively.',
+    socials: { ...placeholderSocials },
+  },
+  {
+    name: 'Taqi', image: member3, role: 'Chief Technology Officer',
+    description: 'Leads technology development, digital experiences, and technical systems that support Uni-Inside Studio and Uni-Inside Craft.',
+    socials: { ...placeholderSocials },
+  },
+  {
+    name: 'Amadea', image: member4, role: 'Staff of Specialty',
+    description: 'Supports Uni-Inside Craft operations, including product packaging and occasional hand-painting of printed models.',
+    socials: { ...placeholderSocials },
+  },
+  {
+    name: 'Nadine', image: member5, role: 'Staff of Specialty',
+    description: 'Developed Uni-Smiles, Uni-Inside’s photobooth application, and contributes to the studio’s technology-driven creative experiences.',
+    socials: { ...placeholderSocials },
+  },
+  {
+    name: 'Naura', image: member6, role: 'Staff of Specialty',
+    description: 'Creates social media content for Uni-Inside Studio and helps translate the studio’s work into engaging digital stories.',
+    socials: { ...placeholderSocials },
+  },
+  {
+    name: 'Anggi', image: member7, role: 'Staff of Specialty',
+    description: 'Specializes in hand-painting printed models with careful detail and finishing.',
+    socials: { ...placeholderSocials },
+  },
+  {
+    name: 'Amany', image: member8, role: 'Staff of Specialty',
+    description: 'Creates social media content for Uni-Inside Studio, with a primary focus on posts, feeds, and visual presentation.',
+    socials: { ...placeholderSocials },
+  },
+  {
+    name: 'Ropaldo', image: member9, role: 'Souvenir & 3D Engineer',
+    description: 'Designs custom 3D models and configures models for reliable 3D-printing production.',
+    socials: { ...placeholderSocials },
+  },
 ];
-const memberForSlot = (slot: number) => ((slot + 4) % members.length + members.length) % members.length;
-const normalizedAngle = (angle: number) => ((angle + 180) % 360 + 360) % 360 - 180;
+
 type TeamViewMode = 'fan' | 'ring';
+type SocialKey = keyof TeamMember['socials'];
+type SocialItem = { key: SocialKey; label: string; Icon: IconType };
+const socialItems: SocialItem[] = [
+  { key: 'linkedin', label: 'LinkedIn', Icon: RiLinkedinLine },
+  { key: 'instagram', label: 'Instagram', Icon: RiInstagramLine },
+  { key: 'x', label: 'X', Icon: RiTwitterXLine },
+  { key: 'github', label: 'GitHub', Icon: RiGithubLine },
+];
 
-const CardFaces = React.memo(({ member, flipped }: { member: typeof members[number]; flipped: boolean }) => (
-  <motion.div
-    className="relative h-full w-full"
-    animate={{ rotateY: flipped ? 180 : 0 }}
-    transition={{ duration: 0.65, ease: 'easeInOut' }}
-    style={{ transformStyle: 'preserve-3d' }}
-  >
-    <div className="absolute inset-0 flex items-center justify-center overflow-hidden rounded-2xl border-[4px] border-white bg-[#202121] shadow-[0_20px_50px_rgba(0,0,0,0.5)]" style={{ backfaceVisibility: 'hidden' }}>
-      <img src={member.image} alt="" loading="lazy" decoding="async" draggable={false} className="h-full w-full object-cover" />
-    </div>
-    <div className="absolute inset-0 flex flex-col items-center overflow-hidden rounded-2xl border-[4px] border-[#f9d02d] bg-[#202121] p-[6%] text-center shadow-[0_20px_50px_rgba(0,0,0,0.5)]" style={{ transform: 'rotateY(180deg) translateZ(1px)', backfaceVisibility: 'hidden' }}>
-      <h3 className="mt-4 mb-1 text-2xl font-black uppercase tracking-wider text-white">{member.name}</h3>
-      <p className="mb-6 text-[10px] font-bold uppercase tracking-[0.2em] text-[#f9d02d]">{member.role}</p>
-      <p className="mb-auto text-sm leading-relaxed font-medium text-white/80">Passionate about blending bold design with interactive technology to create stunning visual experiences.</p>
-      <div className="mb-4 flex gap-5 text-white/50" aria-hidden="true"><Twitter className="h-5 w-5" /><Linkedin className="h-5 w-5" /><Instagram className="h-5 w-5" /></div>
-    </div>
-  </motion.div>
-));
+const clamp = (value: number, minimum: number, maximum: number) => Math.min(maximum, Math.max(minimum, value));
+const mix = (from: number, to: number, progress: number) => from + (to - from) * progress;
+const radians = (degrees: number) => (degrees * Math.PI) / 180;
+const normalizedAngle = (angle: number) => ((angle + 180) % 360 + 360) % 360 - 180;
 
-const FanCard = React.memo(({ slot, active, interactive, flipped, deckShift, spacing, origin, width, moving, onClick }: {
-  slot: number; active: boolean; interactive: boolean; flipped: boolean;
-  deckShift: MotionValue<number>; spacing: MotionValue<number>; origin: MotionValue<string>;
-  width: number; moving: boolean; onClick: (slot: number) => void;
+type LayoutMetrics = {
+  stageHeight: number;
+  ringWidth: number;
+  ringHeight: number;
+  ringRadius: number;
+  normalWidth: number;
+  normalHeight: number;
+  normalRadius: number;
+  fanRadius: number;
+  fanVerticalRadius: number;
+  fanCenterY: number;
+  badgeSize: number;
+};
+
+const getLayoutMetrics = (width: number, viewportHeight: number): LayoutMetrics => {
+  const stageHeight = Math.min(780, Math.max(380, viewportHeight * 0.74));
+  const safeWidth = Math.max(220, width - 32);
+  const halfAngleChord = 2 * Math.sin(Math.PI / members.length);
+  const desiredRingGap = 16;
+  const projectedWidthScale = width < 500 ? 1.04 : width < 1100 ? 1.12 : 1.09;
+  const safeHalfWidth = Math.max(64, width / 2 - 12);
+  const maximumRingRadius = (safeHalfWidth - 12) / projectedWidthScale;
+  const maximumRingWidth = maximumRingRadius * halfAngleChord - desiredRingGap;
+  const ringWidth = Math.min(280, width * 0.3, stageHeight * 0.34, maximumRingWidth);
+  const ringRadiusMinimum = (ringWidth + desiredRingGap) / halfAngleChord;
+  const preferredRingRadius = width >= 1100 ? width * 0.451 : width * 0.445;
+  const ringRadius = Math.min(maximumRingRadius, Math.max(ringRadiusMinimum, preferredRingRadius));
+  const ringHeight = Math.max(ringWidth * 1.32, width < 420 ? 120 : 150);
+
+  const circleSafeDiameter = Math.max(200, Math.min(safeWidth, stageHeight - 32));
+  const desiredNormalGap = 12;
+  const desiredBadgeGap = 12;
+  const badgeSize = Math.min(300, stageHeight * 0.42, width * 0.44);
+  const normalWidthAtStandardAspect = (
+    circleSafeDiameter / 2 - desiredNormalGap / halfAngleChord
+  ) / (1.32 / halfAngleChord + 0.5);
+  const maximumNormalCardWidthForBadge = Math.max(
+    0,
+    circleSafeDiameter / 2 - badgeSize / 2 - desiredBadgeGap,
+  );
+  const normalWidth = Math.min(
+    ringWidth,
+    normalWidthAtStandardAspect,
+    maximumNormalCardWidthForBadge,
+  );
+  const normalHeight = normalWidth * 1.32;
+  const normalRadius = Math.max(
+    (normalHeight + desiredNormalGap) / halfAngleChord,
+    badgeSize / 2 + desiredBadgeGap + normalWidth / 2,
+  );
+  const fanRadius = Math.max(72, width / 2 - Math.max(ringHeight, normalHeight) / 2 - 14);
+  const fanVerticalRadius = Math.max(stageHeight * 0.5, fanRadius * 0.34);
+  const fanCenterY = stageHeight * 0.045 + fanVerticalRadius;
+
+  return {
+    stageHeight, ringWidth, ringHeight, ringRadius, normalWidth, normalHeight,
+    normalRadius, fanRadius, fanVerticalRadius, fanCenterY,
+    badgeSize,
+  };
+};
+
+const CardFaces = React.memo(({
+  member,
+  flipped,
+  mode,
+  normalWidth,
+  ringWidth,
+  reducedMotion,
+  onFlip,
+  setSocialRef,
+  frontButtonRef,
+  backButtonRef,
+  frontFaceRef,
+  backFaceRef,
+}: {
+  member: TeamMember;
+  flipped: boolean;
+  mode: TeamViewMode;
+  normalWidth: number;
+  ringWidth: number;
+  reducedMotion: boolean;
+  onFlip: () => void;
+  setSocialRef: (index: number, node: HTMLAnchorElement | null) => void;
+  frontButtonRef: React.RefObject<HTMLButtonElement | null>;
+  backButtonRef: React.RefObject<HTMLButtonElement | null>;
+  frontFaceRef: React.RefObject<HTMLDivElement | null>;
+  backFaceRef: React.RefObject<HTMLDivElement | null>;
 }) => {
-  const member = members[memberForSlot(slot)];
-  // The slot's angle is never wrapped. A card enters and leaves beyond the
-  // viewport, so the repeated member sequence has no teleport boundary.
-  const angle = useTransform(() => (slot + deckShift.get()) * spacing.get());
-  const proximity = useTransform(angle, (value) => Math.max(0, 1 - Math.abs(value) / 65));
-  const opacity = useTransform(angle, (value) => Math.min(1, Math.max(0, (105 - Math.abs(value)) / 12)));
-  const depth = useTransform(proximity, (value) => value * 64);
-  const scale = useTransform(proximity, (value) => 0.91 + value * 0.09);
-  const raise = useTransform(proximity, (value) => -value * 14);
-  // The discrete stack order changes when adjacent cards are at equal depth.
-  // Their continuous Z, scale, and lift are equal at that crossing.
-  const zIndex = useTransform(angle, (value) => active ? 1000 : 400 - Math.round(Math.abs(value) * 2));
-  const highlightTarget = useMotionValue(active ? 1 : 0);
-  const highlight = useSpring(highlightTarget, { stiffness: 60, damping: 15 });
-  useEffect(() => highlightTarget.set(active ? 1 : 0), [active, highlightTarget]);
-  const inverseRotation = useTransform(() => -angle.get() * highlight.get());
+  const contentWidth = Math.max(normalWidth, ringWidth * 0.78);
+  const tinyCard = normalWidth < 70;
+  const nameSize = clamp(contentWidth * 0.13, 8, 25);
+  const roleSize = clamp(contentWidth * 0.065, 5.5, 11);
+  const descriptionSize = clamp(contentWidth * 0.062, 5, 13);
+  const iconSize = clamp(contentWidth * 0.11, 10, 20);
+  const actionDuration = reducedMotion ? 0.18 : 0.65;
+
   return (
-    <motion.div className="absolute top-0" style={{ left: -width / 2, rotate: angle, transformOrigin: origin, opacity, zIndex, pointerEvents: interactive ? 'auto' : 'none', willChange: moving ? 'transform' : 'auto' }}>
-      <motion.button
-        type="button"
-        data-team-slot={slot}
-        aria-label={`${member.name}, ${flipped && active ? 'show photo' : 'show details'}`}
-        aria-hidden={!interactive}
-        tabIndex={interactive ? 0 : -1}
-        onClick={(event) => { event.stopPropagation(); if (interactive) onClick(slot); }}
-        className="relative block cursor-pointer rounded-2xl focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[#f9d02d]"
-        style={{ width, height: width * 1.25, perspective: 1200, rotate: inverseRotation, z: active ? 0 : depth, scale, y: raise, pointerEvents: interactive ? 'auto' : 'none' }}
-        animate={{ translateY: active ? -width * 0.45 : 0 }}
-        transition={{ duration: 0.65, ease: 'easeOut' }}
+    <motion.div
+      className="relative h-full w-full"
+      animate={{ rotateY: flipped ? 180 : 0 }}
+      transition={{ duration: actionDuration, ease: 'easeInOut' }}
+      style={{ transformStyle: 'preserve-3d' }}
+    >
+      <div
+        ref={frontFaceRef}
+        className="absolute inset-0 overflow-hidden rounded-2xl border-[3px] border-white bg-[#202121] shadow-[0_16px_40px_rgba(0,0,0,0.5)]"
+        style={{ backfaceVisibility: 'hidden', transform: 'translateZ(1px)' }}
       >
-        <motion.span aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-2xl shadow-[0_30px_70px_rgba(0,0,0,0.7)]" style={{ opacity: proximity }} />
-        <CardFaces member={member} flipped={active && flipped} />
-      </motion.button>
+        <img src={member.image} alt="" loading="lazy" decoding="async" draggable={false} className="h-full w-full object-cover" />
+        <button
+          ref={frontButtonRef}
+          type="button"
+          aria-label={`${member.name}, ${mode === 'ring' ? 'show details' : 'select member'}`}
+          onClick={(event) => { event.stopPropagation(); onFlip(); }}
+          className="absolute inset-0 rounded-2xl focus-visible:outline-4 focus-visible:outline-offset-[-5px] focus-visible:outline-[#f9d02d]"
+        />
+      </div>
+      <div
+        ref={backFaceRef}
+        className="absolute inset-0 flex flex-col overflow-hidden rounded-2xl border-[3px] border-[#f9d02d] bg-[#202121] text-center shadow-[0_16px_40px_rgba(0,0,0,0.5)]"
+        style={{ transform: 'rotateY(180deg) translateZ(1px)', backfaceVisibility: 'hidden', padding: tinyCard ? 4 : '6%' }}
+      >
+        <button
+          ref={backButtonRef}
+          type="button"
+          aria-label={`${member.name}, show photo`}
+          onClick={(event) => { event.stopPropagation(); onFlip(); }}
+          className="absolute inset-0 z-0 rounded-2xl focus-visible:outline-4 focus-visible:outline-offset-[-5px] focus-visible:outline-[#f9d02d]"
+        />
+        <div className="pointer-events-none relative z-10 flex min-h-0 flex-1 flex-col items-center">
+          <h3 className="m-0 w-full font-black uppercase leading-tight tracking-wide text-white" style={{ fontSize: nameSize }}>{member.name}</h3>
+          <p className="mb-1 mt-0 w-full font-bold uppercase leading-tight tracking-[0.08em] text-[#f9d02d]" style={{ fontSize: roleSize }}>{member.role}</p>
+          <p className="mb-1 mt-0 min-h-0 w-full flex-1 overflow-hidden font-medium leading-[1.15] text-white/85" style={{ fontSize: descriptionSize }}>{member.description}</p>
+          <div
+            className="pointer-events-auto relative z-20 grid w-full shrink-0 place-items-center"
+            style={{ gridTemplateColumns: normalWidth < 82 ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))', gap: tinyCard ? 1 : 3 }}
+          >
+            {socialItems.map(({ key, label, Icon }, index) => (
+              <a
+                key={key}
+                ref={(node) => setSocialRef(index, node)}
+                href={member.socials[key]}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`${member.name} on ${label}`}
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={(event) => event.stopPropagation()}
+                className="grid min-h-[18px] min-w-[18px] place-items-center rounded text-white/75 transition-colors hover:bg-[#f9d02d]/20 hover:text-[#f9d02d] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#f9d02d]"
+              >
+                <Icon aria-hidden="true" style={{ width: iconSize, height: iconSize }} />
+              </a>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl border-4 border-[#f9d02d]/70 bg-[#202121] shadow-[0_20px_45px_rgba(0,0,0,0.45)]"
+        style={{ transform: 'rotateY(180deg) translateZ(3px)', backfaceVisibility: 'hidden', backgroundImage: 'repeating-linear-gradient(45deg,transparent 0,transparent 20px,rgba(249,208,45,.08) 21px,transparent 23px)' }}
+      >
+        <div className="absolute inset-[12%] rounded-full border border-[#f9d02d]/25" />
+        <div className="absolute inset-[30%] rounded-full border border-[#f9d02d]/20" />
+        <span className="absolute inset-0 grid place-items-center text-5xl font-black text-[#f9d02d]/25">UNI</span>
+      </div>
     </motion.div>
   );
 });
 
-const RingCard = React.memo(({ index, width, radius, rotation, flipped, onClick }: {
-  index: number; width: number; radius: number; rotation: MotionValue<number>;
-  flipped: boolean; onClick: (index: number) => void;
+const TeamCard = React.memo(({
+  index,
+  member,
+  metrics,
+  sectionProgress,
+  normalRotation,
+  ringRotation,
+  modeMorph,
+  currentMode,
+  morphing,
+  flipped,
+  selected,
+  reducedMotion,
+  onActivate,
+}: {
+  index: number;
+  member: TeamMember;
+  metrics: LayoutMetrics;
+  sectionProgress: MotionValue<number>;
+  normalRotation: MotionValue<number>;
+  ringRotation: MotionValue<number>;
+  modeMorph: MotionValue<number>;
+  currentMode: TeamViewMode;
+  morphing: boolean;
+  flipped: boolean;
+  selected: boolean;
+  reducedMotion: boolean;
+  onActivate: (index: number) => void;
 }) => {
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const angle = index * (360 / members.length);
-  const member = members[index];
-  const updateFacing = useCallback(() => {
-    const front = Math.abs(normalizedAngle(rotation.get() + angle)) < 78;
-    if (!buttonRef.current || !wrapperRef.current) return;
-    buttonRef.current.tabIndex = front ? 0 : -1;
-    buttonRef.current.style.pointerEvents = front ? 'auto' : 'none';
-    wrapperRef.current.setAttribute('aria-hidden', front ? 'false' : 'true');
-  }, [angle, rotation]);
-  useEffect(updateFacing, [updateFacing]);
-  useMotionValueEvent(rotation, 'change', updateFacing);
+  const shellRef = useRef<HTMLDivElement>(null);
+  const frontFaceRef = useRef<HTMLDivElement>(null);
+  const backFaceRef = useRef<HTMLDivElement>(null);
+  const frontButtonRef = useRef<HTMLButtonElement>(null);
+  const backButtonRef = useRef<HTMLButtonElement>(null);
+  const socialRefs = useRef<(HTMLAnchorElement | null)[]>([]);
+  const highlightTarget = useMotionValue(selected ? 1 : 0);
+  const highlight = useSpring(highlightTarget, { stiffness: 80, damping: 18 });
+  const detailTarget = useMotionValue(flipped ? 1 : 0);
+  const detailProgress = useSpring(detailTarget, { stiffness: 100, damping: 20 });
+  const setSocialRef = useCallback((socialIndex: number, node: HTMLAnchorElement | null) => {
+    socialRefs.current[socialIndex] = node;
+  }, []);
+
+  useEffect(() => { highlightTarget.set(selected ? 1 : 0); }, [highlightTarget, selected]);
+  useEffect(() => { detailTarget.set(flipped ? 1 : 0); }, [detailTarget, flipped]);
+
+  const width = useTransform(() => mix(metrics.normalWidth, metrics.ringWidth, clamp(modeMorph.get(), 0, 1)));
+  const height = useTransform(() => {
+    const morph = clamp(modeMorph.get(), 0, 1);
+    const detailExpansion = mix(Math.max(88, 192 - metrics.normalHeight), 88, morph);
+    return mix(metrics.normalHeight, metrics.ringHeight, morph) + detailProgress.get() * detailExpansion;
+  });
+  const zIndex = useTransform(() => {
+    const morph = clamp(modeMorph.get(), 0, 1);
+    const scroll = clamp(sectionProgress.get(), 0, 1);
+    const circle = clamp((scroll - 0.1) / 0.45, 0, 1);
+    const easedCircle = circle * circle * (3 - 2 * circle);
+    const normalAngle = radians(index * (360 / members.length) + normalRotation.get());
+    const ringAngle = radians(index * (360 / members.length) + ringRotation.get());
+    const normalOrder = 100 + index + Math.round(Math.cos(normalAngle) * 50 * (1 - easedCircle));
+    const ringOrder = 100 + index + Math.round(Math.cos(ringAngle) * 80);
+    return Math.round(mix(normalOrder, ringOrder, morph));
+  });
+  const transform = useTransform(() => {
+    const morph = clamp(modeMorph.get(), 0, 1);
+    const scroll = clamp(sectionProgress.get(), 0, 1);
+    const circleProgress = clamp((scroll - 0.1) / 0.45, 0, 1);
+    const smoothCircle = circleProgress * circleProgress * (3 - 2 * circleProgress);
+    const normalAngle = index * (360 / members.length) + normalRotation.get();
+    const normalRadians = radians(normalAngle);
+    const normalRadius = mix(metrics.fanRadius, metrics.normalRadius, smoothCircle);
+    const verticalRadius = mix(metrics.fanVerticalRadius, metrics.normalRadius, smoothCircle);
+    const centerY = mix(metrics.fanCenterY, metrics.stageHeight / 2, smoothCircle);
+    const normalX = Math.sin(normalRadians) * normalRadius;
+    const normalY = centerY - Math.cos(normalRadians) * verticalRadius - metrics.stageHeight / 2;
+    const fanDepth = Math.cos(normalRadians) * 58 * (1 - smoothCircle);
+    const normalZ = fanDepth + highlight.get() * 44;
+    const normalScale = mix(0.92 + Math.max(0, Math.cos(normalRadians)) * 0.08, 1, smoothCircle) + highlight.get() * 0.055;
+
+    const ringAngle = index * (360 / members.length) + ringRotation.get();
+    const ringRadians = radians(ringAngle);
+    const ringX = Math.sin(ringRadians) * metrics.ringRadius;
+    const ringZ = Math.cos(ringRadians) * metrics.ringRadius;
+    const x = mix(normalX, ringX, morph);
+    const y = mix(normalY, 0, morph);
+    const z = mix(normalZ, ringZ, morph);
+    const rotateY = mix(0, ringAngle, morph);
+    const normalCardRotation = normalAngle + smoothCircle * 90;
+    const rotateZ = mix(normalCardRotation, 0, morph);
+    const scale = mix(normalScale, 1, morph);
+
+    return `translate3d(calc(-50% + ${x}px), calc(-50% + ${y}px), ${z}px) rotateY(${rotateY}deg) rotateZ(${rotateZ}deg) scale(${scale})`;
+  });
+
+  const updateInteractivity = useCallback(() => {
+    const shell = shellRef.current;
+    if (!shell) return;
+    const ringLayout = modeMorph.get() >= 0.5;
+    const angle = index * (360 / members.length) + ringRotation.get();
+    const facing = !ringLayout || Math.cos(radians(angle)) > -0.06;
+    const interactive = !morphing && facing;
+    shell.style.pointerEvents = interactive ? 'auto' : 'none';
+    shell.setAttribute('aria-hidden', interactive ? 'false' : 'true');
+    if (frontFaceRef.current) frontFaceRef.current.setAttribute('aria-hidden', interactive && !flipped ? 'false' : 'true');
+    if (backFaceRef.current) backFaceRef.current.setAttribute('aria-hidden', interactive && flipped ? 'false' : 'true');
+    if (frontButtonRef.current) frontButtonRef.current.tabIndex = interactive && !flipped ? 0 : -1;
+    if (backButtonRef.current) backButtonRef.current.tabIndex = interactive && flipped ? 0 : -1;
+    socialRefs.current.forEach((link) => { if (link) link.tabIndex = interactive && flipped ? 0 : -1; });
+  }, [flipped, index, modeMorph, morphing, ringRotation]);
+
+  useEffect(() => { updateInteractivity(); }, [updateInteractivity]);
+  useMotionValueEvent(modeMorph, 'change', updateInteractivity);
+  useMotionValueEvent(ringRotation, 'change', updateInteractivity);
+
   return (
-    <div ref={wrapperRef} className="absolute top-1/2 left-1/2" style={{ width, height: width * 1.25, marginLeft: -width / 2, marginTop: -width * 0.625, transform: `rotateY(${angle}deg) translateZ(${radius}px)`, transformStyle: 'preserve-3d' }}>
-      <button
-        ref={buttonRef} type="button" data-team-index={index} aria-label={`${member.name}, ${flipped ? 'show photo' : 'show details'}`}
-        onClick={(event) => { event.stopPropagation(); if (event.detail === 0) onClick(index); }}
-        className="relative block h-full w-full cursor-pointer rounded-2xl focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[#f9d02d]"
-        style={{ transformStyle: 'preserve-3d', userSelect: 'none', WebkitUserSelect: 'none' }}
-      >
-        <CardFaces member={member} flipped={flipped} />
-        <div aria-hidden="true" className="absolute inset-0 overflow-hidden rounded-2xl border-4 border-[#f9d02d]/70 bg-[#202121] shadow-[0_20px_45px_rgba(0,0,0,0.45)]" style={{ transform: 'rotateY(180deg) translateZ(3px)', backfaceVisibility: 'hidden', backgroundImage: 'repeating-linear-gradient(45deg,transparent 0,transparent 20px,rgba(249,208,45,.08) 21px,transparent 23px)' }}>
-          <div className="absolute inset-[12%] rounded-full border border-[#f9d02d]/25" />
-          <div className="absolute inset-[30%] rounded-full border border-[#f9d02d]/20" />
-          <span className="absolute inset-0 grid place-items-center text-5xl font-black text-[#f9d02d]/25">UNI</span>
-        </div>
-      </button>
-    </div>
+    <motion.div
+      ref={shellRef}
+      data-team-member-index={index}
+      className="absolute left-1/2 top-1/2"
+      style={{ width, height, transform, transformStyle: 'preserve-3d', transformOrigin: 'center center', zIndex, willChange: morphing ? 'transform' : 'auto' }}
+    >
+      <CardFaces
+        member={member}
+        flipped={flipped}
+        mode={currentMode}
+        normalWidth={metrics.normalWidth}
+        ringWidth={metrics.ringWidth}
+        reducedMotion={reducedMotion}
+        onFlip={() => onActivate(index)}
+        setSocialRef={setSocialRef}
+        frontButtonRef={frontButtonRef}
+        backButtonRef={backButtonRef}
+        frontFaceRef={frontFaceRef}
+        backFaceRef={backFaceRef}
+      />
+    </motion.div>
   );
 });
-
-const ModeIcon = ({ mode }: { mode: TeamViewMode }) => (
-  <span className="relative block h-7 w-7" aria-hidden="true">
-    <svg viewBox="0 0 32 32" className={`absolute inset-0 h-full w-full transition-all duration-300 ${mode === 'fan' ? 'scale-100 opacity-100' : 'scale-75 rotate-90 opacity-0'}`} fill="none" stroke="currentColor" strokeWidth="2">
-      <circle cx="16" cy="16" r="13" /><path d="M8 16a8 8 0 0 1 13-6M24 16a8 8 0 0 1-13 6" strokeLinecap="round" /><path d="m20 6 2 4-4 1M12 26l-2-4 4-1" strokeLinejoin="round" />
-    </svg>
-    <svg viewBox="0 0 32 32" className={`absolute inset-0 h-full w-full transition-all duration-300 ${mode === 'ring' ? 'scale-100 opacity-100' : 'scale-75 -rotate-90 opacity-0'}`} fill="none" stroke="currentColor" strokeWidth="2">
-      <ellipse cx="16" cy="16" rx="14" ry="9" /><path d="M8 16a8 8 0 0 1 13-6M24 16a8 8 0 0 1-13 6" strokeLinecap="round" /><path d="m20 6 2 4-4 1M12 26l-2-4 4-1" strokeLinejoin="round" />
-    </svg>
-  </span>
-);
 
 export const OurTeamSection = forwardRef<HTMLDivElement>((_, ref) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
-  const isTeamInView = useInView(containerRef, { once: false, amount: 0.1 });
+  const isTeamInView = useInView(containerRef, { once: false, amount: 0.08 });
   const pageVisible = usePageVisibility();
   const reducedMotion = Boolean(useReducedMotion());
-  const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth);
+  const [viewport, setViewport] = useState(() => ({ width: window.innerWidth, height: window.innerHeight }));
   const [mode, setMode] = useState<TeamViewMode>('fan');
-  const [switching, setSwitching] = useState(false);
-  const switchTimer = useRef(0);
-  const [activeSlot, setActiveSlot] = useState<number | null>(null);
-  const [flipped, setFlipped] = useState(false);
+  const [morphing, setMorphing] = useState(false);
+  const [iconMode, setIconMode] = useState<TeamViewMode>('fan');
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [normalFlipped, setNormalFlipped] = useState(false);
   const [ringFlipped, setRingFlipped] = useState<Set<number>>(() => new Set());
-  const [centerSlot, setCenterSlot] = useState(0);
-  const centerSlotRef = useRef(0);
-  const [overscan, setOverscan] = useState(14);
-  const overscanRef = useRef(14);
-  const activeProgress = useRef<number | null>(null);
-  const deckShift = useMotionValue(0);
-  const ringRotation = useMotionValue(0);
-  const resumeAt = useRef(0);
-  const drag = useRef<{ id: number; x: number; angle: number; moved: boolean; index: number | null } | null>(null);
+  const iconOpacity = useMotionValue(1);
+  const morphControls = useRef<ReturnType<typeof animate> | null>(null);
+  const inertiaControls = useRef<ReturnType<typeof animate> | null>(null);
+  const drag = useRef<{ pointerId: number; startX: number; lastX: number; lastTime: number; moved: boolean; velocity: number } | null>(null);
   const suppressClickUntil = useRef(0);
+  const resumeAt = useRef(0);
+  const idleBlend = useRef(1);
   const { scrollYProgress } = useScroll({ target: containerRef, offset: ['start start', 'end end'] });
-  const spacing = useTransform(scrollYProgress, [0, 0.15], [10, 40]);
-  const fanWidth = Math.min(360, Math.max(210, viewportWidth * 0.58));
-  const ringWidth = Math.min(300, Math.max(155, viewportWidth * 0.29));
-  const radiusBase = Math.max(520, viewportWidth / 2 + fanWidth / 2 + 30);
-  const radius = useTransform(scrollYProgress, [0, 0.5, 1], [radiusBase, radiusBase * 0.78, radiusBase]);
-  const transformOrigin = useTransform(radius, (value) => `50% ${value}px`);
-  const badgeY = useTransform(radius, (value) => value - 180);
-  const ringRadius = Math.min(Math.max(ringWidth / (2 * Math.tan(Math.PI / members.length)) + 16, ringWidth * 0.85), Math.max(215, viewportWidth * 0.42));
+  const normalRotation = useMotionValue(0);
+  const ringRotation = useMotionValue(0);
+  const badgeTextRotation = useMotionValue(0);
+  const badgeLogoRotation = useMotionValue(0);
+  const modeMorph = useMotionValue(0);
+  const sectionProgress = useTransform(scrollYProgress, (value) => value);
+  const metrics = getLayoutMetrics(viewport.width, viewport.height);
+
   const setRefs = useCallback((node: HTMLDivElement | null) => {
     containerRef.current = node;
     if (typeof ref === 'function') ref(node);
@@ -176,129 +459,324 @@ export const OurTeamSection = forwardRef<HTMLDivElement>((_, ref) => {
   }, [ref]);
 
   useEffect(() => {
-    const observer = new ResizeObserver(() => setViewportWidth((previous) => {
-      const next = viewportRef.current?.clientWidth ?? window.innerWidth;
-      return previous === next ? previous : next;
-    }));
+    const update = () => {
+      const width = viewportRef.current?.clientWidth ?? window.innerWidth;
+      const height = window.innerHeight;
+      setViewport((current) => current.width === width && current.height === height ? current : { width, height });
+    };
+    const observer = new ResizeObserver(update);
     if (viewportRef.current) observer.observe(viewportRef.current);
-    return () => observer.disconnect();
+    window.addEventListener('resize', update, { passive: true });
+    update();
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', update);
+    };
   }, []);
 
-  useMotionValueEvent(deckShift, 'change', (value) => {
-    const next = Math.round(-value);
-    if (next !== centerSlotRef.current) {
-      centerSlotRef.current = next;
-      setCenterSlot(next);
+  useEffect(() => {
+    const images = [normalModeIcon, ringModeIcon].map((source) => {
+      const image = new Image();
+      image.src = source;
+      return image.decode?.().catch(() => undefined) ?? Promise.resolve();
+    });
+    void Promise.all(images);
+  }, []);
+
+  const previousIconMode = useRef<TeamViewMode>('fan');
+  useEffect(() => {
+    if (previousIconMode.current === mode) return;
+    previousIconMode.current = mode;
+    let cancelled = false;
+    const fadeOut = animate(iconOpacity, 0, { duration: reducedMotion ? 0.06 : 0.14, ease: 'easeOut' });
+    void fadeOut.then(() => {
+      if (cancelled) return;
+      setIconMode(mode);
+      return animate(iconOpacity, 1, { duration: reducedMotion ? 0.08 : 0.18, ease: 'easeIn' });
+    });
+    return () => {
+      cancelled = true;
+      fadeOut.stop();
+    };
+  }, [iconOpacity, mode, reducedMotion]);
+
+  const cancelInertia = useCallback(() => {
+    inertiaControls.current?.stop();
+    inertiaControls.current = null;
+  }, []);
+
+  const releaseCapturedPointer = useCallback(() => {
+    const current = drag.current;
+    const viewportNode = viewportRef.current;
+    if (current && viewportNode?.hasPointerCapture(current.pointerId)) {
+      viewportNode.releasePointerCapture(current.pointerId);
     }
-  });
-  useMotionValueEvent(spacing, 'change', (value) => {
-    const next = Math.ceil(105 / Math.max(value, 1)) + 4;
-    if (next !== overscanRef.current) {
-      overscanRef.current = next;
-      setOverscan(next);
-    }
-  });
-  useMotionValueEvent(scrollYProgress, 'change', (value) => {
-    if (mode !== 'fan' || activeSlot === null || activeProgress.current === null) return;
-    const delta = Math.max(0, value - activeProgress.current - 0.05);
-    deckShift.set(-activeSlot + delta * 90 / Math.max(1, spacing.get()));
-  });
+    drag.current = null;
+  }, []);
+
+  useEffect(() => {
+    if (pageVisible && isTeamInView) return;
+    cancelInertia();
+    releaseCapturedPointer();
+    resumeAt.current = Date.now() + 2000;
+    idleBlend.current = 0;
+  }, [cancelInertia, isTeamInView, pageVisible, releaseCapturedPointer]);
+
+  useEffect(() => () => {
+    morphControls.current?.stop();
+    morphControls.current = null;
+    cancelInertia();
+    releaseCapturedPointer();
+  }, [cancelInertia, releaseCapturedPointer]);
+
   useAnimationFrame((_, delta) => {
-    if (!isTeamInView || !pageVisible || reducedMotion || switching) return;
-    if (mode === 'fan' && activeSlot === null) deckShift.set(deckShift.get() - (0.006 * Math.min(delta, 64)) / spacing.get());
-    if (mode === 'ring' && !drag.current && Date.now() >= resumeAt.current) ringRotation.set(ringRotation.get() - 0.012 * Math.min(delta, 64));
+    if (!isTeamInView || !pageVisible || reducedMotion || morphing) return;
+    const elapsed = Math.min(delta, 64);
+    if (mode === 'fan' && selectedIndex === null) {
+      normalRotation.set(normalRotation.get() - elapsed * 0.075);
+    }
+    if (mode === 'fan') {
+      badgeTextRotation.set(badgeTextRotation.get() + elapsed * 0.0144);
+      badgeLogoRotation.set(badgeLogoRotation.get() - elapsed * 0.018);
+    }
+    if (mode === 'ring' && !drag.current && !inertiaControls.current && Date.now() >= resumeAt.current) {
+      idleBlend.current = Math.min(1, idleBlend.current + elapsed / 850);
+      ringRotation.set(ringRotation.get() - elapsed * 0.0065 * idleBlend.current);
+    }
   });
 
-  useEffect(() => () => clearTimeout(switchTimer.current), []);
-  const switchMode = () => {
-    if (switching) return;
-    setSwitching(true);
-    setActiveSlot(null);
-    activeProgress.current = null;
-    setFlipped(false);
+  const switchMode = useCallback(() => {
+    if (morphing) return;
+    const nextMode: TeamViewMode = mode === 'fan' ? 'ring' : 'fan';
+    setMorphing(true);
+    setMode(nextMode);
+    setSelectedIndex(null);
+    setNormalFlipped(false);
     setRingFlipped(new Set());
-    drag.current = null;
-    setMode((current) => current === 'fan' ? 'ring' : 'fan');
-    clearTimeout(switchTimer.current);
-    switchTimer.current = window.setTimeout(() => setSwitching(false), reducedMotion ? 180 : 800);
-  };
-  const selectFan = (slot: number) => {
-    if (switching) return;
-    if (activeSlot === slot) { setFlipped((value) => !value); return; }
-    setActiveSlot(slot);
-    activeProgress.current = scrollYProgress.get();
-    setFlipped(false);
-    animate(deckShift, -slot, { duration: reducedMotion ? 0.15 : 0.8, ease: 'easeInOut' });
-  };
-  const selectRing = (index: number) => {
-    if (switching || Date.now() < suppressClickUntil.current) return;
-    setRingFlipped((previous) => {
-      const next = new Set(previous);
-      if (next.has(index)) next.delete(index); else next.add(index);
+    cancelInertia();
+    releaseCapturedPointer();
+    if (nextMode === 'ring') {
+      ringRotation.set(normalRotation.get());
+      idleBlend.current = 0;
+      resumeAt.current = Date.now();
+    } else {
+      normalRotation.set(ringRotation.get());
+    }
+    const controls = animate(modeMorph, nextMode === 'ring' ? 1 : 0, {
+      duration: reducedMotion ? 0.22 : 0.88,
+      ease: [0.22, 0.72, 0.18, 1],
+    });
+    morphControls.current = controls;
+    void controls.then(() => {
+      if (morphControls.current !== controls) return;
+      morphControls.current = null;
+      setMorphing(false);
+      if (nextMode === 'ring') idleBlend.current = 0;
+    });
+  }, [cancelInertia, mode, modeMorph, morphing, normalRotation, reducedMotion, releaseCapturedPointer, ringRotation]);
+
+  const activateCard = useCallback((index: number) => {
+    if (morphing) return;
+    if (mode === 'fan') {
+      if (selectedIndex === index) setNormalFlipped((current) => !current);
+      else {
+        setSelectedIndex(index);
+        setNormalFlipped(false);
+      }
+      return;
+    }
+    if (Date.now() < suppressClickUntil.current) return;
+    setRingFlipped((current) => {
+      const next = new Set(current);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
       return next;
     });
-  };
-  const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (mode !== 'ring' || switching || event.button !== 0) return;
-    const target = (event.target as Element).closest<HTMLButtonElement>('[data-team-index]');
-    drag.current = { id: event.pointerId, x: event.clientX, angle: ringRotation.get(), moved: false, index: target && target.tabIndex === 0 ? Number(target.dataset.teamIndex) : null };
+  }, [mode, morphing, selectedIndex]);
+
+  const onPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    if (mode !== 'ring' || morphing || event.button !== 0) return;
+    if ((event.target as Element).closest('a')) return;
+    cancelInertia();
+    resumeAt.current = Number.POSITIVE_INFINITY;
+    idleBlend.current = 0;
+    drag.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      lastX: event.clientX,
+      lastTime: performance.now(),
+      moved: false,
+      velocity: 0,
+    };
     event.currentTarget.setPointerCapture(event.pointerId);
-  };
-  const onPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+  }, [cancelInertia, mode, morphing]);
+
+  const onPointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     const current = drag.current;
-    if (!current || current.id !== event.pointerId) return;
-    const distance = event.clientX - current.x;
-    if (!current.moved && Math.abs(distance) < 7) return;
+    if (!current || current.pointerId !== event.pointerId) return;
+    if (!current.moved && Math.abs(event.clientX - current.startX) < 7) return;
     current.moved = true;
-    ringRotation.set(current.angle + distance * 0.35);
-  };
-  const endDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    const now = performance.now();
+    const deltaX = event.clientX - current.lastX;
+    const elapsed = Math.max(8, now - current.lastTime);
+    ringRotation.set(ringRotation.get() + deltaX * 0.38);
+    const instantaneousVelocity = (deltaX * 0.38 * 1000) / elapsed;
+    current.velocity = clamp(current.velocity * 0.62 + instantaneousVelocity * 0.38, -900, 900);
+    current.lastX = event.clientX;
+    current.lastTime = now;
+  }, [ringRotation]);
+
+  const onPointerEnd = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     const current = drag.current;
-    if (!current || current.id !== event.pointerId) return;
-    if (current.moved) {
-      suppressClickUntil.current = Date.now() + 300;
-      resumeAt.current = Date.now() + 2000;
-    } else if (event.type === 'pointerup' && current.index !== null) {
-      selectRing(current.index);
-    }
+    if (!current || current.pointerId !== event.pointerId) return;
+    const didMove = current.moved;
+    const releaseVelocity = clamp(current.velocity, -900, 900);
     drag.current = null;
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
-  };
-  const fanSlots = useMemo(() => Array.from({ length: overscan * 2 + 1 }, (_, index) => centerSlot - overscan + index), [centerSlot, overscan]);
-  const transition = { duration: reducedMotion ? 0.15 : 0.75, ease: 'easeInOut' as const };
+    if (!didMove) {
+      resumeAt.current = Date.now();
+      return;
+    }
+    suppressClickUntil.current = Date.now() + 350;
+    if (reducedMotion || Math.abs(releaseVelocity) < 24) {
+      resumeAt.current = Date.now() + 2000;
+      idleBlend.current = 0;
+      return;
+    }
+    idleBlend.current = 0;
+    const controls = animate(ringRotation, ringRotation.get() + releaseVelocity * 0.52, {
+      type: 'inertia',
+      velocity: releaseVelocity,
+      power: 0.52,
+      timeConstant: 720,
+      restDelta: 0.12,
+    });
+    inertiaControls.current = controls;
+    void controls.then(() => {
+      if (inertiaControls.current !== controls) return;
+      inertiaControls.current = null;
+      resumeAt.current = Date.now() + 2000;
+      idleBlend.current = 0;
+    });
+  }, [reducedMotion, ringRotation]);
+
+  const badgeY = useTransform(() => {
+    const scroll = clamp(sectionProgress.get(), 0, 1);
+    const circle = clamp((scroll - 0.1) / 0.45, 0, 1);
+    const eased = circle * circle * (3 - 2 * circle);
+    const center = mix(metrics.fanCenterY, metrics.stageHeight / 2, eased);
+    return center - metrics.badgeSize / 2;
+  });
+  const badgeOpacity = useTransform(() => {
+    const scroll = clamp(sectionProgress.get(), 0, 1);
+    const circle = clamp((scroll - 0.1) / 0.45, 0, 1);
+    const easedCircle = circle * circle * (3 - 2 * circle);
+    return mix(0.32, 1, easedCircle) * (1 - modeMorph.get());
+  });
+  const badgeScale = useTransform(modeMorph, (value) => 1 - value * 0.28);
 
   return (
-    <div ref={setRefs} id="our-team" className="relative z-20 flex min-h-[300vh] w-full flex-col items-center overflow-hidden pt-[clamp(120px,18vh,180px)] pb-40">
-      <div className="relative z-50 mb-20 flex w-full flex-col items-center px-4 text-center sm:px-8">
+    <div
+      ref={setRefs}
+      id="our-team"
+      className="relative z-20 flex min-h-[300vh] w-full flex-col items-center overflow-visible pt-[clamp(120px,18vh,180px)] pb-40"
+    >
+      <div className="relative z-50 mb-16 flex w-full flex-col items-center px-4 text-center sm:mb-20 sm:px-8">
         <div className="flex max-w-full items-center justify-center gap-3 sm:gap-5">
           <h2 className="min-w-0 text-[clamp(2.2rem,6vw,6.875rem)] leading-none font-black tracking-tight text-white uppercase drop-shadow-2xl">MEET OUR TEAM</h2>
-          <button type="button" onClick={switchMode} aria-label={mode === 'fan' ? 'Switch to ring view' : 'Switch to fan view'} aria-pressed={mode === 'ring'} title={mode === 'fan' ? 'Ring view' : 'Fan view'} className="relative z-50 grid h-11 w-11 shrink-0 place-items-center rounded-full border-2 border-[#f9d02d] bg-[#202121] text-[#f9d02d] shadow-lg transition-colors hover:bg-[#f9d02d] hover:text-[#202121] focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[#f9d02d]"><ModeIcon mode={mode} /></button>
         </div>
-        <motion.p animate={{ opacity: mode === 'fan' && activeSlot !== null ? 0 : 1 }} className="mt-4 text-base font-medium tracking-wide text-white/80 sm:text-xl lg:text-2xl">{mode === 'fan' ? 'Click for preview, click again for details!' : 'Drag to rotate • Click a card for details'}</motion.p>
+        <motion.p animate={{ opacity: mode === 'fan' && selectedIndex !== null ? 0 : 1 }} className="mt-4 text-base font-medium tracking-wide text-white/80 sm:text-xl lg:text-2xl">
+          {mode === 'fan' ? 'Click for preview, click again for details!' : 'Drag to rotate • Click a card for details'}
+        </motion.p>
       </div>
-      <div ref={viewportRef} className="relative z-40 h-[min(750px,95vh)] w-full max-w-full overflow-visible" style={{ perspective: mode === 'ring' ? 1100 : undefined }}>
-        <AnimatePresence initial={false} mode="sync">
-          {mode === 'fan' ? (
-            <motion.div key="fan" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={transition} className="absolute inset-0 flex justify-center" style={{ pointerEvents: switching ? 'none' : 'auto' }} onClick={() => { if (activeSlot !== null) { setActiveSlot(null); activeProgress.current = null; setFlipped(false); } }}>
-              <div className="relative h-0 w-0" style={{ transformStyle: 'preserve-3d', perspective: 1600 }}>
-                <motion.div initial={{ opacity: 0, scale: 0.3 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: false, amount: 0.3 }} transition={{ duration: 0.8, ease: 'backOut' }} className="absolute flex h-[360px] w-[360px] items-center justify-center bg-[#202121] shadow-[0_25px_60px_rgba(0,0,0,0.7)]" style={{ left: -180, y: badgeY, zIndex: 510, clipPath: 'polygon(29.3% 0%, 70.7% 0%, 100% 29.3%, 100% 70.7%, 70.7% 100%, 29.3% 100%, 0% 70.7%, 0% 29.3%)' }}>
-                  <motion.div animate={{ rotate: reducedMotion ? 0 : 360 }} transition={{ repeat: Infinity, duration: 25, ease: 'linear' }} className="pointer-events-none absolute inset-0 flex items-center justify-center"><svg className="h-[92%] w-[92%]" viewBox="0 0 360 360"><defs><path id="centerCirclePath" d="M 180, 180 m -130, 0 a 130,130 0 1,1 260,0 a 130,130 0 1,1 -260,0" /></defs><text className="fill-white text-[21px] font-extrabold tracking-[0.14em]"><textPath href="#centerCirclePath" startOffset="0%" textLength="816" lengthAdjust="spacing">{'•\u00A0Creative Inside\u00A0•\u00A0Impact Outside\u00A0'}</textPath></text></svg></motion.div>
-                  <motion.div animate={{ rotate: reducedMotion ? 0 : -360 }} transition={{ repeat: Infinity, duration: 20, ease: 'linear' }} className="relative z-10 flex h-32 w-32 items-center justify-center"><img src={logoDarkTheme} alt="Uni-Inside Logo" className="h-full w-full object-contain drop-shadow-lg" /></motion.div>
-                </motion.div>
-                {fanSlots.map((slot) => <FanCard key={slot} slot={slot} active={activeSlot === slot} interactive={!switching && Math.abs(slot - centerSlot) <= 4} flipped={flipped} deckShift={deckShift} spacing={spacing} origin={transformOrigin} width={fanWidth} moving={isTeamInView && pageVisible && !reducedMotion && activeSlot === null} onClick={selectFan} />)}
-              </div>
-            </motion.div>
-          ) : (
-            <motion.div key="ring" initial={{ opacity: 0, scale: reducedMotion ? 1 : 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: reducedMotion ? 1 : 0.9 }} transition={transition} className="absolute inset-0 flex items-start justify-center pt-16 pointer-events-none" style={{ pointerEvents: switching ? 'none' : 'auto', touchAction: 'pan-y', cursor: 'grab' }} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={endDrag} onPointerCancel={endDrag}>
-              <motion.div data-team-ring className="relative h-[min(300px,45vh)] w-full" style={{ rotateY: ringRotation, rotateX: -8, transformStyle: 'preserve-3d', transformOrigin: 'center center', willChange: isTeamInView && pageVisible && !reducedMotion ? 'transform' : 'auto' }}>
-                {members.map((_, index) => <RingCard key={index} index={index} width={ringWidth} radius={ringRadius} rotation={ringRotation} flipped={ringFlipped.has(index)} onClick={selectRing} />)}
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+
+      <div
+        ref={viewportRef}
+        className="sticky top-[96px] z-40 w-full max-w-full overflow-visible"
+        style={{ height: metrics.stageHeight, perspective: Math.max(560, metrics.ringRadius * 2.5), perspectiveOrigin: '50% 50%', touchAction: mode === 'ring' ? 'pan-y' : 'auto' }}
+        onClick={() => {
+          if (mode === 'fan' && selectedIndex !== null && !morphing) {
+            setSelectedIndex(null);
+            setNormalFlipped(false);
+          }
+        }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerEnd}
+        onPointerCancel={onPointerEnd}
+      >
+        <motion.button
+          type="button"
+          onClick={(event) => { event.stopPropagation(); switchMode(); }}
+          onPointerDown={(event) => event.stopPropagation()}
+          disabled={morphing}
+          aria-label={mode === 'fan' ? 'Switch to ring view' : 'Switch to fan view'}
+          aria-pressed={mode === 'ring'}
+          title={mode === 'fan' ? 'Ring view' : 'Fan view'}
+          className="absolute right-4 top-2 z-50 grid h-14 min-w-[72px] place-items-center rounded-xl p-1 transition-transform hover:scale-105 focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[#f9d02d] disabled:cursor-wait"
+        >
+          <motion.img
+            src={iconMode === 'fan' ? normalModeIcon : ringModeIcon}
+            alt=""
+            draggable={false}
+            className="h-10 w-16 object-contain"
+            style={{ opacity: iconOpacity }}
+          />
+        </motion.button>
+        <motion.div
+          aria-hidden="true"
+          className="pointer-events-none absolute left-1/2 top-0 flex items-center justify-center bg-[#202121] shadow-[0_25px_60px_rgba(0,0,0,0.7)]"
+          style={{
+            width: metrics.badgeSize,
+            height: metrics.badgeSize,
+            x: -metrics.badgeSize / 2,
+            y: badgeY,
+            z: -16,
+            opacity: badgeOpacity,
+            scale: badgeScale,
+            zIndex: 5,
+            clipPath: 'polygon(29.3% 0%, 70.7% 0%, 100% 29.3%, 100% 70.7%, 70.7% 100%, 29.3% 100%, 0% 70.7%, 0% 29.3%)',
+          }}
+        >
+          <motion.div style={{ rotate: badgeTextRotation }} className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <svg className="h-[92%] w-[92%]" viewBox="0 0 360 360">
+              <defs><path id="teamCenterCirclePath" d="M 180, 180 m -130, 0 a 130,130 0 1,1 260,0 a 130,130 0 1,1 -260,0" /></defs>
+              <text className="fill-white text-[21px] font-extrabold tracking-[0.14em]">
+                <textPath href="#teamCenterCirclePath" startOffset="0%" textLength="816" lengthAdjust="spacing">{'•\u00A0Creative Inside\u00A0•\u00A0Impact Outside\u00A0'}</textPath>
+              </text>
+            </svg>
+          </motion.div>
+          <motion.div style={{ rotate: badgeLogoRotation }} className="relative z-10 flex h-32 w-32 items-center justify-center">
+            <img src={logoDarkTheme} alt="Uni-Inside Logo" className="h-full w-full object-contain drop-shadow-lg" />
+          </motion.div>
+        </motion.div>
+
+        {members.map((member, index) => {
+          const flipped = mode === 'fan'
+            ? selectedIndex === index && normalFlipped
+            : ringFlipped.has(index);
+          return (
+            <TeamCard
+              key={index}
+              index={index}
+              member={member}
+              metrics={metrics}
+              sectionProgress={sectionProgress}
+              normalRotation={normalRotation}
+              ringRotation={ringRotation}
+              modeMorph={modeMorph}
+              currentMode={mode}
+              morphing={morphing}
+              flipped={flipped}
+              selected={mode === 'fan' && selectedIndex === index}
+              reducedMotion={reducedMotion}
+              onActivate={activateCard}
+            />
+          );
+        })}
       </div>
-      {mode === 'fan' && activeSlot !== null && <div className="fixed inset-0 z-30" onClick={() => { setActiveSlot(null); activeProgress.current = null; setFlipped(false); }} />}
     </div>
   );
 });
+
 OurTeamSection.displayName = 'OurTeamSection';
