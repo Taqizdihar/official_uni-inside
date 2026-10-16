@@ -31,7 +31,7 @@ export const NewsPage: React.FC = () => {
   };
 
   return (
-    <div className="w-full min-h-screen bg-[#f0f0f0] relative z-50 flex flex-col">
+    <div className="w-full min-h-screen bg-[#f0f0f0] relative flex flex-col">
       {/* Navbar (Static version for News Page) */}
       <nav 
         className="fixed top-0 left-0 w-full flex justify-between items-center px-8 lg:px-12 py-8 z-[100]"

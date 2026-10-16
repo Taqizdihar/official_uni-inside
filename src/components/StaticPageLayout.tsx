@@ -31,7 +31,7 @@ export const BackToLandingLink = () => (
 );
 
 export const StaticPageLayout: React.FC<StaticPageLayoutProps> = ({ activePage, children }) => (
-  <div className="relative z-50 flex min-h-screen w-screen max-w-screen min-w-0 flex-col overflow-x-hidden bg-[#f0f0f0]">
+  <div className="relative flex min-h-screen w-screen max-w-screen min-w-0 flex-col overflow-x-hidden bg-[#f0f0f0]">
     <nav
       aria-label="Primary navigation"
       className="fixed top-0 left-0 z-[100] flex w-full items-center justify-between px-8 py-8 lg:px-12"

@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import App from './App.tsx';
 import './index.css';
 import { AboutStoryProvider } from './components/AboutStoryProvider.tsx';
+import { GlobalScrollIndicator } from './components/GlobalScrollIndicator.tsx';
 
 const NewsPage = lazy(() => import('./pages/NewsPage').then(({ NewsPage: Page }) => ({ default: Page })));
 const MediaKitPage = lazy(() => import('./pages/MediaKitPage').then(({ MediaKitPage: Page }) => ({ default: Page })));
@@ -162,6 +163,7 @@ createRoot(document.getElementById('root')!).render(
         <AboutStoryProvider>
           <RouteDocumentState />
           <AnimatedRoutes />
+          <GlobalScrollIndicator />
         </AboutStoryProvider>
       </RouteTransitionProvider>
     </BrowserRouter>
