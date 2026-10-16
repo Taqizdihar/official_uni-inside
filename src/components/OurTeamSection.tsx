@@ -76,20 +76,22 @@ const FanCard = React.memo(({ slot, active, interactive, flipped, deckShift, spa
   const opacity = useTransform(() => Math.min(1, Math.max(0, (105 + 80 * orbitProgress.get() - Math.abs(angle.get())) / 12)));
   const cardWidth = useTransform(() => width + ((active ? detailWidth : orbitWidth) - width) * orbitProgress.get());
   const cardHeight = useTransform(cardWidth, (value) => value * 1.25);
-  const cardRotation = useTransform(() => angle.get() * (1 - orbitProgress.get()));
+  // Keep the original playing-card fan orientation as the deck opens into
+  // the orbit. Uprighting each card here turns the formation into columns.
+  const cardRotation = angle;
   const x = useTransform(() => {
     const radians = angle.get() * Math.PI / 180;
     const progress = orbitProgress.get();
-    const rotated = radians * (1 - progress);
-    const target = (1 - progress) * radius.get() * Math.sin(radians) + progress * orbitRadiusX * Math.sin(radians);
-    return target - radius.get() * Math.sin(rotated) + (width - cardWidth.get()) / 2;
+    const cardCenterOffset = cardWidth.get() * Math.cos(radians) / 2 - cardHeight.get() * Math.sin(radians) / 2;
+    const orbitX = orbitRadiusX * Math.sin(radians) + width / 2 - cardCenterOffset - radius.get() * Math.sin(radians);
+    return progress * orbitX;
   });
   const y = useTransform(() => {
     const radians = angle.get() * Math.PI / 180;
     const progress = orbitProgress.get();
-    const rotated = radians * (1 - progress);
-    const target = (1 - progress) * radius.get() * (1 - Math.cos(radians)) + progress * (orbitCenterY - orbitRadiusY * Math.cos(radians) - cardHeight.get() / 2);
-    return target - radius.get() * (1 - Math.cos(rotated));
+    const cardCenterOffset = cardWidth.get() * Math.sin(radians) / 2 + cardHeight.get() * Math.cos(radians) / 2;
+    const orbitY = orbitCenterY - orbitRadiusY * Math.cos(radians) - cardCenterOffset - radius.get() * (1 - Math.cos(radians));
+    return progress * orbitY;
   });
   const depth = useTransform(proximity, (value) => value * 64);
   const scale = useTransform(proximity, (value) => 0.91 + value * 0.09);
@@ -150,7 +152,7 @@ const RingCard = React.memo(({ index, width, radius, depth, rotation, flipped, o
 });
 
 const ModeIcon = ({ mode }: { mode: TeamViewMode }) => (
-  <span className="relative block h-11 w-11" aria-hidden="true">
+  <span className="relative block h-[88px] w-[88px]" aria-hidden="true">
     <img src={normalModeIcon} alt="" className={`absolute inset-0 h-full w-full object-contain transition-opacity duration-300 motion-reduce:transition-none ${mode === 'fan' ? 'opacity-100' : 'opacity-0'}`} />
     <img src={ringModeIcon} alt="" className={`absolute inset-0 h-full w-full object-contain transition-opacity duration-300 motion-reduce:transition-none ${mode === 'ring' ? 'opacity-100' : 'opacity-0'}`} />
   </span>
@@ -185,7 +187,7 @@ export const OurTeamSection = forwardRef<HTMLDivElement>((_, ref) => {
   const spacing = useTransform(scrollYProgress, [0, 0.15], [10, 40]);
   const orbitProgress = useTransform(scrollYProgress, [0, 0.12, 0.32, 1], [0, 0, 1, 1]);
   const fanWidth = Math.min(360, Math.max(210, viewportWidth * 0.58));
-  const orbitWidth = Math.min(260, Math.max(132, viewportWidth * 0.19));
+  const orbitWidth = Math.min(300, Math.max(132, viewportWidth * 0.265));
   const orbitRadiusX = Math.max(100, (viewportWidth - orbitWidth) / 2 - 12);
   const stageHeight = Math.min(750, window.innerHeight * 0.95);
   const orbitRadiusY = Math.min(220, stageHeight * 0.28);
@@ -341,10 +343,10 @@ export const OurTeamSection = forwardRef<HTMLDivElement>((_, ref) => {
 
   return (
     <div ref={setRefs} id="our-team" className="relative z-20 flex min-h-[300vh] w-full flex-col items-center overflow-x-clip pt-[clamp(120px,18vh,180px)] pb-40">
-      <div className="relative z-50 mb-20 flex w-full flex-col items-center px-4 text-center sm:px-8">
+      <div className="relative z-30 mb-20 flex w-full flex-col items-center px-4 text-center sm:px-8">
         <div className="flex max-w-full items-center justify-center gap-3 sm:gap-5">
           <h2 className="min-w-0 text-[clamp(2.2rem,6vw,6.875rem)] leading-none font-black tracking-tight text-white uppercase drop-shadow-2xl">MEET OUR TEAM</h2>
-          <button type="button" onClick={switchMode} disabled={switching} aria-label={mode === 'fan' ? 'Switch to ring view' : 'Switch to fan view'} aria-pressed={mode === 'ring'} title={mode === 'fan' ? 'Ring view' : 'Fan view'} className="relative z-50 grid h-12 w-12 shrink-0 place-items-center rounded-full focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[#f9d02d]"><ModeIcon mode={mode} /></button>
+          <button type="button" onClick={switchMode} disabled={switching} aria-label={mode === 'fan' ? 'Switch to ring view' : 'Switch to fan view'} aria-pressed={mode === 'ring'} title={mode === 'fan' ? 'Ring view' : 'Fan view'} className="relative z-50 grid h-24 w-24 shrink-0 place-items-center rounded-full focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[#f9d02d]"><ModeIcon mode={mode} /></button>
         </div>
         <motion.p animate={{ opacity: mode === 'fan' && activeSlot !== null ? 0 : 1 }} className="mt-4 text-base font-medium tracking-wide text-white/80 sm:text-xl lg:text-2xl">{mode === 'fan' ? 'Click for preview, click again for details!' : 'Drag to rotate • Click a card for details'}</motion.p>
       </div>
