@@ -8,7 +8,7 @@ import { AboutComplexLogoParallax } from './about/AboutComplexLogoParallax';
 
 const AboutIntroContent: React.FC<{ shouldFloat: boolean; parallaxActive: boolean; interactive: boolean }> = ({ shouldFloat, parallaxActive, interactive }) => {
   return (
-    <section aria-label="About Us" aria-hidden={!interactive || undefined} className="mx-auto grid w-full max-w-7xl grid-cols-1 items-center gap-8 px-6 pt-24 pb-10 sm:px-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1fr)] lg:gap-14 lg:px-10 lg:pt-[clamp(7.5rem,15vh,9.5rem)] lg:pb-4 2xl:max-w-[88rem] 2xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1fr)] 2xl:gap-16 2xl:translate-y-12 2xl:scale-[1.08]">
+    <section aria-label="About Us" aria-hidden={!interactive || undefined} className="mx-auto grid w-full max-w-7xl grid-cols-1 items-center gap-8 px-6 pt-24 pb-10 sm:px-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1fr)] lg:gap-14 lg:px-10 lg:pt-[clamp(7.5rem,15vh,9.5rem)] lg:pb-4 2xl:max-w-[88rem] 2xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1fr)] 2xl:gap-16 2xl:-translate-y-16 2xl:scale-[1.08]">
       <div className="order-1 flex min-h-[15rem] items-center justify-center overflow-hidden lg:min-h-0">
         {interactive ? (
           <motion.div
@@ -44,7 +44,7 @@ const AboutIntroContent: React.FC<{ shouldFloat: boolean; parallaxActive: boolea
           We are a Bandung-based creative technology studio where visual production, digital experimentation, and 3D fabrication meet. We collaborate to turn ideas into stories, systems, and physical products with purpose.
         </p>
         <p aria-label="Studio disciplines" className="mt-3 w-full max-w-[35rem] border-t-2 border-[#202121] pt-2 text-[clamp(0.7rem,1.55vw,1rem)] font-extrabold leading-tight tracking-[-0.015em] 2xl:text-[clamp(1rem,1.55vw,1.1rem)]">
-          <span className="block w-full bg-[#f9d02d] px-1 py-1">MULTIMEDIA • CREATIVE TECHNOLOGY • 3D PRINTING</span>
+          <span className="block w-full bg-[#f9d02d] px-1 py-1 text-justify [text-align-last:justify]">MULTIMEDIA • CREATIVE TECHNOLOGY • 3D PRINTING</span>
         </p>
       </div>
     </section>
