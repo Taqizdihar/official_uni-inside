@@ -1,4 +1,4 @@
-import React, { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { forwardRef, useCallback, useEffect, useRef, useState } from 'react';
 import { animate, AnimatePresence, motion, useAnimationFrame, useInView, useMotionValue, useMotionValueEvent, useReducedMotion, useScroll, useSpring, useTransform } from 'motion/react';
 import type { MotionValue } from 'motion/react';
 import { RiGithubLine, RiInstagramLine, RiLinkedinLine, RiTwitterXLine } from 'react-icons/ri';
@@ -62,53 +62,30 @@ const CardFaces = React.memo(({ member, flipped, interactive, prominent = false,
   </motion.div>;
 });
 
-const FanCard = React.memo(({ slot, active, interactive, flipped, deckShift, spacing, origin, radius, orbitProgress, orbitWidth, orbitRadiusX, orbitRadiusY, orbitCenterY, detailWidth, width, moving, onClick }: {
+const FanCard = React.memo(({ slot, active, interactive, flipped, deckShift, spacing, origin, moving, onClick }: {
   slot: number; active: boolean; interactive: boolean; flipped: boolean;
-  deckShift: MotionValue<number>; spacing: MotionValue<number>; origin: MotionValue<string>; radius: MotionValue<number>; orbitProgress: MotionValue<number>;
-  orbitWidth: number; orbitRadiusX: number; orbitRadiusY: number; orbitCenterY: number; detailWidth: number;
-  width: number; moving: boolean; onClick: (slot: number) => void;
+  deckShift: MotionValue<number>; spacing: MotionValue<number>; origin: MotionValue<string>;
+  moving: boolean; onClick: (slot: number) => void;
 }) => {
   const member = members[memberForSlot(slot)];
-  // The slot's angle is never wrapped. A card enters and leaves beyond the
-  // viewport, so the repeated member sequence has no teleport boundary.
-  const angle = useTransform(() => (slot + deckShift.get()) * spacing.get());
+  // The nine cards use the original wrapped fan positions from 25dc0105.
+  const angle = useTransform(() => {
+    const position = slot + deckShift.get();
+    const wrappedPosition = ((((position + 4.5) % 9) + 9) % 9) - 4.5;
+    return wrappedPosition * spacing.get();
+  });
   const proximity = useTransform(angle, (value) => Math.max(0, 1 - Math.abs(value) / 65));
-  const opacity = useTransform(() => Math.min(1, Math.max(0, (105 + 80 * orbitProgress.get() - Math.abs(angle.get())) / 12)));
-  const cardWidth = useTransform(() => width + ((active ? detailWidth : orbitWidth) - width) * orbitProgress.get());
-  const cardHeight = useTransform(cardWidth, (value) => value * 1.25);
-  // Keep the original playing-card fan orientation as the deck opens into
-  // the orbit. Uprighting each card here turns the formation into columns.
-  const cardRotation = angle;
-  const x = useTransform(() => {
-    const radians = angle.get() * Math.PI / 180;
-    const progress = orbitProgress.get();
-    const cardCenterOffset = cardWidth.get() * Math.cos(radians) / 2 - cardHeight.get() * Math.sin(radians) / 2;
-    const orbitX = orbitRadiusX * Math.sin(radians) + width / 2 - cardCenterOffset - radius.get() * Math.sin(radians);
-    return progress * orbitX;
-  });
-  const y = useTransform(() => {
-    const radians = angle.get() * Math.PI / 180;
-    const progress = orbitProgress.get();
-    const cardCenterOffset = cardWidth.get() * Math.sin(radians) / 2 + cardHeight.get() * Math.cos(radians) / 2;
-    const orbitY = orbitCenterY - orbitRadiusY * Math.cos(radians) - cardCenterOffset - radius.get() * (1 - Math.cos(radians));
-    return progress * orbitY;
-  });
-  const depth = useTransform(proximity, (value) => value * 64);
-  const scale = useTransform(proximity, (value) => 0.91 + value * 0.09);
-  const raise = useTransform(proximity, (value) => -value * 14);
-  // The discrete stack order changes when adjacent cards are at equal depth.
-  // Their continuous Z, scale, and lift are equal at that crossing.
   const zIndex = useTransform(angle, (value) => active ? 1000 : 400 - Math.round(Math.abs(value) * 2));
   const highlightTarget = useMotionValue(active ? 1 : 0);
   const highlight = useSpring(highlightTarget, { stiffness: 60, damping: 15 });
   useEffect(() => highlightTarget.set(active ? 1 : 0), [active, highlightTarget]);
-  const inverseRotation = useTransform(() => -cardRotation.get() * highlight.get());
+  const inverseRotation = useTransform(() => -angle.get() * highlight.get());
   return (
-    <motion.div className="absolute top-0" style={{ left: -width / 2, x, y, rotate: cardRotation, transformOrigin: origin, opacity, zIndex, pointerEvents: interactive ? 'auto' : 'none', willChange: moving ? 'transform' : 'auto' }}>
+    <motion.div className="absolute top-0" style={{ left: -180, rotate: angle, transformOrigin: origin, zIndex, pointerEvents: interactive ? 'auto' : 'none', willChange: moving ? 'transform' : 'auto' }}>
       <motion.div
         className="relative block rounded-2xl"
-        style={{ width: cardWidth, height: cardHeight, perspective: 1200, rotate: inverseRotation, z: active ? 0 : depth, scale, y: raise, pointerEvents: interactive ? 'auto' : 'none' }}
-        animate={{ translateY: active ? -width * 0.45 * (1 - orbitProgress.get()) + orbitProgress.get() * (orbitWidth < 160 ? 120 : 80) : 0 }}
+        style={{ width: 360, height: 450, perspective: 1200, rotate: inverseRotation, pointerEvents: interactive ? 'auto' : 'none' }}
+        animate={{ translateY: active ? -250 : 0, scale: active ? 0.99 : 1 }}
         transition={{ duration: 0.65, ease: 'easeOut' }}
       >
         <motion.span aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-2xl shadow-[0_30px_70px_rgba(0,0,0,0.7)]" style={{ opacity: proximity }} />
@@ -172,10 +149,6 @@ export const OurTeamSection = forwardRef<HTMLDivElement>((_, ref) => {
   const [activeSlot, setActiveSlot] = useState<number | null>(null);
   const [flipped, setFlipped] = useState(false);
   const [ringFlipped, setRingFlipped] = useState<Set<number>>(() => new Set());
-  const [centerSlot, setCenterSlot] = useState(0);
-  const centerSlotRef = useRef(0);
-  const [overscan, setOverscan] = useState(14);
-  const overscanRef = useRef(14);
   const activeProgress = useRef<number | null>(null);
   const deckShift = useMotionValue(0);
   const ringRotation = useMotionValue(0);
@@ -185,18 +158,10 @@ export const OurTeamSection = forwardRef<HTMLDivElement>((_, ref) => {
   const suppressClickUntil = useRef(0);
   const { scrollYProgress } = useScroll({ target: containerRef, offset: ['start start', 'end end'] });
   const spacing = useTransform(scrollYProgress, [0, 0.15], [10, 40]);
-  const orbitProgress = useTransform(scrollYProgress, [0, 0.12, 0.32, 1], [0, 0, 1, 1]);
-  const fanWidth = Math.min(360, Math.max(210, viewportWidth * 0.58));
-  const orbitWidth = Math.min(300, Math.max(132, viewportWidth * 0.265));
-  const orbitRadiusX = Math.max(100, (viewportWidth - orbitWidth) / 2 - 12);
-  const stageHeight = Math.min(750, window.innerHeight * 0.95);
-  const orbitRadiusY = Math.min(220, stageHeight * 0.28);
-  const orbitCenterY = stageHeight / 2;
   const ringWidth = Math.min(320, Math.max(150, viewportWidth * 0.167));
-  const radiusBase = Math.max(520, viewportWidth / 2 + fanWidth / 2 + 30);
-  const radius = useTransform(scrollYProgress, [0, 0.5, 1], [radiusBase, radiusBase * 0.78, radiusBase]);
+  const radius = useTransform(scrollYProgress, [0, 0.5, 1], [1000, 700, 1000]);
   const transformOrigin = useTransform(radius, (value) => `50% ${value}px`);
-  const badgeY = useTransform(() => radius.get() - 180 + (orbitCenterY - radius.get()) * orbitProgress.get());
+  const badgeY = useTransform(radius, (value) => value - 180);
   const ringRadius = Math.min(viewportWidth * 0.425, (viewportWidth - ringWidth * 0.45) / 2 - (viewportWidth < 600 ? 24 : 8));
   const ringDepth = viewportWidth * 0.26;
   const setRefs = useCallback((node: HTMLDivElement | null) => {
@@ -214,22 +179,6 @@ export const OurTeamSection = forwardRef<HTMLDivElement>((_, ref) => {
     return () => observer.disconnect();
   }, []);
 
-  useMotionValueEvent(deckShift, 'change', (value) => {
-    const next = Math.round(-value);
-    if (next !== centerSlotRef.current) {
-      centerSlotRef.current = next;
-      setCenterSlot(next);
-    }
-  });
-  const syncOverscan = () => {
-    const next = Math.ceil((105 + 80 * orbitProgress.get()) / Math.max(spacing.get(), 1)) + 4;
-    if (next !== overscanRef.current) {
-      overscanRef.current = next;
-      setOverscan(next);
-    }
-  };
-  useMotionValueEvent(spacing, 'change', syncOverscan);
-  useMotionValueEvent(orbitProgress, 'change', syncOverscan);
   useMotionValueEvent(scrollYProgress, 'change', (value) => {
     if (mode !== 'fan' || activeSlot === null || activeProgress.current === null) return;
     const delta = Math.max(0, value - activeProgress.current - 0.05);
@@ -338,7 +287,7 @@ export const OurTeamSection = forwardRef<HTMLDivElement>((_, ref) => {
     }
     releaseRingPointer();
   };
-  const fanSlots = useMemo(() => Array.from({ length: overscan * 2 + 1 }, (_, index) => centerSlot - overscan + index), [centerSlot, overscan]);
+  const fanSlots = [-4, -3, -2, -1, 0, 1, 2, 3, 4];
   const transition = { duration: reducedMotion ? 0.15 : 0.75, ease: 'easeInOut' as const };
 
   return (
@@ -350,17 +299,17 @@ export const OurTeamSection = forwardRef<HTMLDivElement>((_, ref) => {
         </div>
         <motion.p animate={{ opacity: mode === 'fan' && activeSlot !== null ? 0 : 1 }} className="mt-4 text-base font-medium tracking-wide text-white/80 sm:text-xl lg:text-2xl">{mode === 'fan' ? 'Click for preview, click again for details!' : 'Drag to rotate • Click a card for details'}</motion.p>
       </div>
-      <div ref={viewportRef} className="sticky top-[min(8vh,72px)] z-40 h-[min(750px,95vh)] w-full max-w-full overflow-visible" style={{ perspective: mode === 'ring' ? Math.max(850, viewportWidth * 0.94) : undefined }}>
+      <div ref={viewportRef} className={`z-40 w-full max-w-full overflow-visible ${mode === 'fan' ? 'relative -mt-32 h-[600px]' : 'sticky top-[min(8vh,72px)] h-[min(750px,95vh)]'}`} style={{ perspective: mode === 'ring' ? Math.max(850, viewportWidth * 0.94) : undefined }}>
         <AnimatePresence initial={false} mode="sync">
           {mode === 'fan' ? (
             <motion.div key="fan" initial={{ opacity: 0, scale: reducedMotion ? 1 : 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: reducedMotion ? 1 : 0.98 }} transition={transition} className="absolute inset-0 flex justify-center" style={{ pointerEvents: switching ? 'none' : 'auto' }} onClick={() => { if (activeSlot !== null) { setActiveSlot(null); activeProgress.current = null; setFlipped(false); } }}>
-              <div className="relative h-0 w-0" style={{ transformStyle: 'preserve-3d', perspective: 1600 }}>
-                <motion.div initial={{ opacity: 0, scale: 0.3 }} whileInView={{ opacity: 1, scale: Math.min(1, Math.max(0.45, viewportWidth / 1200)) }} viewport={{ once: false, amount: 0.3 }} transition={{ duration: 0.8, ease: 'backOut' }} className="absolute flex h-[360px] w-[360px] items-center justify-center bg-[#202121] shadow-[0_25px_60px_rgba(0,0,0,0.7)]" style={{ left: -180, y: badgeY, zIndex: 510, clipPath: 'polygon(29.3% 0%, 70.7% 0%, 100% 29.3%, 100% 70.7%, 70.7% 100%, 29.3% 100%, 0% 70.7%, 0% 29.3%)' }}>
+              <motion.div className="relative h-0 w-0" style={{ transformOrigin, scale: 0.85, transformStyle: 'preserve-3d', perspective: 1600 }}>
+                <motion.div initial={{ opacity: 0, scale: 0.3 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: false, amount: 0.3 }} transition={{ duration: 0.8, ease: 'backOut' }} className="absolute flex h-[360px] w-[360px] items-center justify-center bg-[#202121] shadow-[0_25px_60px_rgba(0,0,0,0.7)]" style={{ left: -180, y: badgeY, zIndex: 510, clipPath: 'polygon(29.3% 0%, 70.7% 0%, 100% 29.3%, 100% 70.7%, 70.7% 100%, 29.3% 100%, 0% 70.7%, 0% 29.3%)' }}>
                   <motion.div animate={{ rotate: reducedMotion ? 0 : 360 }} transition={{ repeat: Infinity, duration: 25, ease: 'linear' }} className="pointer-events-none absolute inset-0 flex items-center justify-center"><svg className="h-[92%] w-[92%]" viewBox="0 0 360 360"><defs><path id="centerCirclePath" d="M 180, 180 m -130, 0 a 130,130 0 1,1 260,0 a 130,130 0 1,1 -260,0" /></defs><text className="fill-white text-[21px] font-extrabold tracking-[0.14em]"><textPath href="#centerCirclePath" startOffset="0%" textLength="816" lengthAdjust="spacing">{'•\u00A0Creative Inside\u00A0•\u00A0Impact Outside\u00A0'}</textPath></text></svg></motion.div>
                   <motion.div animate={{ rotate: reducedMotion ? 0 : -360 }} transition={{ repeat: Infinity, duration: 20, ease: 'linear' }} className="relative z-10 flex h-32 w-32 items-center justify-center"><img src={logoDarkTheme} alt="Uni-Inside Logo" className="h-full w-full object-contain drop-shadow-lg" /></motion.div>
                 </motion.div>
-                {fanSlots.map((slot) => <FanCard key={slot} slot={slot} active={activeSlot === slot} interactive={!switching && Math.abs(slot - centerSlot) <= 4} flipped={flipped} deckShift={deckShift} spacing={spacing} origin={transformOrigin} radius={radius} orbitProgress={orbitProgress} orbitWidth={orbitWidth} orbitRadiusX={orbitRadiusX} orbitRadiusY={orbitRadiusY} orbitCenterY={orbitCenterY} detailWidth={Math.min(viewportWidth - 28, 300)} width={fanWidth} moving={isTeamInView && pageVisible && !reducedMotion && activeSlot === null} onClick={selectFan} />)}
-              </div>
+                {fanSlots.map((slot) => <FanCard key={slot} slot={slot} active={activeSlot === slot} interactive={!switching} flipped={flipped} deckShift={deckShift} spacing={spacing} origin={transformOrigin} moving={isTeamInView && pageVisible && !reducedMotion && activeSlot === null} onClick={selectFan} />)}
+              </motion.div>
             </motion.div>
           ) : (
             <motion.div ref={ringStageRef} key="ring" initial={{ opacity: 0, scale: reducedMotion ? 1 : 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: reducedMotion ? 1 : 0.9 }} transition={transition} className="absolute inset-0 flex items-start justify-center pt-20 md:pt-32 pointer-events-none" style={{ pointerEvents: switching ? 'none' : 'auto', touchAction: 'pan-y', cursor: 'grab', transformStyle: 'preserve-3d' }} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={endDrag} onPointerCancel={endDrag}>
