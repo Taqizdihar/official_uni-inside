@@ -147,8 +147,8 @@ export function GlobalScrollIndicator() {
       ref={elementRef}
       data-global-scroll-indicator
       aria-hidden="true"
-      className="pointer-events-none fixed top-0 z-[60] h-[clamp(132px,15vw,216px)] w-[clamp(132px,15vw,216px)] max-h-[24vh] max-w-[24vh] transition-opacity duration-300"
-      style={{ right: 'max(-38px, calc(env(safe-area-inset-right) - 38px))', opacity: scrollable && visible ? 1 : 0, visibility: scrollable ? 'visible' : 'hidden' }}
+      className="fixed right-[max(3px,env(safe-area-inset-right))] top-0 z-[60] h-[clamp(44px,5vw,72px)] w-[clamp(44px,5vw,72px)] pointer-events-none transition-opacity duration-300"
+      style={{ opacity: scrollable && visible ? 1 : 0, visibility: scrollable ? 'visible' : 'hidden' }}
     >
       <div className="h-full w-full rotate-90 transition-[filter] duration-300" style={{ filter: light ? 'brightness(0)' : 'brightness(0) invert(1)' }}>
         <Lottie lottieRef={lottieRef} animationData={animationData} loop={!reducedMotion} autoplay={!reducedMotion} className="h-full w-full" />

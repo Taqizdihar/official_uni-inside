@@ -644,7 +644,7 @@ export default function App() {
 
   return (
     <motion.div
-      className="w-full relative font-sans overflow-x-clip min-h-screen"
+      className="w-full relative font-sans overflow-hidden min-h-screen"
       style={{ backgroundColor: finalBg, '--scrollstory-bg': finalBg } as MotionStyle}
     >
       <link rel="preload" as="image" href={logoDarkTheme} />
