@@ -136,8 +136,8 @@ const FanCard = React.memo(({ slot, active, interactive, flipped, deckShift, spa
   );
 });
 
-const RingCard = React.memo(({ index, width, radius, rotation, flipped, reducedMotion, onClick }: {
-  index: number; width: number; radius: number; rotation: MotionValue<number>;
+const RingCard = React.memo(({ index, width, radius, sideSpread, rotation, flipped, reducedMotion, onClick }: {
+  index: number; width: number; radius: number; sideSpread: number; rotation: MotionValue<number>;
   flipped: boolean; reducedMotion: boolean; onClick: (index: number) => void;
 }) => {
   const [front, setFront] = useState(true);
@@ -145,6 +145,14 @@ const RingCard = React.memo(({ index, width, radius, rotation, flipped, reducedM
   const member = members[index];
   const detailWidth = flipped && width < 200 ? 225 : width;
   const detailHeight = detailWidth * 1.25;
+  const position = useTransform(rotation, (value) => {
+    const turn = angle + value;
+    const sine = Math.sin(turn * Math.PI / 180);
+    const cosine = Math.cos(turn * Math.PI / 180);
+    // Widen only the side/rear silhouette; the three front cards keep their gap.
+    const x = radius * sine + sideSpread * Math.sign(sine) * Math.abs(sine) ** 10;
+    return `translate3d(${x}px, 0, ${radius * cosine}px) rotateY(${turn}deg)`;
+  });
   const updateFacing = useCallback(() => {
     setFront((current) => {
       const next = Math.abs(normalizedAngle(rotation.get() + angle)) < 78;
@@ -154,7 +162,7 @@ const RingCard = React.memo(({ index, width, radius, rotation, flipped, reducedM
   useEffect(updateFacing, [updateFacing]);
   useMotionValueEvent(rotation, 'change', updateFacing);
   return (
-    <div data-team-member={index} data-team-index={index} aria-hidden={!front || undefined} className="absolute top-1/2 left-1/2" style={{ width, height: width * 1.25, marginLeft: -width / 2, marginTop: -width * 0.625, transform: `rotateY(${angle}deg) translateZ(${radius}px)`, transformStyle: 'preserve-3d', pointerEvents: front ? 'auto' : 'none', zIndex: flipped && front ? 100 : 0 }}>
+    <motion.div data-team-member={index} data-team-index={index} aria-hidden={!front || undefined} className="absolute top-1/2 left-1/2" style={{ width, height: width * 1.25, marginLeft: -width / 2, marginTop: -width * 0.625, transform: position, transformStyle: 'preserve-3d', pointerEvents: front ? 'auto' : 'none', zIndex: flipped && front ? 100 : 0 }}>
       <div className="relative block rounded-2xl" style={{ width: detailWidth, height: detailHeight, marginLeft: -(detailWidth - width) / 2, marginTop: -(detailHeight - width * 1.25) / 2, transformStyle: 'preserve-3d', userSelect: 'none', WebkitUserSelect: 'none', transition: reducedMotion ? 'none' : 'width 220ms ease, height 220ms ease, margin 220ms ease' }}>
         <CardFaces member={member} flipped={flipped} interactive={front} mode="ring" reducedMotion={reducedMotion} onActivate={() => onClick(index)} />
         <div aria-hidden="true" className="absolute inset-0 overflow-hidden rounded-2xl border-4 border-[#f9d02d]/70 bg-[#202121] shadow-[0_20px_45px_rgba(0,0,0,0.45)]" style={{ transform: 'rotateY(180deg) translateZ(3px)', backfaceVisibility: 'hidden', backgroundImage: 'repeating-linear-gradient(45deg,transparent 0,transparent 20px,rgba(249,208,45,.08) 21px,transparent 23px)' }}>
@@ -163,7 +171,7 @@ const RingCard = React.memo(({ index, width, radius, rotation, flipped, reducedM
           <span className="absolute inset-0 grid place-items-center text-5xl font-black text-[#f9d02d]/25">UNI</span>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 });
 
@@ -214,6 +222,7 @@ export const OurTeamSection = forwardRef<HTMLDivElement>((_, ref) => {
   const badgeY = useTransform(() => mix(radius.get() - (viewportWidth < 640 ? 120 : 180), stageHeight / 2 - (viewportWidth < 640 ? 120 : 180), orbitProgress.get()));
   // A small perspective correction keeps the projected front-card gap near 24px.
   const ringRadius = (ringWidth + (viewportWidth < 640 ? 16 : 20)) / (2 * Math.sin(Math.PI / members.length)) * (viewportWidth < 640 ? 1 : 0.97);
+  const ringSideSpread = Math.max(0, viewportWidth * 0.38 - ringRadius);
   const setRefs = useCallback((node: HTMLDivElement | null) => {
     containerRef.current = node;
     if (typeof ref === 'function') ref(node);
@@ -455,8 +464,8 @@ export const OurTeamSection = forwardRef<HTMLDivElement>((_, ref) => {
               </div>
             </div>
             <div ref={ringRendererRef} data-team-ring-renderer className="absolute inset-0 flex items-start justify-center pt-12 sm:pt-36" style={{ visibility: switching || mode !== 'ring' ? 'hidden' : 'visible', pointerEvents: switching || mode !== 'ring' ? 'none' : 'auto', touchAction: 'pan-y', cursor: 'grab' }} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={endDrag} onPointerCancel={endDrag}>
-              <motion.div data-team-ring className="relative h-[min(300px,45vh)] w-full" style={{ rotateY: ringRotation, rotateX: -8, transformStyle: 'preserve-3d', transformOrigin: 'center center', willChange: isTeamInView && pageVisible && !reducedMotion && mode === 'ring' ? 'transform' : 'auto', scale: viewportWidth < 640 ? 0.85 : 1 }}>
-                {members.map((_, index) => <RingCard key={index} index={index} width={ringWidth} radius={ringRadius} rotation={ringRotation} flipped={ringFlipped.has(index)} reducedMotion={reducedMotion} onClick={selectRing} />)}
+              <motion.div data-team-ring className="relative h-[min(300px,45vh)] w-full" style={{ rotateX: -8, transformStyle: 'preserve-3d', transformOrigin: 'center center', willChange: isTeamInView && pageVisible && !reducedMotion && mode === 'ring' ? 'transform' : 'auto', scale: viewportWidth < 640 ? 0.85 : 1 }}>
+                {members.map((_, index) => <RingCard key={index} index={index} width={ringWidth} radius={ringRadius} sideSpread={ringSideSpread} rotation={ringRotation} flipped={ringFlipped.has(index)} reducedMotion={reducedMotion} onClick={selectRing} />)}
               </motion.div>
             </div>
       </div>
