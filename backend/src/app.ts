@@ -33,7 +33,7 @@ export function createApp(config: Config, db: Pool) {
     if (origin) {
       res.set('Access-Control-Allow-Origin',origin);
       res.set('Access-Control-Allow-Credentials','true');
-      res.set('Vary','Origin');
+      res.vary('Origin');
       res.set('Access-Control-Allow-Headers','Content-Type,X-CSRF-Token,X-Request-Id');
       res.set('Access-Control-Allow-Methods','GET,POST,PATCH,PUT,DELETE,OPTIONS');
     }
@@ -43,8 +43,9 @@ export function createApp(config: Config, db: Pool) {
   }) as RequestHandler);
   app.use(rateLimit({windowMs:config.API_RATE_LIMIT_WINDOW_MINUTES*60_000,limit:config.API_RATE_LIMIT_MAX,standardHeaders:'draft-8',legacyHeaders:false}));
   app.use(express.json({limit:'64kb',strict:true}));
-  app.get(`${config.API_BASE_PATH}/health`,(_req,res)=>res.json({data:{status:'ok'}}));
+  app.get(`${config.API_BASE_PATH}/health`,(_req,res)=>res.set('Cache-Control','no-store').json({data:{status:'ok'}}));
   app.get(`${config.API_BASE_PATH}/ready`,asyncRoute(async (_req,res)=>{
+    res.set('Cache-Control','no-store');
     try {
       await db.query('SELECT 1');
       const status=await migrationStatus(db);

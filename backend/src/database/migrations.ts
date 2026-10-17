@@ -4,6 +4,7 @@ import { join, resolve } from 'node:path';
 import mysql, { type Pool, type RowDataPacket } from 'mysql2/promise';
 import type { Config } from '../config/env';
 import { rows } from './pool';
+import { databaseTlsOptions } from './tls';
 
 const dir = resolve(process.cwd(), 'migrations');
 type Migration = { version: string; name: string; sql: string; checksum: string };
@@ -41,7 +42,7 @@ export async function migrationStatus(pool: Pool) {
   return files.map(file => ({ version: file.version, name: file.name, checksum: file.checksum, applied: applied.find(row => row.version === file.version) ?? null }));
 }
 export async function runMigrations(config: Config) {
-  const ssl = config.DB_SSL_MODE === 'required' ? { rejectUnauthorized: true, ...(config.DB_SSL_CA_BASE64 ? { ca: Buffer.from(config.DB_SSL_CA_BASE64, 'base64').toString('utf8') } : {}) } : undefined;
+  const ssl = databaseTlsOptions(config);
   const conn = await mysql.createConnection({ host: config.DB_HOST, port: config.DB_PORT, database: config.DB_NAME, user: config.DB_USER, password: config.DB_PASSWORD, ssl, charset: 'utf8mb4', timezone: 'Z', multipleStatements: true, connectTimeout: 10_000 });
   let locked = false;
   try {

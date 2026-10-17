@@ -2,7 +2,7 @@ import type { NextFunction, Request, Response } from 'express';
 import type { Config } from '../config/env';
 import type { Database } from '../database/pool';
 import { findSession, permissionsForRole, revokeSession, touchSession } from '../repositories/auth';
-import { equalHash, hashToken, sessionCookieOptions } from '../utils/security';
+import { clearSessionCookieOptions, equalHash, hashToken } from '../utils/security';
 import { HttpError } from '../utils/http';
 
 export function auth(config: Config, db: Database) {
@@ -15,7 +15,7 @@ export function auth(config: Config, db: Database) {
       const idle = Date.now() - new Date(`${String(session.last_activity_at).replace(' ', 'T')}Z`).getTime();
       if (idle > config.SESSION_IDLE_TTL_MINUTES * 60_000) {
         await revokeSession(db, Number(session.session_id));
-        res.clearCookie(config.SESSION_COOKIE_NAME, sessionCookieOptions(config));
+        res.clearCookie(config.SESSION_COOKIE_NAME, clearSessionCookieOptions(config));
         throw new HttpError(401, 'SESSION_EXPIRED', 'Please sign in again.');
       }
       const permissions = await permissionsForRole(db, Number(session.role_id));

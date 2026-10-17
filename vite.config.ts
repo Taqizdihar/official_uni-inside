@@ -1,9 +1,12 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import {defineConfig} from 'vite';
+import {defineConfig, loadEnv} from 'vite';
+import {resolveApiBase} from './src/config/resolveApiBase';
 
-export default defineConfig(() => {
+export default defineConfig(({command,mode}) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  resolveApiBase({VITE_API_BASE_URL: env.VITE_API_BASE_URL ?? process.env.VITE_API_BASE_URL}, command === 'build');
   return {
     plugins: [react(), tailwindcss()],
     resolve: {

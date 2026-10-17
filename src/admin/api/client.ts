@@ -1,4 +1,5 @@
-export const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api/v1').replace(/\/+$/, '');
+import { API_BASE } from '../../config/apiBase';
+export { API_BASE };
 
 export type ApiEnvelope<T> = { data:T; meta?:{page:number;limit:number;total:number;totalPages:number} };
 export type ApiIssue = {path?:string;message?:string};

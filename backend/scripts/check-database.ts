@@ -11,4 +11,4 @@ async function main(){const db=createPool(loadConfig());try{
   const result={serverVersion:info?.version,database:info?.database_name,collationAvailable:collation.length>0,schema,migration001Applied:!!migration.find(m=>m.version==='001')?.applied};
   console.info(JSON.stringify(result,null,2));if(!result.collationAvailable||!result.schema.ready||!result.migration001Applied)process.exitCode=1;
 }finally{await db.end();}}
-main().catch(err=>{console.error(err instanceof Error?err.message:'Database check failed');process.exitCode=1;});
+main().catch(()=>{console.error('Database check failed. Check the connection and schema without sharing connection details.');process.exitCode=1;});
