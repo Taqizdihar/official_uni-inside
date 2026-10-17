@@ -29,6 +29,9 @@ export const setPassword = (db: Executor, id: number, hash: string) => write(db,
 export const markLogin = (db: Executor, id: number) => write(db, 'UPDATE users SET last_login_at=UTC_TIMESTAMP(3) WHERE id=?', [id]);
 export const listUsers = (db: Executor, limit: number, offset: number) => rows<RowDataPacket>(db, 'SELECT u.id,u.email,u.display_name,u.status,u.role_id,r.code AS role_code,u.created_at,u.last_login_at FROM users u JOIN roles r ON r.id=u.role_id WHERE u.deleted_at IS NULL ORDER BY u.id DESC LIMIT ? OFFSET ?', [limit,offset]);
 export const listInvitations = (db: Executor, limit: number, offset: number) => rows<RowDataPacket>(db, 'SELECT i.id,i.email,i.role_id,r.code AS role_code,i.expires_at,i.accepted_at,i.revoked_at,i.created_at FROM invitations i JOIN roles r ON r.id=i.role_id ORDER BY i.id DESC LIMIT ? OFFSET ?', [limit,offset]);
+export const countUsers = async (db: Executor) => Number((await rows<RowDataPacket>(db,'SELECT COUNT(*) AS total FROM users WHERE deleted_at IS NULL'))[0]?.total ?? 0);
+export const countInvitations = async (db: Executor) => Number((await rows<RowDataPacket>(db,'SELECT COUNT(*) AS total FROM invitations'))[0]?.total ?? 0);
+export const rolePermissionIds = async (db: Executor, roleId: number) => (await rows<RowDataPacket>(db,'SELECT permission_id FROM role_permissions WHERE role_id=?',[roleId])).map(row=>Number(row.permission_id));
 export const listRoles = (db: Executor) => rows<RowDataPacket>(db, 'SELECT id,code,name,description FROM roles ORDER BY id');
 export const listPermissions = (db: Executor) => rows<RowDataPacket>(db, 'SELECT id,code,name,description FROM permissions ORDER BY code');
 export const lockUser = async (db: Executor, id: number) => (await rows<RowDataPacket>(db, 'SELECT u.id,u.status,u.role_id,r.code AS role_code FROM users u JOIN roles r ON r.id=u.role_id WHERE u.id=? AND u.deleted_at IS NULL FOR UPDATE', [id]))[0];

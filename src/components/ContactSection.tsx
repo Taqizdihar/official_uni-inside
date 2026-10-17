@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useAnimation, useMotionValue, useDragControls } from 'motion/react';
 import { FaWhatsapp, FaInstagram, FaTiktok, FaLinkedinIn } from 'react-icons/fa6';
@@ -17,6 +17,7 @@ import manTalking3 from '../assets/audio/contact-us/Man Talking 3.mp3';
 import phonePickSound from '../assets/audio/contact-us/Phone Pick.mp3';
 import phoneGrabSound from '../assets/audio/contact-us/Phone Grab.mp3';
 import { useElementVisibility } from '../hooks/useElementVisibility';
+import { usePublicContent } from '../public/client';
 
 const manTalkingSounds = [manTalking1, manTalking2, manTalking3];
 
@@ -194,6 +195,10 @@ const RopeSimulation = ({ startRef, endRef, altEndRef, useAltEnd, isActive }: { 
 };
 
 export const ContactSection = () => {
+  const { homepage, site } = usePublicContent();
+  const contact = homepage?.contact;
+  const messages = useMemo(()=>homepage?.chatMessages?.length ? homepage.chatMessages.map(item=>String(item.message_text)) : chatMessages,[homepage?.chatMessages]);
+  const displaySocials = socials.map(item=>{const cms=site?.socialLinks?.find(link=>link.platform_code===item.id);return {...item,url:cms?.url||item.url,name:cms?.label||item.name};});
   const contactRootRef = useRef<HTMLDivElement>(null);
   const { isVisible: isContactNear, isPageVisible } = useElementVisibility(contactRootRef, '700px 0px');
   const [hoveredSocial, setHoveredSocial] = useState<string | null>(null);
@@ -273,15 +278,15 @@ export const ContactSection = () => {
       interval = setInterval(() => {
         let idx: number;
         do {
-          idx = Math.floor(Math.random() * chatMessages.length);
-        } while (recentIndices.includes(idx));
+          idx = Math.floor(Math.random() * messages.length);
+        } while (messages.length > 3 && recentIndices.includes(idx));
 
         recentIndices.push(idx);
         if (recentIndices.length > 3) {
           recentIndices.shift();
         }
 
-        const text = chatMessages[idx];
+        const text = messages[idx];
         const slotIdx = slotCounter % bubbleSlots.length;
         slotCounter++;
 
@@ -302,7 +307,7 @@ export const ContactSection = () => {
       setChatBubbles([]);
     }
     return () => clearInterval(interval);
-  }, [isContactNear, isHandHoldingPhone, isPageVisible]);
+  }, [isContactNear, isHandHoldingPhone, isPageVisible, messages]);
 
   useEffect(() => {
     if (!isHandHoldingPhone || !isContactNear || !isPageVisible) return;
@@ -630,7 +635,7 @@ export const ContactSection = () => {
           transition={{ duration: 0.6 }}
           className="text-[60px] sm:text-[90px] lg:text-[140px] font-black uppercase text-[#202121] leading-none tracking-tight drop-shadow-sm"
         >
-          CONTACT US
+          {contact?.heading || 'CONTACT US'}
         </motion.h2>
         <motion.p 
           initial={{ opacity: 0, y: 30 }}
@@ -639,7 +644,7 @@ export const ContactSection = () => {
           transition={{ duration: 0.6, delay: 0.1 }}
           className="text-[24px] sm:text-[36px] text-[#202121] font-medium mt-4 sm:mt-2"
         >
-          Let's get <span className="font-black">connected</span>
+          {contact?.description || <>Let's get <span className="font-black">connected</span></>}
         </motion.p>
 
         <motion.div 
@@ -649,7 +654,7 @@ export const ContactSection = () => {
           transition={{ duration: 0.6, delay: 0.2 }}
           className="flex flex-wrap items-center justify-center gap-3 mt-10 h-14"
         >
-          {socials.map((social) => {
+          {displaySocials.map((social) => {
             const isExpanded = activeSocial === social.id;
             
             return (

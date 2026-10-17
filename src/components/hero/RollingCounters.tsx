@@ -6,6 +6,7 @@ interface RollingCountersProps {
   start: boolean;
   reducedMotion: boolean;
   onComplete: () => void;
+  signals?: readonly { value: string; plus: boolean; label: string }[];
 }
 
 function RollingNumber({ value, plus, label, index, start, reducedMotion, onStop }: {
@@ -63,18 +64,18 @@ function RollingNumber({ value, plus, label, index, start, reducedMotion, onStop
   );
 }
 
-export function RollingCounters({ start, reducedMotion, onComplete }: RollingCountersProps) {
+export function RollingCounters({ start, reducedMotion, onComplete, signals = TRUST_SIGNALS }: RollingCountersProps) {
   const completed = useRef(new Set<number>());
   const onStop = useCallback((index: number) => {
     if (completed.current.has(index)) return;
     completed.current.add(index);
-    if (completed.current.size === TRUST_SIGNALS.length) onComplete();
-  }, [onComplete]);
+    if (completed.current.size === signals.length) onComplete();
+  }, [onComplete, signals.length]);
 
   return (
     <div className={styles.trust} aria-label="Our experience">
-      {TRUST_SIGNALS.map((signal, index) => (
-        <RollingNumber key={signal.label} {...signal} index={index} start={start} reducedMotion={reducedMotion} onStop={onStop} />
+      {signals.map((signal, index) => (
+        <RollingNumber key={index} {...signal} index={index} start={start} reducedMotion={reducedMotion} onStop={onStop} />
       ))}
     </div>
   );

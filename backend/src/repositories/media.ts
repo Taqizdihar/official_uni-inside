@@ -2,7 +2,19 @@ import type { Executor } from '../database/pool';
 import { rows, write } from '../database/pool';
 import type { RowDataPacket } from 'mysql2/promise';
 
-export const listMedia = (db: Executor, limit: number, offset: number) => rows<RowDataPacket>(db, 'SELECT id,public_id,format,secure_url,original_filename,alt_text,caption,width_px,height_px,bytes_size,folder_path,created_at FROM media_assets WHERE deleted_at IS NULL ORDER BY id DESC LIMIT ? OFFSET ?', [limit,offset]);
+export type MediaFilters = { search?: string; folder?: string };
+const mediaWhere = (filters: MediaFilters) => ({
+  sql: `WHERE deleted_at IS NULL${filters.search ? ' AND (original_filename LIKE ? OR public_id LIKE ?)' : ''}${filters.folder ? ' AND (folder_path=? OR folder_path LIKE ?)' : ''}`,
+  values: [...(filters.search ? [`%${filters.search}%`,`%${filters.search}%`] : []),...(filters.folder ? [filters.folder,`${filters.folder.replace(/\/$/,'')}/%`] : [])],
+});
+export const listMedia = (db: Executor, limit: number, offset: number, filters: MediaFilters = {}) => {
+  const where=mediaWhere(filters);
+  return rows<RowDataPacket>(db, `SELECT id,public_id,format,secure_url,original_filename,alt_text,caption,width_px,height_px,bytes_size,folder_path,created_at FROM media_assets ${where.sql} ORDER BY id DESC LIMIT ? OFFSET ?`, [...where.values,limit,offset]);
+};
+export async function countMedia(db: Executor, filters: MediaFilters = {}) {
+  const where=mediaWhere(filters);
+  return Number((await rows<RowDataPacket>(db,`SELECT COUNT(*) AS total FROM media_assets ${where.sql}`,where.values))[0]?.total ?? 0);
+}
 export const mediaRecord = async (db: Executor, id: number) => (await rows<RowDataPacket>(db, 'SELECT id,public_id,format,secure_url,original_filename,alt_text,caption,width_px,height_px,bytes_size,folder_path,deleted_at FROM media_assets WHERE id=? LIMIT 1', [id]))[0];
 export const insertMedia = (db: Executor, data: { publicId:string; format:string; secureUrl:string; filename:string | null; alt:string | null; caption:string | null; width:number; height:number; bytes:number; folder:string; actorId:number }) => write(db, 'INSERT INTO media_assets (provider,public_id,resource_type,format,secure_url,original_filename,alt_text,caption,width_px,height_px,bytes_size,folder_path,uploaded_by) VALUES (\'cloudinary\',?,\'image\',?,?,?,?,?,?,?,?,?,?)', [data.publicId,data.format,data.secureUrl,data.filename,data.alt,data.caption,data.width,data.height,data.bytes,data.folder,data.actorId]);
 export const updateMedia = (db: Executor, id: number, alt: string | null, caption: string | null) => write(db, 'UPDATE media_assets SET alt_text=?,caption=? WHERE id=? AND deleted_at IS NULL', [alt,caption,id]);

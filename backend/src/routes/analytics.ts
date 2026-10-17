@@ -21,7 +21,8 @@ export function analyticsRoutes(config: Config,db: Pool) {
   router.get('/admin/analytics',requireAuth,permit('analytics.view'),asyncRoute(async (_req,res)=>{res.set('Cache-Control','no-store').json({data:await repo.analyticsSummary(db)});}));
   router.get('/admin/audit',requireAuth,permit('audit.view'),asyncRoute(async (req,res)=>{
     const q=parse(z.strictObject({page:z.coerce.number().int().positive().default(1),limit:z.coerce.number().int().min(1).max(100).default(20)}),req.query);
-    res.set('Cache-Control','no-store').json({data:await repo.auditList(db,q.limit,(q.page-1)*q.limit),meta:q});
+    const [data,total]=await Promise.all([repo.auditList(db,q.limit,(q.page-1)*q.limit),repo.auditCount(db)]);
+    res.set('Cache-Control','no-store').json({data,meta:{...q,total,totalPages:Math.ceil(total/q.limit)}});
   }));
   router.get('/admin/revisions/:resource/:key',requireAuth,asyncRoute(async (req,res)=>{
     const name=String(req.params.resource);const spec=content.getResource(name);

@@ -14,8 +14,11 @@ const destination = { scope:z.enum(['site','users','team','partners','products',
 export function mediaRoutes(config: Config,db: Pool) {
   const router = Router(); const requireAuth=auth(config,db); const requireCsrf=csrf(config);
   router.get('/admin/media',requireAuth,permit('media.view'),asyncRoute(async (req,res) => {
-    const q=parse(z.strictObject({page:z.coerce.number().int().positive().default(1),limit:z.coerce.number().int().min(1).max(100).default(20)}),req.query);
-    res.set('Cache-Control','no-store').json({data:await repo.listMedia(db,q.limit,(q.page-1)*q.limit),meta:q});
+    const q=parse(z.strictObject({page:z.coerce.number().int().positive().default(1),limit:z.coerce.number().int().min(1).max(100).default(20),search:z.string().max(100).optional(),folder:z.string().regex(/^[a-z0-9-]+(?:\/[a-z0-9-]+)*\/?$/).optional(),scope:z.enum(['site','users','team','partners','products','services','projects','news','achievements']).optional()}),req.query);
+    if(q.scope&&q.folder)throw new HttpError(400,'VALIDATION_ERROR','Use scope or folder, not both.');
+    const filters={search:q.search,folder:q.scope?`${config.CLOUDINARY_ROOT_FOLDER}/${q.scope}`:q.folder};
+    const [data,total]=await Promise.all([repo.listMedia(db,q.limit,(q.page-1)*q.limit,filters),repo.countMedia(db,filters)]);
+    res.set('Cache-Control','no-store').json({data,meta:{page:q.page,limit:q.limit,total,totalPages:Math.ceil(total/q.limit)}});
   }));
   router.post('/admin/media/sign-upload',requireAuth,requireCsrf,permit('media.upload'),asyncRoute(async (req,res) => {
     const input=parse(z.strictObject(destination),req.body);
@@ -30,6 +33,11 @@ export function mediaRoutes(config: Config,db: Pool) {
       return repo.mediaRecord(conn,Number(result.insertId));
     });
     res.status(201).json({data:asset});
+  }));
+  router.get('/admin/media/:id',requireAuth,permit('media.view'),asyncRoute(async (req,res)=>{
+    const item=await repo.mediaRecord(db,parse(id,req.params.id));
+    if(!item||item.deleted_at)throw new HttpError(404,'NOT_FOUND','Image not found.');
+    res.set('Cache-Control','no-store').json({data:item});
   }));
   router.patch('/admin/media/:id',requireAuth,requireCsrf,permit('media.update'),asyncRoute(async (req,res) => {
     const mediaId=parse(id,req.params.id); const input=parse(z.strictObject({altText:z.string().max(255).nullable(),caption:z.string().max(500).nullable()}).partial(),req.body);

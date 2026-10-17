@@ -1,6 +1,6 @@
 # Uni-Inside CMS API — Phase 1
 
-This independent Node 20+ package serves the future `/admin` CMS and public content API. The existing Vite site continues using its static content for now. The root React build does not import this package.
+This independent Node 20+ package serves the `/admin` CMS and public content API. The root React build communicates with it over HTTP and retains static public fallback content when the API is unavailable.
 
 ## Layout
 
@@ -33,7 +33,7 @@ The seeded `super_admin` has all permissions. `administrator` lacks `roles.manag
 
 There is no sign-up. Login sets a random opaque HttpOnly session cookie; only an HMAC hash is stored in `auth_sessions`. Mutations require an allowed browser Origin plus a session-bound CSRF token in the `X-CSRF-Token` header, matching the readable CSRF cookie. `GET /auth/me` returns the current token. Login, invitation acceptance, and password reset are rate limited. Production requires a Secure session cookie; set `SESSION_COOKIE_SAME_SITE=none` and `SESSION_COOKIE_SECURE=true` if the admin app and API are cross-site. Use HTTPS. Do not set a broad cookie domain.
 
-Invitation and reset URLs are emailed through SMTP. When SMTP is absent, development responses may include the generated URL for local testing. Production returns `503 INTEGRATION_NOT_CONFIGURED` instead of revealing tokens. Image uploads use Cloudinary signed direct upload: request `/admin/media/sign-upload`, upload to Cloudinary, then call `/admin/media/finalize`; the backend verifies the remote image and records metadata. Only jpg/jpeg/png/webp/avif images up to 10 MB are accepted. Media routes return 503 until Cloudinary is configured. Deleting an image record is blocked while it is referenced.
+Invitation and reset URLs are emailed through SMTP. When SMTP is absent, development responses may include the generated URL for local testing. Production returns `503 INTEGRATION_NOT_CONFIGURED` instead of revealing tokens. Image uploads use Cloudinary signed direct upload: request `/admin/media/sign-upload`, upload to Cloudinary, then call `/admin/media/finalize`; the backend verifies the remote image and records metadata. Set optional `CLOUDINARY_ROOT_FOLDER` (default `uni-inside`) to choose a controlled root. Signed `asset_folder` and `public_id_prefix` keep images in backend-managed scope and entity folders. The media library supports filename search, scope filtering, and paginated totals. Only jpg/jpeg/png/webp/avif images up to 10 MB are accepted. Media signing returns 503 until Cloudinary is configured. Deleting an image record is blocked while it is referenced. Files manually uploaded to Cloudinary do not automatically become CMS records.
 
 Analytics stores event UUID, coarse device type, normalized path, optional entity and destination, and a daily rotating HMAC of a network identifier. It does not persist raw IPs, form content, names, or full cookies. The rollup command is idempotent; raw events older than `ANALYTICS_RETENTION_DAYS` are deleted. Rotate `ANALYTICS_HASH_PEPPER` deliberately if visitor continuity must be reset.
 
@@ -44,5 +44,7 @@ Use `.env.example` as the full variable list. Local Laragon needs `DB_HOST`, `DB
 Render can use `backend` as Root Directory, build command `npm ci --include=dev && npm run build` (build tools are dev dependencies, even when `NODE_ENV=production`), start command `npm start`, and health path `/api/v1/health`. Run migrations separately before serving production traffic and monitor `/api/v1/ready`. Set `NODE_ENV=production`, `SESSION_COOKIE_SECURE=true`, a strict `CORS_ALLOWED_ORIGINS`, `PUBLIC_FRONTEND_URL`, `ADMIN_FRONTEND_URL`, `AUTH_TOKEN_PEPPER`, `ANALYTICS_HASH_PEPPER`, database credentials, and optional Cloudinary/SMTP settings in Render's secret environment. `TRUST_PROXY=true` is appropriate behind Render's proxy. Never prefix backend secrets with `VITE_`.
 
 The intended architecture is Cloudflare Pages for React, Render for this API, Aiven MySQL, and Cloudinary for images. No services are provisioned by this repository. A future Kroombox migration should preserve the API and migration boundaries; its hosting behavior must be evaluated before changing configuration.
+
+Phase 2 adds no migration after `001_initial_schema.sql`; the approved schema already covers the CMS interface. No Phase 3 services have been deployed by this change. SMTP can remain unset for local testing, and Cloudinary remains real external storage while using local MySQL.
 
 If TLS fails, verify the Aiven CA and base64 encoding rather than disabling certificate checks. If browsers cannot authenticate, check the exact CORS Origin, HTTPS, Secure/SameSite cookie settings, and `X-CSRF-Token`. If a migration checksum differs, compare the applied schema with the migration file and add a new forward migration instead of changing migration 001.

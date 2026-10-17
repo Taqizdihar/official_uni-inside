@@ -5,9 +5,10 @@ import { mockCategories } from '../../data/mockNews';
 interface CategoryFilterProps {
   activeCategory: string;
   onSelectCategory: (category: string) => void;
+  categories?: string[];
 }
 
-export const CategoryFilter: React.FC<CategoryFilterProps> = ({ activeCategory, onSelectCategory }) => {
+export const CategoryFilter: React.FC<CategoryFilterProps> = ({ activeCategory, onSelectCategory, categories = mockCategories }) => {
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
@@ -15,7 +16,7 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({ activeCategory, 
       transition={{ duration: 0.6, delay: 0.3 }}
       className="flex flex-wrap gap-2 mb-12"
     >
-      {mockCategories.map((cat, idx) => {
+      {categories.map((cat, idx) => {
         const isActive = activeCategory === cat;
         return (
           <motion.button

@@ -11,7 +11,7 @@ const db={
   execute:async(options:{sql:string})=>{
     const sql=options.sql;
     if(sql.includes('FROM auth_sessions'))return [[{session_id:2,user_id:1,role_id:1,role_code:'super_admin',last_activity_at:new Date().toISOString().replace('T',' ').replace('Z','')}],[]];
-    if(sql.includes('FROM role_permissions'))return [[{code:'homepage.update'},{code:'products.view'},{code:'media.upload'}],[]];
+    if(sql.includes('FROM role_permissions'))return [[{code:'homepage.update'},{code:'products.view'},{code:'media.view'},{code:'media.upload'}],[]];
     if(sql.includes('INSERT IGNORE INTO analytics_events'))return [{affectedRows:0},[]];
     return [{affectedRows:1},[]];
   },
@@ -41,6 +41,12 @@ describe('HTTP behavior',()=>{
     expect(limit.status).toBe(400);expect(limit.body.error.code).toBe('VALIDATION_ERROR');
     const sort=await request(app).get('/api/v1/admin/products?sort=password_hash').set('Cookie',cookie);
     expect(sort.status).toBe(400);
+    const invalidParent=await request(app).get('/api/v1/admin/products?parentId=3').set('Cookie',cookie);
+    expect(invalidParent.status).toBe(400);
+    const invalidStatus=await request(app).get('/api/v1/admin/product-images?status=published').set('Cookie',cookie);
+    expect(invalidStatus.status).toBe(400);
+    const badScope=await request(app).get('/api/v1/admin/media?scope=other').set('Cookie',cookie);
+    expect(badScope.status).toBe(400);
   });
   it('applies permission and strict content-field checks',async()=>{
     const raw='session-token';const csrf=csrfToken(config,raw);const cookies=[`${config.SESSION_COOKIE_NAME}=${raw}`,`${config.CSRF_COOKIE_NAME}=${csrf}`];

@@ -33,7 +33,9 @@ const schema = z.object({
   SMTP_USER: z.string().default(''), SMTP_PASSWORD: z.string().default(''),
   SMTP_FROM_NAME: z.string().default('Uni-Inside Studio'), SMTP_FROM_EMAIL: z.string().default(''),
   CLOUDINARY_CLOUD_NAME: z.string().default(''), CLOUDINARY_API_KEY: z.string().default(''),
-  CLOUDINARY_API_SECRET: z.string().default(''), LOG_LEVEL: z.string().default('info'),
+  CLOUDINARY_API_SECRET: z.string().default(''),
+  CLOUDINARY_ROOT_FOLDER: z.string().regex(/^[a-z0-9-]+(?:\/[a-z0-9-]+)*$/, 'Use lowercase folder segments without empty or parent paths').default('uni-inside'),
+  LOG_LEVEL: z.string().default('info'),
 }).superRefine((v, ctx) => {
   if (v.NODE_ENV === 'production' && !v.SESSION_COOKIE_SECURE) ctx.addIssue({ code: 'custom', path: ['SESSION_COOKIE_SECURE'], message: 'Production sessions require Secure cookies' });
   if (v.NODE_ENV === 'production' && (v.AUTH_TOKEN_PEPPER.startsWith('replace-with') || v.ANALYTICS_HASH_PEPPER.startsWith('replace-with'))) ctx.addIssue({ code: 'custom', path: ['AUTH_TOKEN_PEPPER'], message: 'Replace example security peppers before production' });

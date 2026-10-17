@@ -5,7 +5,7 @@ import navbarStyles from './Navbar.module.css';
 import logoDarkTheme from '../assets/global/Logo - Dark Theme.svg';
 
 type StaticPageLayoutProps = PropsWithChildren<{
-  activePage: 'MEDIA KIT' | 'PRODUCTS' | 'SERVICES';
+  activePage: 'MEDIA KIT' | 'PRODUCTS' | 'SERVICES' | 'NEWS' | 'PROJECTS';
 }>;
 
 const navigation = [

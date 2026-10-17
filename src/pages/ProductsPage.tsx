@@ -1,5 +1,7 @@
 import { BackToLandingLink, StaticPageLayout } from '../components/StaticPageLayout';
 import craftsLogo from '../assets/global/Uni-Inside Crafts.svg';
+import {Link} from 'react-router-dom';
+import {usePublicList} from '../public/client';
 
 const productModules = import.meta.glob('../assets/our-products/3D Printer Products/*.png', {
   eager: true,
@@ -19,7 +21,10 @@ const products = Object.entries(productModules)
   })
   .sort((first, second) => first.number - second.number);
 
-export const ProductsPage = () => (
+export const ProductsPage = () => {
+  const {data,loading,error,retry}=usePublicList('products');
+  const collection=data===null?products:data.map(item=>({id:String(item.id),image:item.image?.secure_url||'',label:item.name,slug:item.slug,width:item.image?.width_px||500,height:item.image?.height_px||500,description:item.short_description}));
+  return (
   <StaticPageLayout activePage="PRODUCTS">
     <section className="bg-[#202121] px-6 pb-20 pt-40 text-white sm:px-10 sm:pb-28 lg:px-12">
       <div className="mx-auto max-w-7xl">
@@ -42,14 +47,14 @@ export const ProductsPage = () => (
         <h2 className="mt-3 text-4xl font-black text-[#202121] sm:text-6xl">Product visuals</h2>
       </div>
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {products.map((product, index) => (
+        {collection.map((product, index) => (
           <article key={product.id} className="group min-w-0 overflow-hidden rounded-3xl bg-white shadow-[0_16px_36px_rgba(0,0,0,0.08)]">
             <div className="aspect-square overflow-hidden bg-[#e7e7e7]">
               <img
                 src={product.image}
                 alt={product.label}
-                width="500"
-                height="500"
+                width={'width' in product?product.width:500}
+                height={'height' in product?product.height:500}
                 loading={index < 3 ? 'eager' : 'lazy'}
                 decoding="async"
                 className="h-full w-full object-contain p-5 transition-transform duration-500 group-hover:scale-105 sm:p-7"
@@ -57,10 +62,14 @@ export const ProductsPage = () => (
             </div>
             <div className="p-5 sm:p-6">
               <h3 className="text-xl font-black text-[#202121]">{product.label}</h3>
+              {'description' in product&&product.description&&<p className="mt-2 text-[#202121]/70">{product.description}</p>}
+              {'slug' in product&&product.slug&&<Link to={`/products/${product.slug}`} className="mt-4 inline-block font-bold underline">View product</Link>}
             </div>
           </article>
         ))}
       </div>
+      {data!==null&&data.length===0&&<p className="mt-6 text-[#202121]/70" role="status">No published products yet.</p>}
+      {loading&&<p className="mt-6 text-[#202121]/60" role="status">Checking for latest products…</p>}{error&&<button className="mt-6 underline" onClick={retry}>Retry latest products</button>}
     </section>
 
     <section className="bg-white px-6 py-20 sm:px-10 lg:px-12 lg:py-24">
@@ -78,4 +87,4 @@ export const ProductsPage = () => (
       </div>
     </section>
   </StaticPageLayout>
-);
+);};

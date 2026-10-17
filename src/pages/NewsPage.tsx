@@ -9,18 +9,22 @@ import { mockNews } from '../data/mockNews';
 import { Link } from 'react-router-dom';
 import navbarStyles from '../components/Navbar.module.css';
 import logoDarkTheme from '../assets/global/Logo - Dark Theme.svg';
+import {usePublicList} from '../public/client';
 
 export const NewsPage: React.FC = () => {
+  const {data,loading,error,retry}=usePublicList('news');
+  const articles=data===null?mockNews:data.map(item=>({id:String(item.id),slug:item.slug,title:item.title,description:item.excerpt,category:String(item.content_type??'News'),author:'Uni-Inside',date:item.published_at?new Date(item.published_at).toLocaleDateString():'',thumbnail:item.image?.secure_url||mockNews[0].thumbnail,readingTime:`${item.reading_time_minutes||1} min`,featured:Boolean(item.is_featured)}));
+  const categories=data?.length?['All',...new Set(articles.map(item=>item.category))]:undefined;
   const [activeCategory, setActiveCategory] = useState('All');
   const [visibleCount, setVisibleCount] = useState(6);
   const [isLoading, setIsLoading] = useState(false);
 
-  const filteredNews = mockNews.filter(
+  const filteredNews = articles.filter(
     article => activeCategory === 'All' || article.category === activeCategory
   );
 
   const featuredNews = filteredNews.slice(0, visibleCount);
-  const latestNews = mockNews.slice(0, 5); // Just taking the first 5 for the sidebar
+  const latestNews = articles.slice(0, 5);
 
   const handleLoadMore = () => {
     setIsLoading(true);
@@ -89,12 +93,14 @@ export const NewsPage: React.FC = () => {
         
         <div className="w-full max-w-7xl mx-auto px-6 sm:px-10 lg:px-12 pt-20">
           <CategoryFilter 
+            categories={categories}
             activeCategory={activeCategory} 
             onSelectCategory={(cat) => {
               setActiveCategory(cat);
               setVisibleCount(6);
             }} 
           />
+          {loading&&<p role="status">Checking for latest news…</p>}{error&&<button onClick={retry} className="mb-6 underline">Retry latest news</button>}
           
           <div className="flex flex-col lg:flex-row gap-12 lg:gap-16">
             <div className="w-full lg:w-2/3 flex flex-col">

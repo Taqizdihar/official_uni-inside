@@ -15,8 +15,9 @@ import member9 from '../assets/our-team/members/9 - Ropaldo.avif';
 import logoDarkTheme from '../assets/global/Logo - Dark Theme.svg';
 import normalModeIcon from '../assets/our-team/icons/normal-mode-icon.avif';
 import ringModeIcon from '../assets/our-team/icons/ring-mode-icon.avif';
+import {usePublicContent} from '../public/client';
 
-const members = [
+const staticMembers = [
   { name: 'April', image: member1, role: 'Chief Executive Officer', description: 'Leads the overall direction of Uni-Inside Studio and coordinates the team in turning creative ideas into focused, collaborative work.' },
   { name: 'Dian', image: member2, role: 'Chief Operating Officer', description: 'Oversees day-to-day operations, coordinates project workflows, and helps collaboration across Uni-Inside Studio and Uni-Inside Craft run effectively.' },
   { name: 'Taqi', image: member3, role: 'Chief Technology Officer', description: 'Leads technology development, digital experiences, and technical systems that support Uni-Inside Studio and Uni-Inside Craft.' },
@@ -27,7 +28,7 @@ const members = [
   { name: 'Amany', image: member8, role: 'Staff of Specialty', description: 'Creates social media content for Uni-Inside Studio, with a primary focus on posts, feeds, and visual presentation.' },
   { name: 'Ropaldo', image: member9, role: 'Souvenir & 3D Engineer', description: 'Designs custom 3D models and configures models for reliable 3D-printing production.' },
 ];
-const memberForSlot = (slot: number) => ((slot + 4) % members.length + members.length) % members.length;
+const memberForSlot = (slot: number,count:number) => ((slot + 4) % count + count) % count;
 const normalizedAngle = (angle: number) => ((angle + 180) % 360 + 360) % 360 - 180;
 type TeamViewMode = 'fan' | 'ring';
 
@@ -38,7 +39,8 @@ const socials = [
   { name: 'GitHub', url: 'https://github.com/', Icon: RiGithubLine },
 ];
 
-const CardFaces = React.memo(({ member, flipped, interactive, prominent = false, onClick }: { member: typeof members[number]; flipped: boolean; interactive: boolean; prominent?: boolean; onClick: () => void }) => {
+type Member=typeof staticMembers[number] & {linkedin_url?:string;instagram_url?:string;x_url?:string;github_url?:string};
+const CardFaces = React.memo(({ member, flipped, interactive, prominent = false, onClick }: { member: Member; flipped: boolean; interactive: boolean; prominent?: boolean; onClick: () => void }) => {
   const reducedMotion = Boolean(useReducedMotion());
   return <motion.div
     className="relative h-full w-full"
@@ -56,18 +58,18 @@ const CardFaces = React.memo(({ member, flipped, interactive, prominent = false,
       <p className={`pointer-events-none relative mb-3 font-bold uppercase tracking-wider text-[#f9d02d] ${prominent ? 'text-[11px]' : 'text-[clamp(0.55rem,0.7vw,0.7rem)]'}`}>{member.role}</p>
       <p className={`pointer-events-none relative mb-auto leading-snug font-medium text-white/85 ${prominent ? 'text-[13px]' : 'text-[clamp(0.62rem,0.8vw,0.85rem)]'}`}>{member.description}</p>
       <div className="relative z-10 mb-2 flex gap-3 text-white/75">
-        {socials.map(({ name, url, Icon }) => <a key={name} href={url} target="_blank" rel="noopener noreferrer" aria-label={`${member.name} on ${name}`} tabIndex={interactive && flipped ? 0 : -1} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()} className="rounded focus-visible:outline-2 focus-visible:outline-[#f9d02d] hover:text-[#f9d02d]" style={{ pointerEvents: interactive && flipped ? 'auto' : 'none' }}><Icon className={prominent ? 'h-5 w-5' : 'h-[clamp(14px,1.3vw,20px)] w-[clamp(14px,1.3vw,20px)]'} /></a>)}
+        {socials.map(({ name, url, Icon }) => ({name,Icon,url:(member as any)[name==='LinkedIn'?'linkedin_url':name==='Instagram'?'instagram_url':name==='X'?'x_url':'github_url']??(member.linkedin_url===undefined?url:null)})).filter(item=>item.url).map(({ name, url, Icon }) => <a key={name} href={url!} target="_blank" rel="noopener noreferrer" aria-label={`${member.name} on ${name}`} tabIndex={interactive && flipped ? 0 : -1} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()} className="rounded focus-visible:outline-2 focus-visible:outline-[#f9d02d] hover:text-[#f9d02d]" style={{ pointerEvents: interactive && flipped ? 'auto' : 'none' }}><Icon className={prominent ? 'h-5 w-5' : 'h-[clamp(14px,1.3vw,20px)] w-[clamp(14px,1.3vw,20px)]'} /></a>)}
       </div>
     </div>
   </motion.div>;
 });
 
-const FanCard = React.memo(({ slot, active, interactive, flipped, deckShift, spacing, visibleAngle, origin, moving, onClick }: {
+const FanCard = React.memo(({ slot, active, interactive, flipped, deckShift, spacing, visibleAngle, origin, moving, onClick, members }: {
   slot: number; active: boolean; interactive: boolean; flipped: boolean;
   deckShift: MotionValue<number>; spacing: MotionValue<number>; visibleAngle: MotionValue<number>; origin: MotionValue<string>;
-  moving: boolean; onClick: (slot: number) => void;
+  moving: boolean; onClick: (slot: number) => void;members:Member[];
 }) => {
-  const member = members[memberForSlot(slot)];
+  const member = members[memberForSlot(slot,members.length)];
   // Repeat the member sequence beyond both ends of the fan, while keeping
   // each card's angle continuous as it enters and leaves the circle.
   const angle = useTransform(() => (slot + deckShift.get()) * spacing.get());
@@ -93,9 +95,9 @@ const FanCard = React.memo(({ slot, active, interactive, flipped, deckShift, spa
   );
 });
 
-const RingCard = React.memo(({ index, width, radius, depth, rotation, flipped, onClick }: {
+const RingCard = React.memo(({ index, width, radius, depth, rotation, flipped, onClick,members }: {
   index: number; width: number; radius: number; depth: number; rotation: MotionValue<number>;
-  flipped: boolean; onClick: (index: number) => void;
+  flipped: boolean; onClick: (index: number) => void;members:Member[];
 }) => {
   const angle = index * (360 / members.length);
   const radians = angle * Math.PI / 180;
@@ -131,6 +133,8 @@ const ModeIcon = ({ mode }: { mode: TeamViewMode }) => (
 );
 
 export const OurTeamSection = forwardRef<HTMLDivElement>((_, ref) => {
+  const {team,homepage}=usePublicContent();
+  const members=useMemo<Member[]>(()=>team?.length?team.map(item=>({name:String(item.full_name),role:String(item.role_title),description:String(item.short_bio??''),image:String(item.image?.secure_url??''),linkedin_url:item.linkedin_url,instagram_url:item.instagram_url,x_url:item.x_url,github_url:item.github_url})):staticMembers,[team]);
   const containerRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const ringStageRef = useRef<HTMLDivElement>(null);
@@ -140,6 +144,8 @@ export const OurTeamSection = forwardRef<HTMLDivElement>((_, ref) => {
   const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth);
   const [mode, setMode] = useState<TeamViewMode>('fan');
   const [stageMode, setStageMode] = useState<TeamViewMode>('fan');
+  const defaultModeApplied=useRef(false);
+  useEffect(()=>{if(!defaultModeApplied.current&&!isTeamInView&&homepage?.team){defaultModeApplied.current=true;if(homepage.team.default_display_mode==='ring'){setMode('ring');setStageMode('ring');}}},[homepage?.team,isTeamInView]);
   const [switching, setSwitching] = useState(false);
   const switchTimer = useRef(0);
   const [activeSlot, setActiveSlot] = useState<number | null>(null);
@@ -313,10 +319,10 @@ export const OurTeamSection = forwardRef<HTMLDivElement>((_, ref) => {
     <div ref={setRefs} id="our-team" className="relative z-20 flex min-h-[300vh] w-full flex-col items-center overflow-x-clip pt-[clamp(120px,18vh,180px)] pb-40">
       <div className={`relative z-30 flex w-full flex-col items-center px-4 text-center sm:px-8 ${stageMode === 'ring' ? 'mb-6' : 'mb-20'}`}>
         <div className="flex max-w-full items-center justify-center gap-3 sm:gap-5">
-          <h2 className="min-w-0 text-[clamp(2.2rem,6vw,6.875rem)] leading-none font-black tracking-tight text-white uppercase drop-shadow-2xl">MEET OUR TEAM</h2>
+          <h2 className="min-w-0 text-[clamp(2.2rem,6vw,6.875rem)] leading-none font-black tracking-tight text-white uppercase drop-shadow-2xl">{homepage?.team?.heading||'MEET OUR TEAM'}</h2>
           <button type="button" onClick={switchMode} disabled={switching} aria-label={mode === 'fan' ? 'Switch to ring view' : 'Switch to fan view'} aria-pressed={mode === 'ring'} title={mode === 'fan' ? 'Ring view' : 'Fan view'} className="relative z-50 grid h-24 w-24 shrink-0 place-items-center rounded-full focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[#f9d02d]"><ModeIcon mode={mode} /></button>
         </div>
-        <motion.p animate={{ opacity: mode === 'fan' && activeSlot !== null ? 0 : 1 }} className="mt-4 text-base font-medium tracking-wide text-white/80 sm:text-xl lg:text-2xl">{mode === 'fan' ? 'Click for preview, click again for details!' : 'Drag to rotate, click a card for details'}</motion.p>
+        <motion.p animate={{ opacity: mode === 'fan' && activeSlot !== null ? 0 : 1 }} className="mt-4 text-base font-medium tracking-wide text-white/80 sm:text-xl lg:text-2xl">{mode === 'fan' ? homepage?.team?.normal_mode_instruction||'Click for preview, click again for details!' : homepage?.team?.ring_mode_instruction||'Drag to rotate, click a card for details'}</motion.p>
       </div>
       <div ref={viewportRef} className={`z-40 w-full max-w-full overflow-visible ${stageMode === 'fan' ? 'relative -mt-32 h-[600px]' : 'sticky top-[min(8vh,72px)] h-[min(750px,95vh)]'}`} style={{ perspective: stageMode === 'ring' ? Math.max(850, viewportWidth * 0.94) : undefined, perspectiveOrigin: stageMode === 'ring' ? `50% calc(${ringTopPadding}px + min(150px, 22.5vh))` : undefined }}>
         <AnimatePresence initial={false} mode="wait" onExitComplete={() => setStageMode(mode)}>
@@ -327,13 +333,13 @@ export const OurTeamSection = forwardRef<HTMLDivElement>((_, ref) => {
                   <motion.div animate={{ rotate: reducedMotion ? 0 : 360 }} transition={{ repeat: Infinity, duration: 25, ease: 'linear' }} className="pointer-events-none absolute inset-0 flex items-center justify-center"><svg className="h-[92%] w-[92%]" viewBox="0 0 360 360"><defs><path id="centerCirclePath" d="M 180, 180 m -130, 0 a 130,130 0 1,1 260,0 a 130,130 0 1,1 -260,0" /></defs><text className="fill-white text-[21px] font-extrabold tracking-[0.14em]"><textPath href="#centerCirclePath" startOffset="0%" textLength="816" lengthAdjust="spacing">{'•\u00A0Creative Inside\u00A0•\u00A0Impact Outside\u00A0'}</textPath></text></svg></motion.div>
                   <motion.div animate={{ rotate: reducedMotion ? 0 : -360 }} transition={{ repeat: Infinity, duration: 20, ease: 'linear' }} className="relative z-10 flex h-32 w-32 items-center justify-center"><img src={logoDarkTheme} alt="Uni-Inside Logo" className="h-full w-full object-contain drop-shadow-lg" /></motion.div>
                 </motion.div>
-                {fanSlots.map((slot) => <FanCard key={slot} slot={slot} active={activeSlot === slot} interactive={!switching && Math.abs(slot - centerSlot) <= overscan - 5} flipped={flipped} deckShift={deckShift} spacing={spacing} visibleAngle={visibleAngle} origin={transformOrigin} moving={isTeamInView && pageVisible && !reducedMotion && activeSlot === null} onClick={selectFan} />)}
+                {fanSlots.map((slot) => <FanCard key={slot} slot={slot} active={activeSlot === slot} interactive={!switching && Math.abs(slot - centerSlot) <= overscan - 5} flipped={flipped} deckShift={deckShift} spacing={spacing} visibleAngle={visibleAngle} origin={transformOrigin} moving={isTeamInView && pageVisible && !reducedMotion && activeSlot === null} onClick={selectFan} members={members}/>)}
               </motion.div>
             </motion.div>
           ) : (
             <motion.div ref={ringStageRef} key="ring" initial={{ '--ring-fade': 0 }} animate={{ '--ring-fade': 1 }} exit={{ '--ring-fade': 0 }} transition={transition} className="absolute inset-0 flex items-start justify-center pointer-events-none" style={{ paddingTop: ringTopPadding, pointerEvents: switching ? 'none' : 'auto', touchAction: 'pan-y', cursor: 'grab', transformStyle: 'preserve-3d' }} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={endDrag} onPointerCancel={endDrag}>
               <motion.div data-team-ring className="relative h-[min(300px,45vh)] w-full" style={{ rotateY: ringRotation, transformStyle: 'preserve-3d', transformOrigin: 'center center', willChange: isTeamInView && pageVisible && !reducedMotion ? 'transform' : 'auto' }}>
-                {members.map((_, index) => <RingCard key={index} index={index} width={ringWidth} radius={ringRadius} depth={ringDepth} rotation={ringRotation} flipped={ringFlipped.has(index)} onClick={selectRing} />)}
+                {members.map((_, index) => <RingCard key={index} index={index} width={ringWidth} radius={ringRadius} depth={ringDepth} rotation={ringRotation} flipped={ringFlipped.has(index)} onClick={selectRing} members={members}/>)}
               </motion.div>
             </motion.div>
           )}

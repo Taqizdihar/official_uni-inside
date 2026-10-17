@@ -12,6 +12,7 @@ import { AboutEditorialContent, AboutTeamBridge } from './components/about/About
 import { useNearViewportOnce } from './hooks/useNearViewportOnce';
 import { OurTeamSection } from './components/OurTeamSection';
 import { type AppSectionId } from './components/ThemeController';
+import {usePublicContent} from './public/client';
 
 import logoDarkTheme from './assets/global/Logo - Dark Theme.svg';
 import logoLightTheme from './assets/global/Logo - Light Theme.svg';
@@ -19,12 +20,11 @@ import craftsLogo from './assets/global/Uni-Inside Crafts.svg';
 
 const PARTNER_MODULES = import.meta.glob('./assets/about-us/partners/*.{png,jpg,jpeg,svg,webp}', { eager: true, import: 'default' }) as Record<string, string>;
 const LazyContactSection = lazy(() => import('./components/ContactSection').then(({ ContactSection }) => ({ default: ContactSection })));
-const partnersList = Object.entries(PARTNER_MODULES).map(([path, image]) => {
+const staticPartners = Object.entries(PARTNER_MODULES).map(([path, image]) => {
   const name = path.split('/').pop()?.split('.')[0] || 'Partner';
   return { name, image };
 });
 const PARTNER_SET_COUNT = 5;
-const duplicatedPartners = Array(PARTNER_SET_COUNT).fill(partnersList).flat() as { name: string; image: string }[];
 const FilmFrame: React.FC<{ partner: { name: string; image: string } }> = ({ partner }) => (
   <div className="w-[280px] sm:w-[320px] h-[220px] flex flex-col justify-between bg-[#111] p-2 flex-shrink-0 border-r border-black/50">
     <div className="h-4 w-full flex justify-around items-center">
@@ -50,6 +50,9 @@ const FilmFrame: React.FC<{ partner: { name: string; image: string } }> = ({ par
 );
 
 const FilmRollSection = ({ filmRollXVal, isCursor }: { filmRollXVal?: any, isCursor?: boolean }) => {
+  const {partners,homepage}=usePublicContent();
+  const partnersList=partners?.length?partners.map(item=>({name:String(item.name),image:String(item.image?.secure_url??'')})):staticPartners;
+  const duplicatedPartners=Array(PARTNER_SET_COUNT).fill(partnersList).flat() as { name: string; image: string }[];
   const containerRef = useRef<HTMLDivElement>(null);
   const isInView = useInView(containerRef, { once: false, amount: 0.3 });
 
@@ -84,7 +87,7 @@ const FilmRollSection = ({ filmRollXVal, isCursor }: { filmRollXVal?: any, isCur
 
   return (
     <div ref={containerRef} className="py-24 overflow-hidden relative z-10">
-      <h2 className="text-center text-4xl sm:text-5xl font-black text-[#202121] mb-16 uppercase tracking-wider">Our Partners</h2>
+      <h2 className="text-center text-4xl sm:text-5xl font-black text-[#202121] mb-16 uppercase tracking-wider">{homepage?.sections?.find(item=>item.section_key==='partners')?.heading||'Our Partners'}</h2>
       <div className="w-full relative shadow-2xl">
         <div className="absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-[#f0f0f0] to-transparent z-10 pointer-events-none" />
         <div className="absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-[#f0f0f0] to-transparent z-10 pointer-events-none" />

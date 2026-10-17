@@ -1,7 +1,12 @@
 import { BackToLandingLink, StaticPageLayout } from '../components/StaticPageLayout';
 import { servicesData } from '../data/services';
+import {Link} from 'react-router-dom';
+import {usePublicList} from '../public/client';
 
-export const ServicesPage = () => (
+export const ServicesPage = () => {
+  const {data,loading,error,retry}=usePublicList('services');
+  const collection=data===null?servicesData:data.map(item=>({id:item.id,img:item.image?.secure_url||'',text:item.name,description:item.short_description,slug:item.slug,width:item.image?.width_px||500,height:item.image?.height_px||500}));
+  return (
   <StaticPageLayout activePage="SERVICES">
     <section className="bg-[#202121] px-6 pb-20 pt-40 text-white sm:px-10 sm:pb-28 lg:px-12">
       <div className="mx-auto max-w-7xl">
@@ -17,12 +22,14 @@ export const ServicesPage = () => (
 
     <section className="mx-auto max-w-7xl px-6 py-20 sm:px-10 lg:px-12 lg:py-28">
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-        {servicesData.map((service, index) => (
+        {collection.map((service, index) => (
           <article key={service.id} className="group flex min-w-0 flex-col overflow-hidden rounded-[2rem] bg-white shadow-[0_20px_50px_rgba(0,0,0,0.08)]">
             <div className="relative aspect-[4/5] overflow-hidden bg-[#e7e7e7]">
               <img
                 src={service.img}
                 alt={service.text}
+                width={'width' in service?service.width:500}
+                height={'height' in service?service.height:500}
                 loading={index === 0 ? 'eager' : 'lazy'}
                 decoding="async"
                 className="h-full w-full object-contain p-6 transition-transform duration-500 group-hover:scale-105 sm:p-8"
@@ -31,11 +38,14 @@ export const ServicesPage = () => (
             <div className="flex flex-grow flex-col p-7 sm:p-8">
               <p className="text-sm font-extrabold uppercase tracking-[0.2em] text-[#202121]/50">0{index + 1}</p>
               <h2 className="mt-3 text-4xl font-black text-[#202121]">{service.text}</h2>
-              <p className="mt-4 text-lg leading-relaxed text-[#202121]/75">{service.text} for your need.</p>
+              <p className="mt-4 text-lg leading-relaxed text-[#202121]/75">{'description' in service?service.description:`${service.text} for your need.`}</p>
+              {'slug' in service&&service.slug&&<Link className="mt-5 font-bold underline" to={`/services/${service.slug}`}>Explore service</Link>}
             </div>
           </article>
         ))}
       </div>
+      {data!==null&&data.length===0&&<p className="mt-6 text-[#202121]/70" role="status">No published services yet.</p>}
+      {loading&&<p className="mt-6 text-[#202121]/60" role="status">Checking for latest services…</p>}{error&&<button className="mt-6 underline" onClick={retry}>Retry latest services</button>}
     </section>
 
     <section className="bg-[#f9d02d] px-6 py-20 sm:px-10 lg:px-12 lg:py-24">
@@ -53,4 +63,4 @@ export const ServicesPage = () => (
       </div>
     </section>
   </StaticPageLayout>
-);
+);};

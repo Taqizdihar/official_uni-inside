@@ -7,14 +7,30 @@ const ident = (value: string) => {
   if (!/^[a-z][a-z0-9_]*$/.test(value)) throw new Error('Unsafe database identifier');
   return `\`${value}\``;
 };
-export async function listRecords(db: Executor, spec: ResourceSpec, limit: number, offset: number, sort: string, direction: 'ASC'|'DESC') {
-  return rows<RowDataPacket>(db, `SELECT * FROM ${ident(spec.table)} ${spec.softDelete ? 'WHERE deleted_at IS NULL' : ''} ORDER BY ${ident(sort)} ${direction} LIMIT ? OFFSET ?`, [limit,offset]);
+export type ContentFilters = { search?: string; status?: string; categoryId?: number; parentId?: number; isActive?: boolean };
+export function contentWhere(spec: ResourceSpec, filters: ContentFilters = {}) {
+  const conditions = spec.softDelete ? ['deleted_at IS NULL'] : [];
+  const values: unknown[] = [];
+  if (filters.search) {
+    const field = ['name','title','full_name','label','slug','message_text'].find(value=>Object.hasOwn(spec.fields,value));
+    if (field) { conditions.push(`${ident(field)} LIKE ?`);values.push(`%${filters.search}%`); }
+  }
+  if (filters.status) { conditions.push('status=?'); values.push(filters.status); }
+  if (filters.categoryId) { conditions.push('category_id=?');values.push(filters.categoryId); }
+  if (filters.parentId && spec.childOf) { conditions.push(`${ident(spec.childOf.foreignKey)}=?`);values.push(filters.parentId); }
+  if (filters.isActive !== undefined) { conditions.push('is_active=?'); values.push(filters.isActive ? 1 : 0); }
+  return {sql:conditions.length?`WHERE ${conditions.join(' AND ')}`:'',values};
+}
+export async function listRecords(db: Executor, spec: ResourceSpec, limit: number, offset: number, sort: string, direction: 'ASC'|'DESC', filters: ContentFilters = {}) {
+  const where=contentWhere(spec,filters);
+  return rows<RowDataPacket>(db, `SELECT * FROM ${ident(spec.table)} ${where.sql} ORDER BY ${ident(sort)} ${direction} LIMIT ? OFFSET ?`, [...where.values,limit,offset]);
 }
 export async function record(db: Executor, spec: ResourceSpec, key: string | number, lock = false) {
   return (await rows<RowDataPacket>(db, `SELECT * FROM ${ident(spec.table)} WHERE ${ident(spec.key)}=? ${spec.softDelete ? 'AND deleted_at IS NULL' : ''} LIMIT 1 ${lock ? 'FOR UPDATE' : ''}`, [key]))[0];
 }
-export async function countRecords(db: Executor, spec: ResourceSpec) {
-  return Number((await rows<RowDataPacket>(db, `SELECT COUNT(*) AS count FROM ${ident(spec.table)} ${spec.softDelete ? 'WHERE deleted_at IS NULL' : ''}`))[0]?.count ?? 0);
+export async function countRecords(db: Executor, spec: ResourceSpec, filters: ContentFilters = {}) {
+  const where=contentWhere(spec,filters);
+  return Number((await rows<RowDataPacket>(db, `SELECT COUNT(*) AS count FROM ${ident(spec.table)} ${where.sql}`,where.values))[0]?.count ?? 0);
 }
 export async function insertRecord(db: Executor, spec: ResourceSpec, data: Record<string, unknown>) {
   const keys = Object.keys(data);
@@ -77,6 +93,11 @@ export async function publicDetail(db: Executor, spec: ResourceSpec, slug: strin
 export async function replaceProjectRelations(db: Executor, projectId: number, table: 'project_services' | 'project_team_members', key: 'service_id' | 'team_member_id', ids: number[]) {
   await write(db, `DELETE FROM ${ident(table)} WHERE project_id=?`, [projectId]);
   for (const id of ids) await write(db, `INSERT INTO ${ident(table)} (project_id,${ident(key)}) VALUES (?,?)`, [projectId,id]);
+}
+export function projectRelationList(db: Executor, projectId:number, kind:'services'|'team-members') {
+  return kind==='services'
+    ? rows<RowDataPacket>(db,'SELECT ps.service_id AS id,s.name AS label,s.slug FROM project_services ps JOIN services s ON s.id=ps.service_id WHERE ps.project_id=? ORDER BY s.name',[projectId])
+    : rows<RowDataPacket>(db,'SELECT pt.team_member_id AS id,t.full_name AS label,t.slug FROM project_team_members pt JOIN team_members t ON t.id=pt.team_member_id WHERE pt.project_id=? ORDER BY t.full_name',[projectId]);
 }
 export async function activePurchaseLinkCount(db: Executor, productId: number) {
   return Number((await rows<RowDataPacket>(db, 'SELECT COUNT(*) AS count FROM product_purchase_links WHERE product_id=? AND is_active=1', [productId]))[0]?.count ?? 0);

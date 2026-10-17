@@ -18,6 +18,7 @@ export async function dashboard(db: Executor) {
 }
 export const analyticsSummary = (db: Executor) => rows<RowDataPacket>(db,"SELECT metric_date,metric_name,entity_type,entity_id,dimension_key,dimension_value,metric_value FROM analytics_daily_metrics WHERE metric_date >= DATE_SUB(UTC_DATE(), INTERVAL 90 DAY) ORDER BY metric_date DESC LIMIT 500");
 export const auditList = (db: Executor,limit:number,offset:number) => rows<RowDataPacket>(db,'SELECT id,actor_user_id,action_code,entity_type,entity_id,request_id,created_at FROM audit_logs ORDER BY id DESC LIMIT ? OFFSET ?',[limit,offset]);
+export const auditCount = async (db: Executor) => Number((await rows<RowDataPacket>(db,'SELECT COUNT(*) AS total FROM audit_logs'))[0]?.total ?? 0);
 export const revisionList = (db: Executor,entityType:string,entityId:number) => rows<RowDataPacket>(db,'SELECT id,revision_number,change_summary,created_by,created_at FROM content_revisions WHERE entity_type=? AND entity_id=? ORDER BY revision_number DESC LIMIT 100',[entityType,entityId]);
 export const revisionRecord = async (db: Executor,id:number,entityType:string,entityId:number) => (await rows<RowDataPacket>(db,'SELECT id,snapshot_json FROM content_revisions WHERE id=? AND entity_type=? AND entity_id=? LIMIT 1',[id,entityType,entityId]))[0];
 export async function rollup(db: Executor, retentionDays:number) {

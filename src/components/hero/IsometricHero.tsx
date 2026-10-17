@@ -5,7 +5,8 @@ import studioLogo from '../../assets/global/Logo - Light Theme.png';
 import craftLogo from '../../assets/global/Uni-Inside Crafts.png';
 import studioIntroLogo from '../../assets/global/Uni-Inside Studio White.avif';
 import craftIntroLogo from '../../assets/global/Uni-Inside Craft White.avif';
-import { HERO_COPY, HERO_TIMING, HOTSPOTS, WORKSPACES, type HotspotId, type ProjectedHotspot, type Workspace } from './heroConfig';
+import { HERO_COPY, HERO_TIMING, HOTSPOTS, TRUST_SIGNALS, WORKSPACES, type HotspotId, type ProjectedHotspot, type Workspace } from './heroConfig';
+import { usePublicContent } from '../../public/client';
 import type { HeroSceneController } from './heroScene';
 import { RollingCounters } from './RollingCounters';
 import { HeroPullCord } from './HeroPullCord';
@@ -13,6 +14,7 @@ import { smoothStep } from './heroMotion';
 import styles from './Hero.module.css';
 
 const LOGOS = { studioLogo, craftLogo };
+const BulbI = () => (<svg className={styles.bulbIcon} viewBox="0 0 48 72" aria-hidden="true" focusable="false"><path className={styles.bulbFill} d="M24 4c-10 0-17 7-17 17 0 7 4 12 9 17v10h16V38c5-5 9-10 9-17C41 11 34 4 24 4Z" /><path d="M24 4c-10 0-17 7-17 17 0 7 4 12 9 17v10h16V38c5-5 9-10 9-17C41 11 34 4 24 4ZM17 54h14M19 60h10M22 66h4" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg>);
 const DESCRIPTION_BREAK = HERO_COPY.description.indexOf('every idea');
 const DESCRIPTION_LINES = [HERO_COPY.description.slice(0, DESCRIPTION_BREAK).trimEnd(), HERO_COPY.description.slice(DESCRIPTION_BREAK)];
 const clamp = (value: number, minimum: number, maximum: number) => Math.min(Math.max(value, minimum), Math.max(minimum, maximum));
@@ -85,9 +87,20 @@ function anchorOverlap(points: readonly ProjectedHotspot[], x: number, y: number
 }
 
 export function IsometricHero() {
+  const { homepage } = usePublicContent();
+  const heroCopy = homepage?.hero;
+  const trustSignals = homepage?.heroTrustSignals?.length === 3 ? homepage.heroTrustSignals.map((item, index) => ({value:String(item.numeric_value ?? TRUST_SIGNALS[index].value),plus:String(item.suffix ?? '').includes('+'),label:String(item.label ?? TRUST_SIGNALS[index].label)})) : TRUST_SIGNALS;
+  const displayHotspots = HOTSPOTS.map(hotspot => {
+    const key = `${hotspot.workspace}_${hotspot.id === 'editing' || hotspot.id === 'design' ? 'monitor' : hotspot.id}`;
+    const record = homepage?.heroHotspots?.find(item => item.hotspot_key === key && item.is_enabled !== 0);
+    return {...hotspot,label:record ? `${record.numeric_value ?? ''}${record.numeric_suffix ?? ''}${record.numeric_value != null ? ' ' : ''}${record.label}`.trim() : hotspot.label};
+  });
+  const displayWorkspace = (key:Workspace) => homepage?.heroWorkspaces?.find(item=>item.workspace_key===key && item.is_enabled!==0);
+  const heroDescription = heroCopy ? [heroCopy.description_line_1 || DESCRIPTION_LINES[0],heroCopy.description_line_2 || DESCRIPTION_LINES[1]] : DESCRIPTION_LINES;
   const [reducedMotion, setReducedMotion] = useState(() =>
     typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   const [workspace, setWorkspace] = useState<Workspace>('studio');
+  const defaultWorkspaceApplied = useRef(false);
   const [contentVisible, setContentVisible] = useState(reducedMotion);
   const [rollStarted, setRollStarted] = useState(reducedMotion);
   const [countersComplete, setCountersComplete] = useState(false);
@@ -584,9 +597,11 @@ export function IsometricHero() {
     workspaceRef.current = next;
     if (!fallback) controllerRef.current?.setWorkspace(next);
   };
+  useEffect(()=>{if(defaultWorkspaceApplied.current||(!sceneSettled&&!fallback)||!heroCopy)return;defaultWorkspaceApplied.current=true;if(heroCopy.default_workspace==='craft'&&workspaceRef.current==='studio'){setWorkspace('craft');workspaceRef.current='craft';setCtaWorkspace('craft');if(!fallback)controllerRef.current?.setWorkspace('craft');}},[heroCopy,sceneSettled,fallback]);
   const current = WORKSPACES[workspace];
   const cta = WORKSPACES[ctaWorkspace];
-  const active = HOTSPOTS.find((hotspot) => hotspot.id === activeHotspot);
+  const cmsCta = displayWorkspace(ctaWorkspace);
+  const active = displayHotspots.find((hotspot) => hotspot.id === activeHotspot);
 
   return (
     <section
@@ -605,14 +620,12 @@ export function IsometricHero() {
       data-bulb-lit={replayPhase === 'bulb-lit'}
     >
       <div ref={copyRef} className={styles.headingCopy}>
-        <h1 id="isometric-hero-title" className={styles.title} aria-label={HERO_COPY.title}>
-          <span className={styles.titleLine}><span className={styles.accent}><svg className={styles.bulbIcon} viewBox="0 0 48 72" aria-hidden="true" focusable="false"><path className={styles.bulbFill} d="M24 4c-10 0-17 7-17 17 0 7 4 12 9 17v10h16V38c5-5 9-10 9-17C41 11 34 4 24 4Z" /><path d="M24 4c-10 0-17 7-17 17 0 7 4 12 9 17v10h16V38c5-5 9-10 9-17C41 11 34 4 24 4ZM17 54h14M19 60h10M22 66h4" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg>deas</span>{' '}captured</span>{' '}
-          <span className={styles.titleLine}>and made</span>{' '}
-          <span className={styles.titleLine}>tangible</span>
+        <h1 id="isometric-hero-title" className={styles.title} aria-label={heroCopy ? `${heroCopy.heading_line_1} ${heroCopy.heading_line_2}` : HERO_COPY.title}>
+          {heroCopy ? <><span className={styles.titleLine}>{String(heroCopy.heading_line_1).startsWith('I')?<span className={styles.accent}><BulbI />{String(heroCopy.heading_line_1).slice(1)}</span>:heroCopy.heading_line_1}</span>{' '}<span className={styles.titleLine}>{heroCopy.heading_line_2}</span></> : <><span className={styles.titleLine}><span className={styles.accent}><BulbI />deas</span>{' '}captured</span>{' '}<span className={styles.titleLine}>and made</span>{' '}<span className={styles.titleLine}>tangible</span></>}
         </h1>
         <p className={styles.description}>
-          <span className={styles.descriptionLine}>{DESCRIPTION_LINES[0]}</span>{' '}
-          <span className={styles.descriptionLine}>{DESCRIPTION_LINES[1]}</span>
+          <span className={styles.descriptionLine}>{heroDescription[0]}</span>{' '}
+          <span className={styles.descriptionLine}>{heroDescription[1]}</span>
         </p>
       </div>
 
@@ -662,7 +675,7 @@ export function IsometricHero() {
             </div>
             <p className={styles.fallbackName}>{current.name}</p>
             <div className={styles.fallbackEquipment} aria-label="Explore workspace equipment">
-              {HOTSPOTS.filter((hotspot) => hotspot.workspace === workspace).map((hotspot) => (
+              {displayHotspots.filter((hotspot) => hotspot.workspace === workspace).map((hotspot) => (
                 <button
                   type="button"
                   key={hotspot.id}
@@ -752,14 +765,14 @@ export function IsometricHero() {
                 if (element) guidedRefs.current.set(id, entry);
                 else if (!entry.line && !entry.marker) guidedRefs.current.delete(id);
               }} className={styles.calloutPosition} data-hero-guided-callout={id} data-exiting={index < tour.dismissedCount}>
-                <div className={styles.calloutLabel}>{HOTSPOTS.find(item => item.id === id)!.label}</div>
+                <div className={styles.calloutLabel}>{displayHotspots.find(item => item.id === id)!.label}</div>
               </div>
             ))}
           </div>
         )}
       </div>
 
-      <RollingCounters key={counterCycle} start={rollStarted} reducedMotion={reducedMotion || fallback} onComplete={onCountersComplete} />
+      <RollingCounters key={counterCycle} signals={trustSignals} start={rollStarted} reducedMotion={reducedMotion || fallback} onComplete={onCountersComplete} />
 
       {cordReady && <HeroPullCord reducedMotion={reducedMotion} disabled={replayPhase !== 'idle' || busy} onPull={pullCord} />}
 
@@ -777,13 +790,13 @@ export function IsometricHero() {
           >
             {ctaWorkspace === 'studio' ? (
               <>
-                <Link className={styles.primaryCta} to="/#contact-us">{cta.primary}</Link>
-                <Link className={styles.secondaryCta} to="/services">{cta.secondary}</Link>
+                <Link className={styles.primaryCta} to={cmsCta?.primary_cta_url||'/#contact-us'}>{cmsCta?.primary_cta_label||cta.primary}</Link>
+                <Link className={styles.secondaryCta} to={cmsCta?.secondary_cta_url||'/services'}>{cmsCta?.secondary_cta_label||cta.secondary}</Link>
               </>
             ) : (
               <>
-                <Link className={styles.primaryCta} to="/products">{cta.primary}</Link>
-                <Link className={styles.secondaryCta} to="/#contact-us">{cta.secondary}</Link>
+                <Link className={styles.primaryCta} to={cmsCta?.primary_cta_url||'/products'}>{cmsCta?.primary_cta_label||cta.primary}</Link>
+                <Link className={styles.secondaryCta} to={cmsCta?.secondary_cta_url||'/#contact-us'}>{cmsCta?.secondary_cta_label||cta.secondary}</Link>
               </>
             )}
           </div>

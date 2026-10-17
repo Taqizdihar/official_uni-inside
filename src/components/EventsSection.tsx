@@ -1,6 +1,7 @@
 import React, { forwardRef } from 'react';
 import { motion } from 'motion/react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { usePublicContent } from '../public/client';
 
 const mockEvents = [
   {
@@ -28,6 +29,9 @@ const mockEvents = [
 
 export const EventsSection = forwardRef<HTMLDivElement, {}>((props, ref) => {
   const navigate = useNavigate();
+  const {homepage,news}=usePublicContent();
+  const section=homepage?.sections?.find(item=>item.section_key==='news'&&item.is_visible!==0);
+  const events=news===null?mockEvents:news.slice(0,3).map(item=>({id:item.id,slug:item.slug,date:item.published_at?new Date(item.published_at).toLocaleDateString():'',title:String(item.title),description:String(item.excerpt||''),image:String(item.image?.secure_url||mockEvents[0].image)}));
 
   return (
     <div className="w-full flex flex-col px-8 lg:px-24">
@@ -42,7 +46,7 @@ export const EventsSection = forwardRef<HTMLDivElement, {}>((props, ref) => {
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate('/news'); }}
           >
             <h2 className="text-[44px] sm:text-[70px] lg:text-[95px] font-black uppercase text-[#202121] leading-none tracking-tight">
-              NEWS
+              {section?.heading||'NEWS'}
             </h2>
             <motion.div 
               className="ml-6 sm:ml-10 flex items-center gap-[12px]"
@@ -96,21 +100,22 @@ export const EventsSection = forwardRef<HTMLDivElement, {}>((props, ref) => {
             </motion.div>
           </div>
           <p className="text-[18px] sm:text-[24px] text-gray-600 font-medium mt-2 sm:mt-3">
-            Catch up with our latest news and updates
+            {section?.description||'Catch up with our latest news and updates'}
           </p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {mockEvents.map((evt, idx) => (
+        {events.map((evt, idx) => (
           <motion.div 
             key={evt.id}
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-50px" }}
             transition={{ duration: 0.6, delay: idx * 0.15 }}
-            className="group cursor-pointer rounded-2xl overflow-hidden bg-white shadow-xl hover:shadow-2xl transition-all duration-300 border border-gray-100"
+            className="group rounded-2xl overflow-hidden bg-white shadow-xl hover:shadow-2xl transition-all duration-300 border border-gray-100"
           >
+            <Link to={'slug' in evt&&evt.slug?`/news/${evt.slug}`:'/news'} className="block h-full focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#f9d02d]">
             <div className="w-full h-36 sm:h-40 overflow-hidden relative">
               <img src={evt.image} alt={evt.title} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
               <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm px-3.5 py-1.5 rounded-full shadow-sm">
@@ -129,9 +134,11 @@ export const EventsSection = forwardRef<HTMLDivElement, {}>((props, ref) => {
                 </svg>
               </div>
             </div>
+            </Link>
           </motion.div>
         ))}
       </div>
+      {news?.length===0&&<p className="text-[#202121]/70">No news published yet.</p>}
     </div>
   );
 });

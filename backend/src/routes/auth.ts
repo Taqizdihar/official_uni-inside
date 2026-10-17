@@ -85,7 +85,8 @@ export function authRoutes(config: Config, db: Pool) {
 
   router.get('/admin/users', requireAuth, permit('users.view'), asyncRoute(async (req, res) => {
     const q = parse(page, req.query);
-    res.json({ data: await repo.listUsers(db, q.limit, (q.page - 1) * q.limit), meta: q });
+    const [data,total]=await Promise.all([repo.listUsers(db,q.limit,(q.page-1)*q.limit),repo.countUsers(db)]);
+    res.json({ data, meta: {...q,total,totalPages:Math.ceil(total/q.limit)} });
   }));
   router.get('/admin/users/:id', requireAuth, permit('users.view'), asyncRoute(async (req, res) => {
     const user = await repo.findUserById(db, parse(id, req.params.id));
@@ -98,7 +99,7 @@ export function authRoutes(config: Config, db: Pool) {
     res.json({ data: await service.updateUser(db, parse(id, req.params.id), input.role, input.status, { actorId: req.actor!.id, requestId: req.requestId, permissions:req.actor!.permissions }) });
   }));
   router.get('/admin/invitations', requireAuth, permit('users.view'), asyncRoute(async (req, res) => {
-    const q = parse(page, req.query); res.json({ data: await repo.listInvitations(db, q.limit, (q.page-1)*q.limit), meta: q });
+    const q = parse(page, req.query); const [data,total]=await Promise.all([repo.listInvitations(db,q.limit,(q.page-1)*q.limit),repo.countInvitations(db)]);res.json({ data, meta: {...q,total,totalPages:Math.ceil(total/q.limit)} });
   }));
   router.post('/admin/invitations', requireAuth, requireCsrf, permit('users.invite'), strict, asyncRoute(async (req, res) => {
     const input = parse(z.strictObject({ email, displayName: z.string().min(1).max(150), role: z.enum(['administrator','editor','author','viewer']) }), req.body);
@@ -118,6 +119,7 @@ export function authRoutes(config: Config, db: Pool) {
   }));
   router.get('/admin/roles', requireAuth, permit('roles.view'), asyncRoute(async (_req, res) => { res.json({ data: await repo.listRoles(db) }); }));
   router.get('/admin/permissions', requireAuth, permit('roles.view'), asyncRoute(async (_req, res) => { res.json({ data: await repo.listPermissions(db) }); }));
+  router.get('/admin/roles/:id/permissions', requireAuth, permit('roles.view'), asyncRoute(async (req,res) => { res.json({data:{permissionIds:await repo.rolePermissionIds(db,parse(id,req.params.id))}}); }));
   router.put('/admin/roles/:id/permissions', requireAuth, requireCsrf, permit('roles.manage'), asyncRoute(async (req, res) => {
     const roleId = parse(id, req.params.id);
     const input = parse(z.strictObject({ permissionIds: z.array(id).max(51) }), req.body);

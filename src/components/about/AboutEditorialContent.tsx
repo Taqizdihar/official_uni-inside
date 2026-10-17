@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion, useReducedMotion } from 'motion/react';
+import { usePublicContent } from '../../public/client';
 
 type Workspace = {
   number: string;
@@ -82,6 +83,9 @@ const Reveal: React.FC<{
 
 const AboutEditorialMarkup: React.FC<{ animated: boolean; reduceMotion: boolean }> = ({ animated, reduceMotion }) => {
   const revealProps = { animated, reduceMotion };
+  const { homepage } = usePublicContent();
+  const workspaces = WORKSPACES.map((fallback,index)=>{const cms=homepage?.aboutWorkspaces?.find(item=>item.workspace_key===(index===0?'studio':'craft')&&item.is_visible!==0);return cms?{...fallback,name:cms.name||fallback.name,category:cms.short_label||fallback.category,description:cms.description||fallback.description}:fallback;});
+  const principles = PRINCIPLES.map((fallback,index)=>{const cms=homepage?.aboutPrinciples?.find(item=>Number(item.slot)===index+1&&item.is_visible!==0);return cms?{...fallback,title:cms.title||fallback.title,description:cms.description||fallback.description}:fallback;});
 
   return (
     <div
@@ -97,7 +101,7 @@ const AboutEditorialMarkup: React.FC<{ animated: boolean; reduceMotion: boolean 
           </div>
           <div className="mb-12 grid gap-6 lg:mb-16 lg:grid-cols-[1fr_0.7fr] lg:items-end lg:gap-12">
             <h3 className="max-w-4xl text-[clamp(2.65rem,6.2vw,6rem)] font-black leading-[0.9] tracking-[-0.06em]">
-              TWO WORKSPACES.<br />ONE SHARED PURPOSE.
+              {homepage?.about?.workspaces_heading && String(homepage.about.workspaces_heading).length < 48 ? homepage.about.workspaces_heading : <>TWO WORKSPACES.<br />ONE SHARED PURPOSE.</>}
             </h3>
             <p className="max-w-md border-l-2 border-[#f9d02d] pl-5 text-lg leading-relaxed sm:text-xl">
               Different outputs, one way of working: curious, collaborative, and built around the idea.
@@ -106,7 +110,7 @@ const AboutEditorialMarkup: React.FC<{ animated: boolean; reduceMotion: boolean 
 
           <div className="relative grid gap-5 lg:grid-cols-2 lg:gap-8">
             <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 hidden h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-[5px] border-[#202121] bg-[#f9d02d] lg:block" aria-hidden="true" />
-            {WORKSPACES.map((workspace, index) => (
+            {workspaces.map((workspace, index) => (
               <article
                 key={workspace.number}
                 className={`relative flex min-h-[24rem] flex-col border-2 border-[#202121] p-6 sm:min-h-[27rem] sm:p-9 lg:p-11 ${index === 0 ? 'bg-[#202121] text-[#fffdf5]' : 'bg-[#fffdf5] text-[#202121]'}`}
@@ -171,9 +175,9 @@ const AboutEditorialMarkup: React.FC<{ animated: boolean; reduceMotion: boolean 
             <span className="h-[3px] w-10 bg-[#f9d02d] sm:w-14" aria-hidden="true" />
             <p className="text-xs font-extrabold uppercase tracking-[0.2em] sm:text-sm">WHAT GUIDES US</p>
           </div>
-          <h3 className="mb-12 max-w-4xl text-[clamp(2.8rem,6.5vw,6.2rem)] font-black leading-[0.9] tracking-[-0.065em] sm:mb-16">THE WAY WE MAKE MATTERS.</h3>
+          <h3 className="mb-12 max-w-4xl text-[clamp(2.8rem,6.5vw,6.2rem)] font-black leading-[0.9] tracking-[-0.065em] sm:mb-16">{homepage?.about?.principles_heading||'THE WAY WE MAKE MATTERS.'}</h3>
           <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-3 lg:gap-8">
-            {PRINCIPLES.map((principle) => (
+            {principles.map((principle) => (
               <article
                 key={principle.number}
                 className={`min-w-0 border-t-2 border-[#202121] pt-6 ${animated && !reduceMotion ? 'group transition-transform duration-300 motion-safe:hover:-translate-y-1' : ''}`}
