@@ -5,7 +5,7 @@ import type { Pool } from 'mysql2/promise';
 import type { Config } from '../config/env';
 import { auth, csrf, csrfToken, permit } from '../middleware/auth';
 import { asyncRoute, HttpError, parse } from '../utils/http';
-import { sessionCookieOptions } from '../utils/security';
+import { clearCsrfCookieOptions, clearSessionCookieOptions, csrfCookieOptions, sessionCookieOptions } from '../utils/security';
 import * as service from '../services/auth';
 import * as repo from '../repositories/auth';
 import { transaction } from '../database/pool';
@@ -19,6 +19,7 @@ const token = z.string().min(20).max(200);
 const page = z.strictObject({ page: z.coerce.number().int().positive().default(1), limit: z.coerce.number().int().min(1).max(100).default(20) });
 export function authRoutes(config: Config, db: Pool) {
   const router = Router();
+  router.use((_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
   const requireAuth = auth(config, db);
   const requireCsrf = csrf(config);
   const strict = rateLimit({ windowMs: config.LOGIN_RATE_LIMIT_WINDOW_MINUTES * 60_000, limit: config.LOGIN_RATE_LIMIT_MAX, standardHeaders: 'draft-8', legacyHeaders: false });
@@ -27,7 +28,7 @@ export function authRoutes(config: Config, db: Pool) {
     const result = await service.login(db, config, input.email, input.password, { requestId: req.requestId, ip: req.ip, userAgent: req.get('user-agent') });
     res.cookie(config.SESSION_COOKIE_NAME, result.token, sessionCookieOptions(config));
     const csrfValue = csrfToken(config, result.token);
-    res.cookie(config.CSRF_COOKIE_NAME, csrfValue, { secure: config.SESSION_COOKIE_SECURE, sameSite: config.SESSION_COOKIE_SAME_SITE, path: '/', maxAge: config.SESSION_TTL_HOURS * 3_600_000 });
+    res.cookie(config.CSRF_COOKIE_NAME, csrfValue, csrfCookieOptions(config));
     res.json({ data: { user: result.user, csrfToken: csrfValue } });
   }));
   router.post('/auth/invitations/accept', strict, asyncRoute(async (req, res) => {
@@ -66,12 +67,12 @@ export function authRoutes(config: Config, db: Pool) {
   }));
   router.post('/auth/logout', requireAuth, requireCsrf, asyncRoute(async (req, res) => {
     await transaction(db,async conn=>{await repo.revokeSession(conn,req.actor!.sessionId);await audit(conn,{actorId:req.actor!.id,action:'auth.logout',entityType:'users',entityId:req.actor!.id,requestId:req.requestId});});
-    res.clearCookie(config.SESSION_COOKIE_NAME, { path: '/' }); res.clearCookie(config.CSRF_COOKIE_NAME, { path: '/' });
+    res.clearCookie(config.SESSION_COOKIE_NAME, clearSessionCookieOptions(config)); res.clearCookie(config.CSRF_COOKIE_NAME, clearCsrfCookieOptions(config));
     res.json({ data: { loggedOut: true } });
   }));
   router.post('/auth/logout-all', requireAuth, requireCsrf, asyncRoute(async (req, res) => {
     await transaction(db,async conn=>{await repo.revokeUserSessions(conn,req.actor!.id);await audit(conn,{actorId:req.actor!.id,action:'auth.logout.all',entityType:'users',entityId:req.actor!.id,requestId:req.requestId});});
-    res.clearCookie(config.SESSION_COOKIE_NAME, { path: '/' }); res.clearCookie(config.CSRF_COOKIE_NAME, { path: '/' });
+    res.clearCookie(config.SESSION_COOKIE_NAME, clearSessionCookieOptions(config)); res.clearCookie(config.CSRF_COOKIE_NAME, clearCsrfCookieOptions(config));
     res.json({ data: { loggedOut: true } });
   }));
   router.post('/auth/password-change', requireAuth, requireCsrf, asyncRoute(async (req, res) => {
@@ -79,7 +80,7 @@ export function authRoutes(config: Config, db: Pool) {
     const result=await service.changePassword(db, config, req.actor!.id, input.currentPassword, input.newPassword, req.requestId);
     res.cookie(config.SESSION_COOKIE_NAME,result.token,sessionCookieOptions(config));
     const csrfValue=csrfToken(config,result.token);
-    res.cookie(config.CSRF_COOKIE_NAME,csrfValue,{secure:config.SESSION_COOKIE_SECURE,sameSite:config.SESSION_COOKIE_SAME_SITE,path:'/',maxAge:config.SESSION_TTL_HOURS*3_600_000});
+    res.cookie(config.CSRF_COOKIE_NAME,csrfValue,csrfCookieOptions(config));
     res.json({ data:{changed:true,csrfToken:csrfValue} });
   }));
 

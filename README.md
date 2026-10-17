@@ -62,7 +62,7 @@ Open the public site at `http://localhost:3000`, CMS login at `http://localhost:
 
 Sign in, save a draft, upload an image through the CMS media picker, complete the publishing requirements, and publish. The picker requests a short-lived signature, uploads directly to Cloudinary, then asks the backend to verify and record it in MySQL. `CLOUDINARY_ROOT_FOLDER` defaults to `uni-inside`; the backend controls subfolders. Manually uploaded Cloudinary images do not automatically become CMS media records. Cloudinary is external storage even when MySQL is local. SMTP can remain empty for local development; development-only invitation/reset links then appear in the API response.
 
-Phase 2 adds local CMS and public integration only. Cloudflare Pages, Render, and Aiven deployment is reserved for Phase 3.
+Stage 3 deployment preparation, operator configuration, and smoke-check steps are documented in [docs/deployment-stage-3.md](docs/deployment-stage-3.md). External Aiven migration and Render/Cloudflare configuration remain manual.
 
 ## Available scripts
 

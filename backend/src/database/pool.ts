@@ -1,12 +1,11 @@
 import mysql, { type Pool, type PoolConnection, type RowDataPacket, type ResultSetHeader } from 'mysql2/promise';
 import type { Config } from '../config/env';
+import { databaseTlsOptions } from './tls';
 
 export type Database = Pool;
 export type Executor = Pool | PoolConnection;
 export function createPool(config: Config): Pool {
-  const ssl = config.DB_SSL_MODE === 'required'
-    ? { rejectUnauthorized: true, ...(config.DB_SSL_CA_BASE64 ? { ca: Buffer.from(config.DB_SSL_CA_BASE64, 'base64').toString('utf8') } : {}) }
-    : undefined;
+  const ssl = databaseTlsOptions(config);
   return mysql.createPool({
     host: config.DB_HOST, port: config.DB_PORT, database: config.DB_NAME,
     user: config.DB_USER, password: config.DB_PASSWORD, ssl,

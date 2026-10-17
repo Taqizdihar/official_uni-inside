@@ -1,6 +1,7 @@
 import {createContext,useContext,useEffect,useMemo,useState,type ReactNode} from 'react';
 import {useLocation} from 'react-router-dom';
-export const PUBLIC_API_BASE=(import.meta.env.VITE_API_BASE_URL||'http://localhost:4000/api/v1').replace(/\/+$/,'');
+import {API_BASE} from '../config/apiBase';
+export const PUBLIC_API_BASE=API_BASE;
 export type PublicRecord=Record<string,any>;
 export type Homepage={hero:PublicRecord|null;heroTrustSignals:PublicRecord[];heroWorkspaces:PublicRecord[];heroHotspots:PublicRecord[];about:PublicRecord|null;aboutWorkspaces:PublicRecord[];aboutPrinciples:PublicRecord[];team:PublicRecord|null;achievements:PublicRecord|null;contact:PublicRecord|null;chatMessages:PublicRecord[];sections:PublicRecord[];featured:Record<string,PublicRecord[]>};
 export type Site={site:PublicRecord|null;socialLinks:PublicRecord[];pages:PublicRecord[]};

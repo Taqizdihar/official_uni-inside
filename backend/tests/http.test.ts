@@ -4,8 +4,9 @@ import type { Pool } from 'mysql2/promise';
 import { createApp } from '../src/app';
 import { loadConfig } from '../src/config/env';
 import { csrfToken } from '../src/middleware/auth';
+import { rootCertificates } from 'node:tls';
 
-const config=loadConfig({DB_HOST:'localhost',DB_NAME:'uni-inside',DB_USER:'root',AUTH_TOKEN_PEPPER:'a'.repeat(40),ANALYTICS_HASH_PEPPER:'b'.repeat(40),LOG_LEVEL:'silent'});
+const config=loadConfig({DB_HOST:'localhost',DB_NAME:'uni-inside',DB_USER:'root',AUTH_TOKEN_PEPPER:'a'.repeat(40),ANALYTICS_HASH_PEPPER:'b'.repeat(40),CORS_ALLOWED_ORIGINS:'http://localhost:3000,https://uni-inside.pages.dev',LOG_LEVEL:'silent'});
 const db={
   query:async()=>{throw new Error('Database unavailable');},
   execute:async(options:{sql:string})=>{
@@ -19,8 +20,15 @@ const db={
 describe('HTTP behavior',()=>{
   const app=createApp(config,db);
   it('returns liveness without a database and 503 readiness when unavailable',async()=>{
-    expect((await request(app).get('/api/v1/health')).body.data.status).toBe('ok');
-    const ready=await request(app).get('/api/v1/ready');expect(ready.status).toBe(503);expect(ready.body.error).toMatchObject({code:'NOT_READY',requestId:expect.any(String)});
+    const health=await request(app).get('/api/v1/health');expect(health.body.data.status).toBe('ok');expect(health.headers['cache-control']).toContain('no-store');
+    const ready=await request(app).get('/api/v1/ready');expect(ready.status).toBe(503);expect(ready.headers['cache-control']).toContain('no-store');expect(ready.body.error).toMatchObject({code:'NOT_READY',requestId:expect.any(String)});
+  });
+  it('sets exact credentialed CORS and handles preflight without a wildcard',async()=>{
+    const origin='https://uni-inside.pages.dev';
+    const response=await request(app).get('/api/v1/site').set('Origin',origin);
+    expect(response.headers['access-control-allow-origin']).toBe(origin);expect(response.headers['access-control-allow-credentials']).toBe('true');expect(response.headers.vary).toContain('Origin');
+    const preflight=await request(app).options('/api/v1/auth/me').set('Origin',origin).set('Access-Control-Request-Method','POST').set('Access-Control-Request-Headers','content-type,x-csrf-token');
+    expect(preflight.status).toBe(204);expect(preflight.headers['access-control-allow-origin']).toBe(origin);expect(preflight.headers['access-control-allow-credentials']).toBe('true');expect(preflight.headers['access-control-allow-methods']).toContain('OPTIONS');
   });
   it('blocks disallowed origins and does not leak stack traces',async()=>{
     const response=await request(app).post('/api/v1/auth/login').set('Origin','https://attacker.example').send({});
@@ -65,7 +73,21 @@ describe('HTTP behavior',()=>{
   });
   it('rejects missing sessions without exposing user data',async()=>{
     const denied=await request(app).get('/api/v1/auth/me');
-    expect(denied.status).toBe(401);expect(denied.body.error.code).toBe('UNAUTHENTICATED');
+    expect(denied.status).toBe(401);expect(denied.headers['cache-control']).toContain('no-store');expect(denied.body.error.code).toBe('UNAUTHENTICATED');
+  });
+  it('clears both production cookies with matching cross-site attributes on logout',async()=>{
+    const production=loadConfig({NODE_ENV:'production',HOST:'0.0.0.0',PUBLIC_FRONTEND_URL:'https://uni-inside.pages.dev',ADMIN_FRONTEND_URL:'https://uni-inside.pages.dev/admin',CORS_ALLOWED_ORIGINS:'https://uni-inside.pages.dev',TRUST_PROXY:'true',DB_HOST:'localhost',DB_NAME:'uni-inside',DB_USER:'root',DB_SSL_MODE:'required',DB_SSL_CA_BASE64:Buffer.from(rootCertificates[0]!).toString('base64'),DB_SSL_REJECT_UNAUTHORIZED:'true',SESSION_COOKIE_SECURE:'true',SESSION_COOKIE_SAME_SITE:'none',AUTH_TOKEN_PEPPER:'a'.repeat(40),ANALYTICS_HASH_PEPPER:'b'.repeat(40),LOG_LEVEL:'silent'});
+    const raw='session-token';const csrf=csrfToken(production,raw);
+    const logoutDb={...db,getConnection:async()=>({beginTransaction:async()=>{},execute:db.execute,commit:async()=>{},rollback:async()=>{},release:()=>{}})} as unknown as Pool;
+    const response=await request(createApp(production,logoutDb)).post('/api/v1/auth/logout').set('Origin','https://uni-inside.pages.dev').set('X-CSRF-Token',csrf).set('Cookie',[`${production.SESSION_COOKIE_NAME}=${raw}`,`${production.CSRF_COOKIE_NAME}=${csrf}`]).send({});
+    expect(response.status).toBe(200);
+    const cookies=response.headers['set-cookie'];
+    expect(Array.isArray(cookies)).toBe(true);
+    if(!Array.isArray(cookies))throw new Error('Expected logout Set-Cookie headers');
+    expect(cookies).toHaveLength(2);
+    expect(cookies[0]).toContain('Path=/');expect(cookies[0]).toContain('HttpOnly');expect(cookies[0]).toContain('Secure');expect(cookies[0]).toContain('SameSite=None');
+    expect(cookies[1]).toContain('Path=/');expect(cookies[1]).toContain('Secure');expect(cookies[1]).toContain('SameSite=None');
+    expect(cookies.every(cookie=>cookie.includes('Expires=Thu, 01 Jan 1970'))).toBe(true);
   });
   it('reports Cloudinary as unavailable when unconfigured',async()=>{
     const raw='session-token';const csrf=csrfToken(config,raw);

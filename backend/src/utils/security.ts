@@ -16,6 +16,17 @@ export function validatePassword(password: string, min: number) {
 export function sessionCookieOptions(config: Config) {
   return { httpOnly: true as const, secure: config.SESSION_COOKIE_SECURE, sameSite: config.SESSION_COOKIE_SAME_SITE, path: '/', maxAge: config.SESSION_TTL_HOURS * 3_600_000 };
 }
+export function csrfCookieOptions(config: Config) {
+  return { httpOnly: false as const, secure: config.SESSION_COOKIE_SECURE, sameSite: config.SESSION_COOKIE_SAME_SITE, path: '/', maxAge: config.SESSION_TTL_HOURS * 3_600_000 };
+}
+export function clearSessionCookieOptions(config: Config) {
+  const { httpOnly, secure, sameSite, path } = sessionCookieOptions(config);
+  return { httpOnly, secure, sameSite, path };
+}
+export function clearCsrfCookieOptions(config: Config) {
+  const { httpOnly, secure, sameSite, path } = csrfCookieOptions(config);
+  return { httpOnly, secure, sameSite, path };
+}
 const secretKeys = /password|token|secret|cookie|authorization|credential|private|smtp|pepper|before_json|after_json/i;
 export function redact(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(redact);

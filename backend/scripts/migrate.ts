@@ -2,4 +2,4 @@ import 'dotenv/config';
 import { loadConfig } from '../src/config/env';
 import { runMigrations } from '../src/database/migrations';
 
-runMigrations(loadConfig()).then(count=>console.info(`Checked ${count} migration(s).`)).catch(err=>{console.error(err instanceof Error?err.message:'Migration failed');process.exitCode=1;});
+runMigrations(loadConfig()).then(count=>console.info(`Checked ${count} migration(s).`)).catch(()=>{console.error('Migration failed. Check the database connection and migration state without sharing connection details.');process.exitCode=1;});
