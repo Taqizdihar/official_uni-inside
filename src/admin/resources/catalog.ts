@@ -1,7 +1,41 @@
 export type FieldKind='text'|'textarea'|'rich'|'number'|'money'|'url'|'date'|'datetime'|'toggle'|'select'|'media'|'relation';
 export type Field={key:string;label:string;kind?:FieldKind;options?:[string,string][];related?:string;optional?:boolean;help?:string};
 export type ResourceDef={name:string;label:string;permission:string;kind:'dynamic'|'fixed';fields:Field[];titleField?:string;parent?:string;mediaScope?:string;children?:string[];group:'Homepage'|'Content'|'Site'};
-const f=(key:string,label:string,kind:FieldKind='text',extra:Partial<Field>={}):Field=>({key,label,kind,...extra});
+const fieldLabels:Record<string,string>={
+  'Display order':'Urutan tampilan','Visible or active':'Tampil / aktif','Visible':'Tampilkan','Search title':'Judul SEO','Search description':'Deskripsi SEO',
+  'Full name':'Nama lengkap','URL slug':'Slug URL','Role':'Peran','Joined date':'Tanggal bergabung','Departed date':'Tanggal selesai',
+  'Name':'Nama','Description':'Deskripsi','Product name':'Nama produk','Product type':'Jenis produk','Short description':'Deskripsi singkat',
+  'Full description':'Deskripsi lengkap','Base price':'Harga dasar','Currency':'Mata uang','Price note':'Catatan harga',
+  'Availability':'Ketersediaan','Lead time':'Estimasi pengerjaan','Minimum quantity':'Jumlah minimum','Featured':'Unggulan',
+  'Schedule at':'Jadwalkan pada','Cover image':'Gambar sampul','Image':'Gambar','Feature':'Fitur','Value':'Nilai',
+  'Color name':'Nama warna','Hex color':'Kode warna','Sample image':'Contoh gambar','Variant name':'Nama varian',
+  'Price adjustment':'Penyesuaian harga','Stock quantity':'Jumlah stok','Store or platform':'Toko atau platform',
+  'Button label':'Teks tombol','Purchase URL':'URL pembelian','Primary link':'Tautan utama','Service name':'Nama layanan',
+  'Pricing':'Jenis harga','Starting price':'Harga mulai','Estimated duration':'Estimasi durasi','Homepage slot':'Slot Homepage',
+  'CTA label':'Teks CTA','CTA path or URL':'Path atau URL CTA','Type':'Jenis','Item':'Item','Step title':'Judul langkah',
+  'Project title':'Judul proyek','Client or collaborator':'Klien atau kolaborator','Project date':'Tanggal proyek',
+  'Title':'Judul','Excerpt':'Ringkasan','Article body':'Isi artikel','CMS author':'Penulis CMS','Team author':'Penulis dari tim',
+  'Year':'Tahun','Exact date':'Tanggal tepat','Issuer':'Pemberi penghargaan','Icon choice':'Pilihan ikon',
+  'Platform':'Platform','Label':'Label','Icon name':'Nama ikon','Message':'Pesan','Speaker':'Pembicara',
+  'Site name':'Nama website','Tagline':'Tagline','Public email':'Email publik','Public phone':'Telepon publik',
+  'WhatsApp number':'Nomor WhatsApp','Default search title':'Judul SEO default','Eyebrow':'Teks pengantar',
+  'Heading':'Judul utama','Default sort':'Urutan default','Heading line 1':'Baris judul 1','Heading line 2':'Baris judul 2',
+  'Description line 1':'Baris deskripsi 1','Description line 2':'Baris deskripsi 2','Intro enabled':'Aktifkan intro',
+  'Default workspace':'Workspace awal','Number':'Angka','Suffix':'Akhiran','Display name':'Nama tampilan',
+  'Primary button':'Tombol utama','Primary URL':'URL utama','Secondary button':'Tombol kedua','Secondary URL':'URL kedua',
+  'Enabled':'Aktif','Lead text':'Teks pembuka','Workspace heading':'Judul Workspace','Principles heading':'Judul Principles',
+};
+const resourceLabels:Record<string,string>={'team-members':'Team Members','product-categories':'Kategori produk','product-images':'Galeri gambar','product-features':'Fitur produk','product-color-options':'Pilihan warna','product-variants':'Varian produk','product-purchase-links':'Tautan pembelian','service-categories':'Kategori layanan','service-list-items':'Hasil dan kebutuhan','service-process-steps':'Langkah proses','service-images':'Galeri gambar','project-images':'Galeri gambar','news-categories':'Kategori berita','news-images':'Galeri gambar','social-links':'Social Links','contact-chat-messages':'Percakapan Contact Us','site-settings':'Pengaturan website','page-settings':'Pengaturan halaman','homepage-sections':'Section Homepage','hero-hotspots':'Hero Callouts'};
+const optionLabels:Record<string,string>={
+  'Ready-made':'Siap pakai',Custom:'Kustom',Both:'Keduanya','Contact us':'Hubungi kami',Fixed:'Harga tetap',
+  'Starting from':'Mulai dari',Range:'Rentang harga',Deliverable:'Hasil pekerjaan',Included:'Termasuk',
+  Requirement:'Kebutuhan','Not included':'Tidak termasuk',Article:'Artikel',Update:'Pembaruan',Event:'Acara',
+  Fan:'Kipas',Ring:'Cincin',Visitor:'Pengunjung',None:'Tidak ada',
+};
+const f=(key:string,label:string,kind:FieldKind='text',extra:Partial<Field>={}):Field=>({
+  key,label:fieldLabels[label]??label,kind,...extra,
+  options:extra.options?.map(([value,caption])=>[value,optionLabels[caption]??caption]),
+});
 const order=f('sort_order','Display order','number');
 const image=(key:string,label:string)=>f(key,label,'media');
 const category=(key:string,label:string,related:string)=>f(key,label,'relation',{related,optional:true});
@@ -10,7 +44,7 @@ const text=(key:string,label:string)=>f(key,label,'textarea',{optional:true});
 const active=f('is_active','Visible or active','toggle');
 const visible=f('is_visible','Visible','toggle');
 const seo=[f('meta_title','Search title','text',{optional:true}),text('meta_description','Search description')];
-const resource=(name:string,label:string,permission:string,group:ResourceDef['group'],fields:Field[],options:Partial<ResourceDef>={}):ResourceDef=>({name,label,permission,group,fields,kind:'dynamic',...options});
+const resource=(name:string,label:string,permission:string,group:ResourceDef['group'],fields:Field[],options:Partial<ResourceDef>={}):ResourceDef=>({name,label:resourceLabels[name]??label,permission,group,fields,kind:'dynamic',...options});
 const fixed=(name:string,label:string,group:ResourceDef['group'],fields:Field[],permission='homepage'):ResourceDef=>resource(name,label,permission,group,fields,{kind:'fixed'});
 
 export const catalog:Record<string,ResourceDef>={
