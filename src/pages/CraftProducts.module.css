@@ -1,0 +1,41 @@
+.reveal {
+  animation: craftRise 620ms cubic-bezier(.22, 1, .36, 1) both;
+}
+
+.revealLate {
+  animation: craftRise 680ms 110ms cubic-bezier(.22, 1, .36, 1) both;
+}
+
+.imageEnter {
+  animation: craftImageIn 360ms ease-out both;
+}
+
+.richText {
+  color: #424442;
+  font-size: clamp(1rem, 1.15vw, 1.13rem);
+  line-height: 1.85;
+  overflow-wrap: anywhere;
+}
+
+.richText > * + * { margin-top: 1.2em; }
+.richText h2, .richText h3 { color: #202121; font-weight: 800; line-height: 1.2; }
+.richText h2 { font-size: 1.55rem; }
+.richText h3 { font-size: 1.25rem; }
+.richText ul { list-style: disc; padding-left: 1.4rem; }
+.richText ol { list-style: decimal; padding-left: 1.4rem; }
+.richText a { color: #202121; text-decoration: underline; text-underline-offset: .2em; }
+.richText blockquote { border-left: 3px solid #f9d02d; padding-left: 1.2rem; }
+
+@keyframes craftRise {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes craftImageIn {
+  from { opacity: .6; transform: scale(.985); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal, .revealLate, .imageEnter { animation: none; }
+}

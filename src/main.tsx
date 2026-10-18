@@ -11,6 +11,7 @@ import {PublicAnalytics,PublicContentProvider,usePublicContent} from './public/c
 const NewsPage = lazy(() => import('./pages/NewsPage').then(({ NewsPage: Page }) => ({ default: Page })));
 const MediaKitPage = lazy(() => import('./pages/MediaKitPage').then(({ MediaKitPage: Page }) => ({ default: Page })));
 const ProductsPage = lazy(() => import('./pages/ProductsPage').then(({ ProductsPage: Page }) => ({ default: Page })));
+const ProductDetailPage = lazy(() => import('./pages/ProductDetailPage').then(({ ProductDetailPage: Page }) => ({ default: Page })));
 const ServicesPage = lazy(() => import('./pages/ServicesPage').then(({ ServicesPage: Page }) => ({ default: Page })));
 const AdminApp = lazy(() => import('./admin/AdminApp'));
 const PublicDetailPage = lazy(() => import('./pages/PublicDetailPage').then(({PublicDetailPage:Page})=>({default:Page})));
@@ -154,7 +155,7 @@ const AnimatedRoutes = () => {
               <Route path="/media-kit" element={<MediaKitPage />} />
               <Route path="/products" element={<ProductsPage />} />
               <Route path="/services" element={<ServicesPage />} />
-              <Route path="/products/:slug" element={<PublicDetailPage kind="products" />} />
+              <Route path="/products/:slug" element={<ProductDetailPage />} />
               <Route path="/services/:slug" element={<PublicDetailPage kind="services" />} />
               <Route path="/projects" element={<ProjectsPage />} />
               <Route path="/projects/:slug" element={<PublicDetailPage kind="projects" />} />

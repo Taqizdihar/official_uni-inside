@@ -1,0 +1,146 @@
+import { useEffect } from 'react';
+import charmHeart from '../assets/our-products/3D Printer Products/Products - 1.png';
+import charmLoops from '../assets/our-products/3D Printer Products/Products - 2.png';
+import charmMusic from '../assets/our-products/3D Printer Products/Products - 3.png';
+import charmCube from '../assets/our-products/3D Printer Products/Products - 7.png';
+import charmColour from '../assets/our-products/3D Printer Products/Products - 10.png';
+
+export type CraftImage = {
+  secure_url: string;
+  alt_text?: string | null;
+  width_px?: number | null;
+  height_px?: number | null;
+};
+
+export type CraftProduct = {
+  id?: number | string;
+  slug?: string;
+  name?: string;
+  product_type?: string | null;
+  short_description?: string | null;
+  description?: string | null;
+  image?: CraftImage | null;
+  images?: CraftImage[] | null;
+  base_price?: number | string | null;
+  currency_code?: string | null;
+  price_note?: string | null;
+  availability_label?: string | null;
+  lead_time_text?: string | null;
+  minimum_order_quantity?: number | null;
+  features?: { label: string; value_text: string }[] | null;
+  colors?: { name: string; hex_color?: string | null }[] | null;
+  variants?: { name: string; price_adjustment?: number | string | null }[] | null;
+  purchaseLinks?: { id: number; store_name: string; button_label?: string | null; url: string; is_primary?: boolean | number }[] | null;
+  meta_title?: string | null;
+  meta_description?: string | null;
+};
+
+export const productTypeLabel = (type?: string | null) => {
+  if (type === 'ready_made') return 'Ready-made';
+  if (type === 'custom') return 'Custom';
+  if (type === 'both') return 'Ready-made + custom';
+  return null;
+};
+
+export const formatProductPrice = (amount: number | string | null | undefined, currencyCode?: string | null) => {
+  if (amount === null || amount === undefined || amount === '') return null;
+  const value = Number(amount);
+  if (!Number.isFinite(value) || value <= 0) return null;
+  const currency = /^[A-Z]{3}$/.test(currencyCode ?? '') ? currencyCode! : 'IDR';
+  try {
+    return new Intl.NumberFormat(currency === 'IDR' ? 'id-ID' : 'en-US', {
+      style: 'currency',
+      currency,
+      maximumFractionDigits: currency === 'IDR' ? 0 : 2,
+    }).format(value);
+  } catch {
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(value);
+  }
+};
+
+export const formatPriceAdjustment = (amount: number | string | null | undefined, currencyCode?: string | null) => {
+  const value = Number(amount);
+  if (amount === null || amount === undefined || !Number.isFinite(value) || value === 0) return null;
+  const formatted = formatProductPrice(Math.abs(value), currencyCode);
+  return formatted ? `${value > 0 ? '+' : '−'}${formatted}` : null;
+};
+
+export const safePurchaseHref = (value: unknown) => {
+  if (typeof value !== 'string') return null;
+  const href = value.trim();
+  return /^https?:\/\//i.test(href) || /^\/(?!\/)/.test(href) ? href : null;
+};
+
+const previewHosts = new Set(['localhost', '127.0.0.1', '::1', 'uni-inside.pages.dev']);
+
+export const canShowCraftPreview = (search: string) =>
+  previewHosts.has(window.location.hostname.toLowerCase()) && new URLSearchParams(search).get('designPreview') === '1';
+
+export function useCraftPreviewNoIndex(active: boolean) {
+  useEffect(() => {
+    if (!active) return;
+    let robots = document.querySelector<HTMLMetaElement>('meta[name="robots"]');
+    const created = !robots;
+    if (!robots) {
+      robots = document.createElement('meta');
+      robots.name = 'robots';
+      document.head.appendChild(robots);
+    }
+    const previousRobots = robots.content;
+    const previousTitle = document.title;
+    robots.content = 'noindex, nofollow';
+    document.title = 'Design Preview — Uni-Inside Craft';
+    return () => {
+      if (created) robots?.remove();
+      else if (robots) robots.content = previousRobots;
+      document.title = previousTitle;
+    };
+  }, [active]);
+}
+
+// Isolated review content. These are existing artwork files, not published products.
+export const craftPreviewItems: CraftProduct[] = [
+  {
+    id: 'sample-01', slug: 'design-preview', name: 'Charm Studies / Concept Series', product_type: 'custom',
+    short_description: 'An illustrative set of small object studies for the Craft gallery layout.',
+    image: { secure_url: charmHeart, alt_text: 'Illustrative heart charm artwork' },
+    base_price: 125000, currency_code: 'IDR', price_note: 'Illustrative price for layout review only.',
+  },
+  {
+    id: 'sample-02', slug: 'design-preview', name: 'Signal Loop Study', product_type: 'ready_made',
+    short_description: 'A sample object image used to review scale, spacing, and card rhythm.',
+    image: { secure_url: charmCube, alt_text: 'Illustrative blue and white loop charm artwork' },
+    price_note: 'Sample content — no item is listed for sale.',
+  },
+  {
+    id: 'sample-03', slug: 'design-preview', name: 'Colour Clip Study', product_type: 'both',
+    short_description: 'A playful sample image showing how a varied collection could be presented.',
+    image: { secure_url: charmColour, alt_text: 'Illustrative colourful charm artwork' },
+  },
+];
+
+export const craftPreviewDetail: CraftProduct = {
+  ...craftPreviewItems[0],
+  description: '<p>This sample page demonstrates how a small, personal object could be presented. The artwork and specifications are illustrative; they do not describe a published product.</p><p>Real product details will come directly from the Uni-Inside CMS when a product is published.</p>',
+  images: [
+    { secure_url: charmLoops, alt_text: 'Illustrative loop and dice charm artwork' },
+    { secure_url: charmMusic, alt_text: 'Illustrative music charm artwork' },
+  ],
+  availability_label: 'Sample availability label',
+  lead_time_text: 'Sample lead time information',
+  minimum_order_quantity: 1,
+  features: [
+    { label: 'Format', value_text: 'Illustrative small-object study' },
+    { label: 'Personalisation', value_text: 'Example option for layout review' },
+  ],
+  colors: [
+    { name: 'Warm ivory', hex_color: '#F5DCAD' },
+    { name: 'Studio yellow', hex_color: '#F9D02D' },
+    { name: 'Finish on request', hex_color: null },
+  ],
+  variants: [
+    { name: 'Single concept', price_adjustment: 0 },
+    { name: 'Two-piece concept', price_adjustment: 25000 },
+  ],
+  purchaseLinks: [],
+};
