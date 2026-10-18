@@ -65,7 +65,9 @@ export const StaticPageLayout: React.FC<StaticPageLayoutProps> = ({ activePage, 
       </div>
 
       <div className="flex shrink-0 items-center gap-3 xl:gap-5">
-        <Link to="/tools" aria-current={activePage === 'UNI-TOOLS' ? 'page' : undefined} className={`whitespace-nowrap rounded-sm text-xs font-extrabold uppercase tracking-wider transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f9d02d] ${activePage === 'UNI-TOOLS' ? `text-[#f9d02d] ${navbarStyles.activeLinkOnLight}` : 'text-white hover:text-[#f9d02d]'}`}>Uni-Tools</Link>
+        <Link to="/tools" aria-current={activePage === 'UNI-TOOLS' ? 'page' : undefined} className={`${navbarStyles.uniTools} whitespace-nowrap rounded-full px-6 py-2.5 text-xs font-extrabold uppercase tracking-wider text-[#202121] transition-all hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f9d02d]`}>
+          <span>Uni-Tools</span>
+        </Link>
         <Link
           to="/media-kit"
           className={`hidden rounded-full px-6 py-2.5 text-xs font-extrabold uppercase tracking-wider shadow-md transition-all hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f9d02d] focus-visible:ring-offset-2 focus-visible:ring-offset-[#202121] sm:block ${

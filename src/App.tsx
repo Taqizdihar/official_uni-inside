@@ -735,9 +735,9 @@ export default function App() {
         </div>
 
         <div className="flex flex-shrink-0 items-center gap-3 xl:gap-5">
-          <motion.span style={{ color: finalNavText }}>
-            <Link to="/tools" className="whitespace-nowrap rounded-sm text-xs font-extrabold uppercase tracking-wider text-inherit hover:!text-[#f9d02d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f9d02d]">Uni-Tools</Link>
-          </motion.span>
+          <Link to="/tools" className={`${navbarStyles.uniTools} whitespace-nowrap rounded-full px-6 py-2.5 text-xs font-extrabold uppercase tracking-wider text-[#202121] transition-all hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f9d02d]`}>
+            <span>Uni-Tools</span>
+          </Link>
           <div className="hidden sm:block">
             <Link to="/media-kit" className={`${navbarStyles.mediaKit} bg-[#f9d02d] text-[#202121] font-extrabold px-6 py-2.5 rounded-full text-xs uppercase tracking-wider hover:brightness-110 transition-all shadow-md cursor-pointer`}>
               <span>Media Kit</span>
