@@ -225,28 +225,3 @@ const AnimatedAboutEditorialContent: React.FC = () => {
 export const AboutEditorialContent: React.FC<{ presentationOnly?: boolean }> = ({ presentationOnly = false }) => (
   presentationOnly ? <AboutEditorialMarkup animated={false} reduceMotion /> : <AnimatedAboutEditorialContent />
 );
-
-const AboutTeamBridgeMarkup: React.FC<{ animated: boolean; reduceMotion: boolean }> = ({ animated, reduceMotion }) => (
-  <Reveal animated={animated} reduceMotion={reduceMotion} className="w-full py-16 sm:py-24 lg:py-28" ariaLabel="Next, meet the team">
-    <div aria-hidden={!animated || undefined} className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12">
-      <div className="grid gap-8 border-t border-[#202121]/30 pt-8 sm:pt-12 lg:grid-cols-[0.7fr_1.3fr] lg:items-end lg:gap-16">
-        <p className="text-xs font-extrabold uppercase tracking-[0.2em] sm:text-sm">NEXT / THE PEOPLE</p>
-        <div>
-          <h3 className="max-w-5xl text-[clamp(2.5rem,6.5vw,6rem)] font-black leading-[0.9] tracking-[-0.06em]">DIFFERENT DISCIPLINES.<br />ONE TEAM BEHIND THE WORK.</h3>
-          <p className="mt-6 max-w-2xl text-lg leading-relaxed sm:text-xl">Meet the people who move each idea from possibility to production.</p>
-        </div>
-      </div>
-    </div>
-  </Reveal>
-);
-
-const AnimatedAboutTeamBridge: React.FC = () => {
-  const reduceMotion = useReducedMotion();
-  return <AboutTeamBridgeMarkup animated reduceMotion={Boolean(reduceMotion)} />;
-};
-
-export const AboutTeamBridge: React.FC<{ presentationOnly?: boolean }> = ({ presentationOnly = false }) => (
-  presentationOnly
-    ? <AboutTeamBridgeMarkup animated={false} reduceMotion />
-    : <AnimatedAboutTeamBridge />
-);

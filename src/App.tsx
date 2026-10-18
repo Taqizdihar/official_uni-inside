@@ -8,7 +8,7 @@ import { ScrollStorySection, type ScrollStorySectionHandle } from './components/
 import { IsometricHero } from './components/hero/IsometricHero';
 import navbarStyles from './components/Navbar.module.css';
 import { AboutIntro, AboutIntroPresentation } from './components/AboutPresentation';
-import { AboutEditorialContent, AboutTeamBridge } from './components/about/AboutEditorialContent';
+import { AboutEditorialContent } from './components/about/AboutEditorialContent';
 import { useNearViewportOnce } from './hooks/useNearViewportOnce';
 import { OurTeamSection } from './components/OurTeamSection';
 import { type AppSectionId } from './components/ThemeController';
@@ -161,7 +161,6 @@ const PageContent = ({
           <AboutIntroPresentation />
           <AboutEditorialContent presentationOnly />
           <FilmRollSection filmRollXVal={filmRollXVal} isCursor={true} />
-          <AboutTeamBridge presentationOnly />
         </div>
       </div>
     );
@@ -189,7 +188,6 @@ const PageContent = ({
           <AboutIntro />
           <AboutEditorialContent />
           <FilmRollSection filmRollXVal={filmRollXVal} isCursor={isCursor} />
-          <AboutTeamBridge />
         </div>
 
         {/* About → Team Transition Spacer */}
