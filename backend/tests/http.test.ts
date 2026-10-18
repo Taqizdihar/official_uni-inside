@@ -19,6 +19,24 @@ const db={
 } as unknown as Pool;
 describe('HTTP behavior',()=>{
   const app=createApp(config,db);
+  it('returns active news topics and an exact page boundary for filtered published news',async()=>{
+    const calls:{sql:string;params:unknown[]}[]=[];
+    const publicDb={execute:async(options:{sql:string},params:unknown[]=[])=>{
+      calls.push({sql:options.sql,params});
+      if(options.sql.includes('FROM news_categories c'))return [[{id:7,name:'Studio Practice',slug:'studio-practice'}],[]];
+      if(options.sql.includes('FROM `news_articles`'))return [[{id:3,slug:'third',title:'Third'},{id:2,slug:'second',title:'Second'}],[]];
+      return [[],[]];
+    }} as unknown as Pool;
+    const publicApp=createApp(config,publicDb);
+    const topics=await request(publicApp).get('/api/v1/news/categories');
+    expect(topics.status).toBe(200);
+    expect(topics.body.data).toEqual([{id:7,name:'Studio Practice',slug:'studio-practice'}]);
+    const page=await request(publicApp).get('/api/v1/news?page=2&limit=1&categoryId=7');
+    expect(page.status).toBe(200);
+    expect(page.body.data).toEqual([{id:3,slug:'third',title:'Third'}]);
+    expect(page.body.meta).toEqual({page:2,limit:1,hasMore:true});
+    expect(calls.find(call=>call.sql.includes('FROM `news_articles`'))?.params).toEqual([7,2,1]);
+  });
   it('returns liveness without a database and 503 readiness when unavailable',async()=>{
     const health=await request(app).get('/api/v1/health');expect(health.body.data.status).toBe('ok');expect(health.headers['cache-control']).toContain('no-store');
     const ready=await request(app).get('/api/v1/ready');expect(ready.status).toBe(503);expect(ready.headers['cache-control']).toContain('no-store');expect(ready.body.error).toMatchObject({code:'NOT_READY',requestId:expect.any(String)});

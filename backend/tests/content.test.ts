@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe,expect,it } from 'vitest';
 import { resources,fixedKeyAllowed,slugify } from '../src/schemas/resources';
 import { parseBody,publishProblems } from '../src/services/content';
-import { contentWhere, countRecords, projectRelationList, publicList } from '../src/repositories/content';
+import { contentWhere, countRecords, projectRelationList, publicList, publicNewsCategories } from '../src/repositories/content';
 
 describe('CMS content rules',()=>{
   it('preserves the authoritative migration counts',()=>{
@@ -54,5 +54,14 @@ describe('CMS content rules',()=>{
     await projectRelationList(db,7,'services');await projectRelationList(db,7,'team-members');
     expect(queries[0]).toContain('project_services');expect(queries[0]).toContain('s.name AS label');
     expect(queries[1]).toContain('project_team_members');expect(queries[1]).toContain('t.full_name AS label');
+  });
+  it('exposes only active topics represented by currently public news',async()=>{
+    let query='';
+    const db={execute:async(options:{sql:string})=>{query=options.sql;return [[{id:3,name:'Studio Notes',slug:'studio-notes'}],[]];}} as any;
+    expect(await publicNewsCategories(db)).toEqual([{id:3,name:'Studio Notes',slug:'studio-notes'}]);
+    expect(query).toContain('c.is_active=1');
+    expect(query).toContain('n.deleted_at IS NULL');
+    expect(query).toContain("n.status IN ('published','scheduled')");
+    expect(query).toContain('n.scheduled_at <= UTC_TIMESTAMP(3)');
   });
 });

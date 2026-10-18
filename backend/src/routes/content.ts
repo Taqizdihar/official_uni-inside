@@ -15,6 +15,9 @@ const publicNames = ['team-members','partners','products','services','projects',
 const coreDetails = new Set(['products','services','projects','news']);
 export function publicContentRoutes(db: Pool) {
   const router = Router();
+  router.get('/news/categories', asyncRoute(async (_req,res) => {
+    res.set('Cache-Control','public, max-age=60').json({ data: await repo.publicNewsCategories(db) });
+  }));
   router.get('/site', asyncRoute(async (_req,res) => { res.set('Cache-Control','public, max-age=60').json({ data: await repo.publicSite(db) }); }));
   router.get('/homepage', asyncRoute(async (_req,res) => {
     const settings = await repo.publicHomepageSettings(db);
@@ -24,7 +27,8 @@ export function publicContentRoutes(db: Pool) {
   for (const name of publicNames) {
     router.get(`/${name}`, asyncRoute(async (req,res) => {
       const q = parse(pagination, req.query);
-      res.set('Cache-Control','public, max-age=60').json({ data: await repo.publicList(db,resources[name]!,q.limit,(q.page-1)*q.limit,q.categoryId), meta: { page:q.page,limit:q.limit } });
+      const items = await repo.publicList(db,resources[name]!,name==='news'?q.limit+1:q.limit,(q.page-1)*q.limit,q.categoryId);
+      res.set('Cache-Control','public, max-age=60').json({ data: name==='news'?items.slice(0,q.limit):items, meta: { page:q.page,limit:q.limit,...(name==='news'?{hasMore:items.length>q.limit}:{}) } });
     }));
     if (coreDetails.has(name)) router.get(`/${name}/:slug`, asyncRoute(async (req,res) => {
       const slug = parse(z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(190),req.params.slug);

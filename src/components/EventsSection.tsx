@@ -1,7 +1,8 @@
 import React, { forwardRef } from 'react';
 import { motion } from 'motion/react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { usePublicContent } from '../public/client';
+import styles from './EventsSection.module.css';
 
 const mockEvents = [
   {
@@ -28,7 +29,6 @@ const mockEvents = [
 ];
 
 export const EventsSection = forwardRef<HTMLDivElement, {}>((props, ref) => {
-  const navigate = useNavigate();
   const {homepage,news}=usePublicContent();
   const section=homepage?.sections?.find(item=>item.section_key==='news'&&item.is_visible!==0);
   const events=news===null?mockEvents:news.slice(0,3).map(item=>({id:item.id,slug:item.slug,date:item.published_at?new Date(item.published_at).toLocaleDateString():'',title:String(item.title),description:String(item.excerpt||''),image:String(item.image?.secure_url||mockEvents[0].image)}));
@@ -37,67 +37,16 @@ export const EventsSection = forwardRef<HTMLDivElement, {}>((props, ref) => {
     <div className="w-full flex flex-col px-8 lg:px-24">
       <div className="mb-6 sm:mb-8 flex items-center justify-between">
         <div>
-          <div 
-            className="group flex items-center cursor-pointer w-fit focus:outline-none focus-visible:ring-4 focus-visible:ring-[#f9d02d] rounded-2xl" 
-            onClick={() => navigate('/news')}
-            role="button"
-            aria-label="See More Articles"
-            tabIndex={0}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate('/news'); }}
-          >
+          <div className="flex w-fit items-center">
             <h2 className="text-[44px] sm:text-[70px] lg:text-[95px] font-black uppercase text-[#202121] leading-none tracking-tight">
               {section?.heading||'NEWS'}
             </h2>
-            <motion.div 
-              className="ml-6 sm:ml-10 flex items-center gap-[12px]"
-              initial="initial"
-              whileHover="hover"
-              whileFocus="hover"
-            >
-              <motion.div
-                className="flex flex-shrink-0 items-center justify-center rounded-full border-2 border-[#1F1F1F] bg-transparent w-[42px] h-[42px] sm:w-[46px] sm:h-[46px] lg:w-[52px] lg:h-[52px]"
-                variants={{
-                  initial: { scale: 1, backgroundColor: 'transparent', borderColor: '#1F1F1F' },
-                  hover: { scale: 1.08, backgroundColor: '#000000', borderColor: 'transparent' }
-                }}
-                transition={{ duration: 0.25, ease: 'easeInOut' }}
-              >
-                <motion.svg 
-                  width="22" 
-                  height="22" 
-                  viewBox="0 0 24 24" 
-                  fill="none" 
-                  xmlns="http://www.w3.org/2000/svg"
-                  variants={{
-                    initial: { x: 0, stroke: '#000000' },
-                    hover: { x: 2, stroke: '#FFFFFF' }
-                  }}
-                  transition={{ duration: 0.25, ease: 'easeInOut' }}
-                >
-                  <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </motion.svg>
-              </motion.div>
-              <motion.span
-                variants={{
-                  initial: { opacity: 0, x: -8, width: 0 },
-                  hover: { opacity: 1, x: 0, width: 140 }
-                }}
-                transition={{ duration: 0.25, ease: 'easeInOut' }}
-                className="text-[20px] sm:text-[24px] lg:text-[32px] font-bold text-[#202121] whitespace-nowrap overflow-hidden hidden sm:block"
-              >
-                See More
-              </motion.span>
-              <motion.span
-                variants={{
-                  initial: { opacity: 0, x: -8, width: 0 },
-                  hover: { opacity: 1, x: 0, width: 60 }
-                }}
-                transition={{ duration: 0.25, ease: 'easeInOut' }}
-                className="text-[20px] font-bold text-[#202121] whitespace-nowrap overflow-hidden sm:hidden block"
-              >
-                More
-              </motion.span>
-            </motion.div>
+            <span className={styles.slot}>
+              <Link to="/news" aria-label="See all news" className={styles.seeAll}>
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14m0 0-7-7m7 7-7 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                <span className={styles.label} aria-hidden="true">SEE ALL</span>
+              </Link>
+            </span>
           </div>
           <p className="text-[18px] sm:text-[24px] text-gray-600 font-medium mt-2 sm:mt-3">
             {section?.description||'Catch up with our latest news and updates'}

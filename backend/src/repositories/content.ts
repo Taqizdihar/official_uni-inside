@@ -58,6 +58,14 @@ export async function publicList(db: Executor, spec: ResourceSpec, limit: number
   const byId = new Map(media.map(item => [Number(item.id), item]));
   return items.map(item => ({ ...item, image: byId.get(Number(item.cover_media_id ?? item.photo_media_id ?? item.logo_media_id ?? item.media_id ?? 0)) ?? null }));
 }
+export function publicNewsCategories(db: Executor) {
+  return rows<RowDataPacket>(db, `SELECT c.id,c.name,c.slug FROM news_categories c
+    WHERE c.is_active=1 AND EXISTS (
+      SELECT 1 FROM news_articles n WHERE n.category_id=c.id AND n.deleted_at IS NULL
+      AND n.status IN ('published','scheduled')
+      AND (n.status='published' OR n.scheduled_at <= UTC_TIMESTAMP(3))
+    ) ORDER BY c.sort_order,c.name,c.id`);
+}
 export async function publicDetail(db: Executor, spec: ResourceSpec, slug: string) {
   if (!spec.publicFields) throw new Error('Resource has no public projection');
   const data = (await rows<RowDataPacket>(db, `SELECT ${spec.publicFields.map(ident).join(',')} FROM ${ident(spec.table)} WHERE slug=? AND ${publicWhere(spec)} ${spec.softDelete ? 'AND deleted_at IS NULL' : ''} LIMIT 1`, [slug]))[0];
