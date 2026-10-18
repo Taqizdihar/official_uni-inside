@@ -37,6 +37,7 @@ export function GlobalScrollIndicator() {
   const [scrollable, setScrollable] = useState(false);
   const [visible, setVisible] = useState(true);
   const [heroInViewport, setHeroInViewport] = useState(location.pathname === '/');
+  const [underNavbar, setUnderNavbar] = useState(true);
   const [light, setLight] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
@@ -72,7 +73,10 @@ export function GlobalScrollIndicator() {
       const maximumScroll = Math.max(0, documentScrollHeight - viewportHeight);
       const canScroll = maximumScroll > 1;
       setScrollable((previous) => previous === canScroll ? previous : canScroll);
-      if (!canScroll) return;
+      if (!canScroll) {
+        setUnderNavbar(false);
+        return;
+      }
 
       const virtualThumbHeight = Math.min(viewportHeight, Math.max(20, viewportHeight * viewportHeight / documentScrollHeight));
       const progress = Math.min(1, Math.max(0, window.scrollY / maximumScroll));
@@ -80,6 +84,23 @@ export function GlobalScrollIndicator() {
       const size = element.getBoundingClientRect().height;
       const top = Math.min(viewportHeight - size, Math.max(0, center - size / 2));
       element.style.transform = `translate3d(0, ${top}px, 0)`;
+      const indicatorBounds = element.getBoundingClientRect();
+      const indicatorZIndex = Number.parseInt(getComputedStyle(element).zIndex, 10);
+      const navbarOccludesIndicator = Array.from(document.querySelectorAll('nav')).some((navbar) => {
+        const navbarStyle = getComputedStyle(navbar);
+        const navbarZIndex = Number.parseInt(navbarStyle.zIndex, 10);
+        if (navbarStyle.position !== 'fixed' || !Number.isFinite(navbarZIndex) || navbarZIndex <= indicatorZIndex) return false;
+        const navbarBounds = navbar.getBoundingClientRect();
+        const overlaps = indicatorBounds.left < navbarBounds.right
+          && indicatorBounds.right > navbarBounds.left
+          && indicatorBounds.top < navbarBounds.bottom
+          && indicatorBounds.bottom > navbarBounds.top;
+        if (!overlaps) return false;
+        const pointX = Math.min(indicatorBounds.right, navbarBounds.right) - 1;
+        const pointY = Math.max(indicatorBounds.top, navbarBounds.top) + 1;
+        return document.elementsFromPoint(pointX, pointY).some((node) => node === navbar || navbar.contains(node));
+      });
+      setUnderNavbar((previous) => previous === navbarOccludesIndicator ? previous : navbarOccludesIndicator);
 
       // The sample is at the actual painted position, so it follows ScrollStory's
       // interpolated background and also works on routes with different surfaces.
@@ -130,7 +151,8 @@ export function GlobalScrollIndicator() {
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', schedule, { passive: true });
     window.addEventListener('orientationchange', schedule);
-    schedule();
+    setUnderNavbar(true);
+    update();
     const settledFrame = requestAnimationFrame(schedule);
     return () => {
       active = false;
@@ -154,7 +176,7 @@ export function GlobalScrollIndicator() {
       data-global-scroll-indicator
       aria-hidden="true"
       className="fixed right-[max(-44px,calc(env(safe-area-inset-right)-44px))] sm:right-[max(-58px,calc(env(safe-area-inset-right)-58px))] top-0 z-[60] h-[clamp(132px,15vw,216px)] w-[clamp(132px,15vw,216px)] pointer-events-none transition-opacity duration-300"
-      style={{ opacity: scrollable && visible && !heroInViewport ? 1 : 0, visibility: scrollable && !heroInViewport ? 'visible' : 'hidden' }}
+      style={{ opacity: scrollable && visible && !heroInViewport && !underNavbar ? 1 : 0, visibility: scrollable && !heroInViewport && !underNavbar ? 'visible' : 'hidden' }}
     >
       <div className="h-full w-full rotate-90 transition-[filter] duration-300" style={{ filter: light ? 'brightness(0)' : 'brightness(0) invert(1)' }}>
         <Lottie lottieRef={lottieRef} animationData={animationData} loop={!reducedMotion} autoplay={!reducedMotion} className="h-full w-full" />
