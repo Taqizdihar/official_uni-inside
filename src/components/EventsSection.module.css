@@ -1,9 +1,9 @@
-.slot { position: relative; display: inline-block; flex: none; width: 54px; height: 52px; margin-left: 24px; }
-.seeAll { position: absolute; top: 0; left: 0; display: inline-flex; align-items: center; justify-content: flex-start; box-sizing: border-box; width: 52px; height: 52px; padding: 0 13px; overflow: hidden; border: 2px solid #202121; border-radius: 999px; background: transparent; color: #202121; text-decoration: none; white-space: nowrap; transition: width 280ms cubic-bezier(.22,1,.36,1), background-color 220ms ease; }
-.seeAll svg { display: block; flex: none; width: 22px; height: 22px; }
-.label { display: inline-block; max-width: 0; margin-left: 0; overflow: hidden; opacity: 0; font-size: 12px; font-weight: 900; letter-spacing: .08em; transition: max-width 280ms cubic-bezier(.22,1,.36,1), margin-left 280ms, opacity 180ms ease; }
-.seeAll:hover, .seeAll:focus-visible { width: 140px; background: #f9d02d; }
-.seeAll:hover .label, .seeAll:focus-visible .label { max-width: 80px; margin-left: 10px; opacity: 1; }
+.slot { position: relative; display: inline-block; flex: none; width: 62px; height: 60px; margin-left: 24px; }
+.seeAll { position: absolute; top: 0; left: 0; display: inline-flex; align-items: center; justify-content: flex-start; box-sizing: border-box; width: 60px; height: 60px; padding: 0 12px; overflow: hidden; border: 2px solid #202121; border-radius: 999px; background: transparent; color: #202121; text-decoration: none; white-space: nowrap; transition: width 280ms cubic-bezier(.22,1,.36,1), background-color 220ms ease; }
+.seeAll svg { display: block; flex: none; width: 26px; height: 26px; }
+.label { display: inline-block; max-width: 0; margin-right: 0; overflow: hidden; opacity: 0; font-size: 14px; font-weight: 900; letter-spacing: .09em; transition: max-width 280ms cubic-bezier(.22,1,.36,1), margin-right 280ms, opacity 180ms ease; }
+.seeAll:hover, .seeAll:focus-visible { width: 152px; background: #f9d02d; }
+.seeAll:hover .label, .seeAll:focus-visible .label { max-width: 94px; margin-right: 12px; font-size: 14px; opacity: 1; }
 .seeAll:focus-visible { outline: 3px solid #f9d02d; outline-offset: 4px; }
-@media (min-width: 640px) { .slot { width: 150px; margin-left: 40px; } }
+@media (min-width: 640px) { .slot { width: 180px; margin-left: 40px; } .seeAll:hover, .seeAll:focus-visible { width: 168px; } .seeAll:hover .label, .seeAll:focus-visible .label { font-size: 15px; } }
 @media (prefers-reduced-motion: reduce) { .seeAll, .label { transition: none; } }

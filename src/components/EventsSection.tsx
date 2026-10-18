@@ -43,8 +43,8 @@ export const EventsSection = forwardRef<HTMLDivElement, {}>((props, ref) => {
             </h2>
             <span className={styles.slot}>
               <Link to="/news" aria-label="See all news" className={styles.seeAll}>
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14m0 0-7-7m7 7-7 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
                 <span className={styles.label} aria-hidden="true">SEE ALL</span>
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14m0 0-7-7m7 7-7 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
               </Link>
             </span>
           </div>
