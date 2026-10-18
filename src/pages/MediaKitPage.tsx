@@ -114,8 +114,8 @@ export const MediaKitPage = () => {
               </div>
             </div>
 
-            <figure className="group relative mx-auto w-full max-w-xl overflow-hidden rounded-[2rem] border border-white/15 bg-[#f9d02d] p-3 shadow-[0_24px_70px_rgba(0,0,0,0.32)] sm:p-5">
-              <div className="relative aspect-[1.08/1] overflow-hidden rounded-[1.4rem] bg-[#f2c828]">
+            <figure className="group relative mx-auto w-full max-w-xl overflow-hidden rounded-[2rem] border border-white/15 bg-white p-3 shadow-[0_24px_70px_rgba(0,0,0,0.32)] sm:p-5">
+              <div className="relative aspect-[1.08/1] overflow-hidden rounded-[1.4rem] bg-white">
                 <img src={studioCollage} alt="Uni-Inside Studio identity collage with creators, cameras, a drone, and digital tools" width="1080" height="1080" fetchPriority="high" className="h-full w-full object-contain transition-transform duration-700 motion-safe:group-hover:scale-[1.025] motion-reduce:transition-none" />
                 <div className="absolute inset-x-4 bottom-4 flex items-end justify-between gap-4 sm:inset-x-6 sm:bottom-6">
                   <figcaption className="rounded-full border border-[#202121]/15 bg-[#202121] px-4 py-2 text-[10px] font-extrabold uppercase tracking-[0.16em] text-white sm:text-xs">One identity · two workspaces</figcaption>

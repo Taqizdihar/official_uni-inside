@@ -159,6 +159,7 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
     cancelShowcase();
     pause();
     resizeObserver?.disconnect();
+    window.removeEventListener('resize', resize);
     intersectionObserver?.disconnect();
     document.removeEventListener('visibilitychange', onVisibilityChange);
     host.removeEventListener('pointermove', onPointerMove);
@@ -355,6 +356,21 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
         cameraFrames.front.height = Math.max(cameraFrames.front.height, activeHeight * height / visibleHeight);
         cameraFrames.front.width = cameraFrames.front.height * aspect;
         cameraFrames.front.centerY += (navbarClearance / 2 - 2) * cameraFrames.front.height / height;
+      }
+
+      // The hero can be taller than a short viewport. Keep the room inside the
+      // visible canvas during the intro as well as after it settles.
+      const visibleHeight = Math.min(height, Math.max(1, window.innerHeight - Math.max(0, rect.top)));
+      if (visibleHeight < height - 1) {
+        const topClearance = 90;
+        const bottomClearance = 12;
+        const usableHeight = Math.max(1, visibleHeight - topClearance - bottomClearance);
+        const visibleCenter = topClearance + usableHeight / 2;
+        for (const frame of [cameraFrames.top, cameraFrames.front]) {
+          frame.height *= height / usableHeight;
+          frame.width = frame.height * aspect;
+          frame.centerY += (visibleCenter - height / 2) * frame.height / height;
+        }
       }
     }
     const rewindProgress = options.reducedMotion ? 1 : Math.min(1, rewindElapsed / REWIND_MS);
@@ -637,6 +653,7 @@ export function createHeroScene(host: HTMLElement, options: HeroSceneOptions): H
     document.addEventListener('visibilitychange', onVisibilityChange);
     resizeObserver = new ResizeObserver(resize);
     resizeObserver.observe(host);
+    window.addEventListener('resize', resize);
     intersectionObserver = new IntersectionObserver(entries => {
       inViewport = entries[0]?.isIntersecting ?? false;
       host.dataset.sceneVisible = String(inViewport && !document.hidden);
