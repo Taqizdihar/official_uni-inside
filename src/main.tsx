@@ -7,12 +7,14 @@ import './index.css';
 import { AboutStoryProvider } from './components/AboutStoryProvider.tsx';
 import { GlobalScrollIndicator } from './components/GlobalScrollIndicator.tsx';
 import {PublicAnalytics,PublicContentProvider,usePublicContent} from './public/client.tsx';
+import {isDesignPreviewRoute} from './public/designPreview';
 
 const NewsPage = lazy(() => import('./pages/NewsPage').then(({ NewsPage: Page }) => ({ default: Page })));
 const MediaKitPage = lazy(() => import('./pages/MediaKitPage').then(({ MediaKitPage: Page }) => ({ default: Page })));
 const ProductsPage = lazy(() => import('./pages/ProductsPage').then(({ ProductsPage: Page }) => ({ default: Page })));
 const ProductDetailPage = lazy(() => import('./pages/ProductDetailPage').then(({ ProductDetailPage: Page }) => ({ default: Page })));
 const ServicesPage = lazy(() => import('./pages/ServicesPage').then(({ ServicesPage: Page }) => ({ default: Page })));
+const ServiceDetailPage = lazy(() => import('./pages/ServiceDetailPage').then(({ ServiceDetailPage: Page }) => ({ default: Page })));
 const AdminApp = lazy(() => import('./admin/AdminApp'));
 const PublicDetailPage = lazy(() => import('./pages/PublicDetailPage').then(({PublicDetailPage:Page})=>({default:Page})));
 const ProjectsPage = lazy(() => import('./pages/ProjectsPage').then(({ProjectsPage:Page})=>({default:Page})));
@@ -24,7 +26,7 @@ const routeTitles: Record<string, string> = {
   '/news': 'News | Uni-Inside',
 };
 
-function PublicMetadata(){const {site}=usePublicContent();const location=useLocation();useEffect(()=>{const pageKey=location.pathname.slice(1);const page=site?.pages?.find(item=>item.page_key===pageKey);if(location.pathname==='/'&&site?.site?.default_meta_title)document.title=String(site.site.default_meta_title);else if(page?.meta_title)document.title=String(page.meta_title);const content=page?.meta_description||site?.site?.default_meta_description;let meta=document.querySelector<HTMLMetaElement>('meta[name="description"]');if(content){if(!meta){meta=document.createElement('meta');meta.name='description';document.head.appendChild(meta);}meta.content=String(content);}},[site,location.pathname]);return null;}
+function PublicMetadata(){const {site}=usePublicContent();const location=useLocation();useEffect(()=>{if(isDesignPreviewRoute(location.pathname,location.search))return;const pageKey=location.pathname.slice(1);const page=site?.pages?.find(item=>item.page_key===pageKey);if(location.pathname==='/'&&site?.site?.default_meta_title)document.title=String(site.site.default_meta_title);else if(page?.meta_title)document.title=String(page.meta_title);const content=page?.meta_description||site?.site?.default_meta_description;let meta=document.querySelector<HTMLMetaElement>('meta[name="description"]');if(content){if(!meta){meta=document.createElement('meta');meta.name='description';document.head.appendChild(meta);}meta.content=String(content);}},[site,location.pathname,location.search]);return null;}
 
 const landingScrollPositions = new Map<string, number>();
 let lastLandingScroll = 0;
@@ -156,7 +158,7 @@ const AnimatedRoutes = () => {
               <Route path="/products" element={<ProductsPage />} />
               <Route path="/services" element={<ServicesPage />} />
               <Route path="/products/:slug" element={<ProductDetailPage />} />
-              <Route path="/services/:slug" element={<PublicDetailPage kind="services" />} />
+              <Route path="/services/:slug" element={<ServiceDetailPage />} />
               <Route path="/projects" element={<ProjectsPage />} />
               <Route path="/projects/:slug" element={<PublicDetailPage kind="projects" />} />
               <Route path="/news/:slug" element={<PublicDetailPage kind="news" />} />

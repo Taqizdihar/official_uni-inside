@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { isDesignPreviewRoute, useDesignPreviewNoIndex } from '../public/designPreview';
 import charmHeart from '../assets/our-products/3D Printer Products/Products - 1.png';
 import charmLoops from '../assets/our-products/3D Printer Products/Products - 2.png';
 import charmMusic from '../assets/our-products/3D Printer Products/Products - 3.png';
@@ -71,32 +71,10 @@ export const safePurchaseHref = (value: unknown) => {
   return /^https?:\/\//i.test(href) || /^\/(?!\/)/.test(href) ? href : null;
 };
 
-const previewHosts = new Set(['localhost', '127.0.0.1', '::1', 'uni-inside.pages.dev']);
-
 export const canShowCraftPreview = (search: string) =>
-  previewHosts.has(window.location.hostname.toLowerCase()) && new URLSearchParams(search).get('designPreview') === '1';
+  isDesignPreviewRoute(window.location.pathname, search);
 
-export function useCraftPreviewNoIndex(active: boolean) {
-  useEffect(() => {
-    if (!active) return;
-    let robots = document.querySelector<HTMLMetaElement>('meta[name="robots"]');
-    const created = !robots;
-    if (!robots) {
-      robots = document.createElement('meta');
-      robots.name = 'robots';
-      document.head.appendChild(robots);
-    }
-    const previousRobots = robots.content;
-    const previousTitle = document.title;
-    robots.content = 'noindex, nofollow';
-    document.title = 'Design Preview — Uni-Inside Craft';
-    return () => {
-      if (created) robots?.remove();
-      else if (robots) robots.content = previousRobots;
-      document.title = previousTitle;
-    };
-  }, [active]);
-}
+export { useDesignPreviewNoIndex as useCraftPreviewNoIndex };
 
 // Isolated review content. These are existing artwork files, not published products.
 export const craftPreviewItems: CraftProduct[] = [
