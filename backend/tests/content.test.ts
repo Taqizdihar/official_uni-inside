@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { describe,expect,it } from 'vitest';
+import type { Pool } from 'mysql2/promise';
 import { resources,fixedKeyAllowed,slugify } from '../src/schemas/resources';
-import { parseBody,publishProblems } from '../src/services/content';
+import { parseBody,publishProblems,update } from '../src/services/content';
 import { contentWhere, countRecords, projectRelationList, publicList, publicNewsCategories } from '../src/repositories/content';
 
 describe('CMS content rules',()=>{
@@ -20,6 +21,22 @@ describe('CMS content rules',()=>{
     expect(fixedKeyAllowed('hero-hotspots','../../secret')).toBe(false);
     expect(slugify('The Golden Cube!')).toBe('the-golden-cube');
     expect(parseBody(resources.news!,{body:'<script>alert(1)</script><p>Allowed</p>'}).body).toBe('<p>Allowed</p>');
+  });
+  it('saves an existing fixed slot without changing its key or other fields',async()=>{
+    const row={id:1,heading_line_1:'Old',heading_line_2:'Made tangible',updated_by:2};
+    const queries:string[]=[];
+    const conn={beginTransaction:async()=>{},commit:async()=>{},rollback:async()=>{},release:()=>{},execute:async(options:{sql:string},values:unknown[]=[])=>{
+      queries.push(options.sql);
+      if(options.sql.includes('FROM `hero_settings`'))return [[{...row}],[]];
+      if(options.sql.startsWith('UPDATE `hero_settings`')){row.heading_line_1=String(values[0]);row.updated_by=Number(values[1]);return [{affectedRows:1},[]];}
+      if(options.sql.includes('MAX(revision_number)'))return [[{next:1}],[]];
+      return [{affectedRows:1},[]];
+    }};
+    const db={getConnection:async()=>conn} as unknown as Pool;
+    const actor={id:7,permissions:new Set(['homepage.update'])};
+    const saved=await update(db,'hero-settings','1',{heading_line_1:'New'},actor,'test-request');
+    expect(saved).toMatchObject({id:1,heading_line_1:'New',heading_line_2:'Made tangible',updated_by:7});
+    expect(queries.some(sql=>sql.includes('UPDATE `hero_settings`')&&sql.includes('WHERE `id`=?'))).toBe(true);
   });
   it('requires complete public content while allowing draft edits',()=>{
     expect(publishProblems('team-members',{full_name:'A',slug:'a',role_title:'Maker'})).toContain('photo');

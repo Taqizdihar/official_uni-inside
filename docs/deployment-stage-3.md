@@ -35,6 +35,8 @@ This URL is public and contains no secret. Replace the placeholder with the real
 
 Create one service named `uni-inside-cms-api`, type Web Service, Node runtime, root directory `backend`, Free plan when available, and health path `/api/v1/health`. Configure build command `npm ci --include=dev && npm run build` and start command `npm start`. Select `hosting` in the Render Dashboard for this temporary stage. Do not configure a pre-deploy migration command; migrations remain an explicit operator action. Do not set `PORT`; Render supplies it.
 
+Media Library uses authenticated, server-signed direct image uploads. Check that `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and `CLOUDINARY_API_SECRET` belong to the same Cloudinary product environment; `CLOUDINARY_ROOT_FOLDER` defaults to `uni-inside`. The browser rejects files over 10 MB, and the CMS verifies Cloudinary's reported size again before saving to `media_assets`. Direct Upload API signing does not enforce a hard 10 MB transfer limit through `max_file_size`; configure a Cloudinary upload preset restriction supported by the account or route uploads through a size-limited server proxy if transfer-time enforcement is required.
+
 ### Environment-variable matrix
 
 Set these on the Render service. “Secret” means the value belongs in Render's protected environment settings. The example column describes a safe format and contains no real credentials.

@@ -85,5 +85,18 @@ export const catalog:Record<string,ResourceDef>={
   'contact-section-settings':fixed('contact-section-settings','Contact section','Homepage',[f('eyebrow','Eyebrow','text',{optional:true}),f('heading','Heading'),text('description','Description'),f('email_label','Email label','text',{optional:true}),f('phone_label','Phone label','text',{optional:true}),f('whatsapp_cta_label','WhatsApp label','text',{optional:true})]),
 };
 export const fixedKeys:Record<string,string[]>= {'site-settings':['1'],'hero-settings':['1'],'about-settings':['1'],'team-section-settings':['1'],'achievement-section-settings':['1'],'contact-section-settings':['1'],'hero-trust-signals':['1','2','3'],'hero-workspaces':['studio','craft'],'hero-hotspots':[],'about-workspaces':['studio','craft'],'about-principles':['1','2','3'],'page-settings':['products','services','news','media_kit'],'homepage-sections':['partners','products','services','news']};
+const fixedKeyFields:Record<string,string>={
+  'site-settings':'id','hero-settings':'id','about-settings':'id','team-section-settings':'id','achievement-section-settings':'id','contact-section-settings':'id',
+  'hero-trust-signals':'slot','hero-workspaces':'workspace_key','hero-hotspots':'hotspot_key','about-workspaces':'workspace_key','about-principles':'slot',
+  'page-settings':'page_key','homepage-sections':'section_key',
+};
+export function fixedRecordKey(def:ResourceDef,record:Record<string,unknown>){
+  const value=record[fixedKeyFields[def.name]];
+  if(value===undefined||value===null||value==='')throw new Error('Identitas slot tetap tidak tersedia.');
+  return String(value);
+}
+export function fixedLandingPath(def:ResourceDef,records:Record<string,unknown>[]){
+  return def.kind==='fixed'&&records.length?`${pathFor(def)}/${encodeURIComponent(fixedRecordKey(def,records[0]))}`:null;
+}
 export function pathFor(def:ResourceDef){return `/admin/${def.group==='Homepage'?'homepage':def.group==='Site'?'site':'content'}/${def.name}`;}
 export function slugify(value:string){return value.normalize('NFKD').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,190);}

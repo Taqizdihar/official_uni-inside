@@ -17,7 +17,7 @@ export function signedUpload(config: Config, scope: string, entity?: string) {
   configured(config);
   const folder = folderFor(scope,entity,config.CLOUDINARY_ROOT_FOLDER);
   const timestamp = Math.floor(Date.now()/1000);
-  const params = { asset_folder:folder, public_id_prefix:folder, timestamp, allowed_formats:imageFormats.join(','), max_file_size:10_000_000 };
+  const params = { asset_folder:folder, public_id_prefix:folder, timestamp, allowed_formats:imageFormats.join(',') };
   const signature = cloudinary.utils.api_sign_request(params,config.CLOUDINARY_API_SECRET);
   return { uploadUrl:`https://api.cloudinary.com/v1_1/${config.CLOUDINARY_CLOUD_NAME}/image/upload`, apiKey:config.CLOUDINARY_API_KEY, signature, ...params };
 }

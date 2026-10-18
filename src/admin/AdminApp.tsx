@@ -3,7 +3,7 @@ import {AuthProvider,useAuth} from './auth/AuthProvider';
 import {CmsLayout} from './layouts/CmsLayout';
 import {LoginPage,TokenPage,ResetRequestPage} from './pages/AuthPages';
 import {DashboardPage,AnalyticsPage} from './pages/OverviewPages';
-import {ResourceListPage,ResourceEditorPage} from './pages/ResourcePages';
+import {ResourceLandingPage,ResourceEditorPage} from './pages/ResourcePages';
 import {MediaPage} from './pages/MediaPage';
 import {UsersPage,RolesPage,AuditPage,ProfilePage} from './pages/AdministrationPages';
 import './admin.css';
@@ -20,12 +20,12 @@ export default function AdminApp(){return <div className="cms" lang="id"><AuthPr
     <Route index element={<Navigate to="dashboard" replace/>}/>
     <Route path="dashboard" element={<DashboardPage/>}/>
     <Route path="analytics" element={<AnalyticsPage/>}/>
-    <Route path="homepage/:resource" element={<ResourceListPage/>}/>
+    <Route path="homepage/:resource" element={<ResourceLandingPage/>}/>
     <Route path="homepage/:resource/:key" element={<ResourceEditorPage/>}/>
-    <Route path="site/:resource" element={<ResourceListPage/>}/>
+    <Route path="site/:resource" element={<ResourceLandingPage/>}/>
     <Route path="site/:resource/new" element={<ResourceEditorPage create/>}/>
     <Route path="site/:resource/:key" element={<ResourceEditorPage/>}/>
-    <Route path="content/:resource" element={<ResourceListPage/>}/>
+    <Route path="content/:resource" element={<ResourceLandingPage/>}/>
     <Route path="content/:resource/new" element={<ResourceEditorPage create/>}/>
     <Route path="content/:resource/:key" element={<ResourceEditorPage/>}/>
     <Route path="media" element={<MediaPage/>}/>
