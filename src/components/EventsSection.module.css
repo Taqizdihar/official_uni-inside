@@ -1,0 +1,73 @@
+.slot {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  width: 142px;
+  height: 44px;
+  margin-left: 24px;
+}
+
+.seeAll {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 44px;
+  height: 100%;
+  padding: 8px;
+  border: 3px solid #202121;
+  border-radius: 999px;
+  background: transparent;
+  color: #202121;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: width 280ms cubic-bezier(.22,1,.36,1), background-color 220ms ease;
+}
+
+.seeAll svg {
+  display: block;
+  flex: none;
+  width: 22px;
+  height: 22px;
+}
+
+.label {
+  display: inline-block;
+  flex: none;
+  max-width: 0;
+  margin-right: 0;
+  overflow: hidden;
+  opacity: 0;
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: .07em;
+  transition: max-width 280ms cubic-bezier(.22,1,.36,1), margin-right 280ms ease, opacity 180ms ease;
+}
+
+.seeAll:hover,
+.seeAll:focus-visible { width: 142px; background: #f9d02d; }
+.seeAll:hover .label,
+.seeAll:focus-visible .label { max-width: 100px; margin-right: 8px; opacity: 1; }
+.seeAll:focus-visible { outline: 3px solid #f9d02d; outline-offset: 4px; }
+
+@media (min-width: 640px) {
+  .slot { width: 160px; height: 52px; margin-left: 32px; }
+  .seeAll { width: 52px; padding: 9px; }
+  .seeAll:hover, .seeAll:focus-visible { width: 160px; }
+  .seeAll svg { width: 26px; height: 26px; }
+  .label { font-size: 16px; }
+}
+
+@media (min-width: 1024px) {
+  .slot { width: 178px; height: 64px; margin-left: 40px; }
+  .seeAll { width: 64px; padding: 12px; }
+  .seeAll:hover, .seeAll:focus-visible { width: 178px; }
+  .seeAll:hover .label, .seeAll:focus-visible .label { margin-right: 9px; }
+  .seeAll svg { width: 30px; height: 30px; }
+  .label { font-size: 18px; }
+}
+
+@media (prefers-reduced-motion: reduce) { .seeAll, .label { transition: none; } }

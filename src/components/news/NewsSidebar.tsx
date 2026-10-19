@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { NewsArticle } from '../../data/mockNews';
+import {Link} from 'react-router-dom';
 
 interface NewsSidebarProps {
   articles: NewsArticle[];
@@ -45,7 +46,7 @@ export const NewsSidebar: React.FC<NewsSidebarProps> = ({ articles }) => {
                 {article.category}
               </div>
               <h4 className="text-sm font-bold text-[#202121] group-hover:text-[#f9d02d] transition-colors line-clamp-2 mb-1.5 leading-snug">
-                {article.title}
+                {article.slug?<Link to={`/news/${article.slug}`}>{article.title}</Link>:article.title}
               </h4>
               <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
                 {article.date}

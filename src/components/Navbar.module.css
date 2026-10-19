@@ -1,0 +1,72 @@
+.mediaKit {
+  position: relative;
+  display: inline-block;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.uniTools {
+  position: relative;
+  display: inline-block;
+  overflow: hidden;
+  isolation: isolate;
+  border: 1px solid rgba(255, 255, 255, 0.92);
+  background: linear-gradient(135deg, #e5e8eb 0%, #b9c0c7 48%, #f1f3f4 100%);
+  color: #202121;
+  box-shadow: 0 0 7px rgba(249, 208, 45, 0.64), 0 0 16px rgba(249, 208, 45, 0.36);
+}
+
+.mediaKit span,
+.uniTools span {
+  position: relative;
+  z-index: 1;
+}
+
+.mediaKit::before {
+  position: absolute;
+  inset: -35% auto -35% 0;
+  width: 38%;
+  background: linear-gradient(90deg, transparent, #fff7cfb8 48%, #fffef0d9 55%, transparent);
+  content: '';
+  pointer-events: none;
+  transform: translateX(-165%) skewX(-24deg);
+  animation: mediaKitShine 4s ease-in-out infinite;
+}
+
+.uniTools::before {
+  position: absolute;
+  inset: -35% auto -35% 0;
+  width: 38%;
+  background: linear-gradient(90deg, transparent, #ffffffb8 48%, #ffffffff 55%, transparent);
+  content: '';
+  pointer-events: none;
+  transform: translateX(-165%) skewX(-24deg);
+  animation: mediaKitShine 4s ease-in-out infinite;
+}
+
+.uniTools::after {
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(249, 208, 45, 0.96);
+  border-radius: inherit;
+  box-shadow: inset 0 0 5px rgba(249, 208, 45, 0.65), 0 0 7px rgba(249, 208, 45, 0.62);
+  content: '';
+  pointer-events: none;
+  animation: uniToolsNeon 2.4s ease-in-out infinite alternate;
+}
+
+@keyframes mediaKitShine {
+  0%, 12% { transform: translateX(-165%) skewX(-24deg); }
+  35%, 100% { transform: translateX(355%) skewX(-24deg); }
+}
+
+@keyframes uniToolsNeon {
+  from { opacity: 0.62; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mediaKit::before,
+  .uniTools::before { animation: none; opacity: 0; }
+  .uniTools::after { animation: none; }
+}

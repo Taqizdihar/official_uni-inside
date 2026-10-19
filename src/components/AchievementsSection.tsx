@@ -1,8 +1,9 @@
 import React, { forwardRef } from 'react';
 import { motion } from 'motion/react';
 import { Award, Star, Trophy, Medal } from 'lucide-react';
+import {usePublicContent} from '../public/client';
 
-const achievements = [
+const staticAchievements = [
   {
     id: 1,
     year: '2025',
@@ -38,14 +39,16 @@ const achievements = [
 ];
 
 export const AchievementsSection = forwardRef<HTMLDivElement, {}>((props, ref) => {
+  const {achievements:cmsAchievements,homepage}=usePublicContent();
+  const achievements=cmsAchievements===null?staticAchievements:cmsAchievements.map((item,index)=>({id:Number(item.id),year:String(item.year_label||item.achievement_date?.slice(0,4)||''),title:String(item.title),organization:String(item.issuer_name||''),description:String(item.description||''),icon:[Trophy,Star,Award,Medal][index%4]}));
   return (
     <div className="w-full flex flex-col items-center px-8 lg:px-24">
       <div className="mb-16 text-center z-20">
         <h2 className="text-[60px] sm:text-[90px] lg:text-[130px] font-black uppercase text-white leading-none tracking-tight drop-shadow-xl">
-          ACHIEVEMENTS
+          {homepage?.achievements?.heading||'ACHIEVEMENTS'}
         </h2>
         <p className="text-[20px] sm:text-[30px] text-[#f9d02d] font-medium mt-4">
-          Celebrating our milestones and recognitions
+          {homepage?.achievements?.description||'Celebrating our milestones and recognitions'}
         </p>
       </div>
 
@@ -84,6 +87,7 @@ export const AchievementsSection = forwardRef<HTMLDivElement, {}>((props, ref) =
           );
         })}
       </div>
+      {cmsAchievements?.length===0&&<p className="mt-8 text-white/70">No achievements published yet.</p>}
     </div>
   );
 });

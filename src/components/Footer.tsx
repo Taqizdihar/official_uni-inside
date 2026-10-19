@@ -2,17 +2,23 @@ import React from 'react';
 import { FaWhatsapp, FaInstagram, FaTiktok, FaLinkedinIn } from 'react-icons/fa6';
 import { Link, useLocation } from 'react-router-dom';
 import logoDarkTheme from '../assets/global/Logo - Dark Theme.svg';
+import { usePublicContent } from '../public/client';
 
 export const Footer = () => {
+  const { site } = usePublicContent();
   const { pathname } = useLocation();
   const currentYear = new Date().getFullYear();
   const navigationLinks = ['ABOUT US', 'OUR TEAM', 'PRODUCTS', 'SERVICES', 'NEWS', 'ACHIEVEMENTS', 'CONTACT US'];
-  const socialLinks = [
+  const staticSocialLinks = [
     { id: 'whatsapp', Icon: FaWhatsapp, url: 'https://wa.me/6281316556908' },
     { id: 'instagram', Icon: FaInstagram, url: 'https://www.instagram.com/uniinside.studio?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==' },
     { id: 'tiktok', Icon: FaTiktok, url: 'https://www.tiktok.com/@uniinside.studio?is_from_webapp=1&sender_device=pc' },
     { id: 'linkedin', Icon: FaLinkedinIn, url: 'https://www.linkedin.com/company/uni-inside-studio' },
   ];
+  const socialLinks = staticSocialLinks.map(item=>({ ...item,url:site?.socialLinks?.find(link=>link.platform_code===item.id)?.url||item.url }));
+  const settings = site?.site;
+  const phone = String(settings?.public_phone||'+62 813-1655-6908');
+  const email = String(settings?.public_email||'uninsidemed@gmail.com');
 
   return (
     <footer className="w-full bg-[#202121] text-[#f0f0f0] z-10 relative border-t border-[#333] pt-16 pb-8">
@@ -27,7 +33,7 @@ export const Footer = () => {
               </span>
             </div>
             <p className="text-sm text-gray-400 leading-relaxed font-medium">
-              We are a creative agency dedicated to crafting premium digital experiences and building innovative solutions for tomorrow.
+              {settings?.footer_description || 'We are a creative agency dedicated to crafting premium digital experiences and building innovative solutions for tomorrow.'}
             </p>
             {/* Social Icons */}
             <div className="flex items-center gap-4 pt-2">
@@ -91,16 +97,16 @@ export const Footer = () => {
             <div className="space-y-4 text-sm text-gray-400 font-medium">
               <p className="flex flex-col">
                 <span className="text-gray-500 mb-1">Email</span>
-                <a href="mailto:uninsidemed@gmail.com" className="text-white hover:text-[#f9d02d] transition-colors">uninsidemed@gmail.com</a>
+                <a href={`mailto:${email}`} className="text-white hover:text-[#f9d02d] transition-colors">{email}</a>
               </p>
               <p className="flex flex-col pt-2">
                 <span className="text-gray-500 mb-1">Phone</span>
-                <a href="tel:+6281316556908" className="text-white hover:text-[#f9d02d] transition-colors">+62 813-1655-6908</a>
+                <a href={`tel:${phone.replace(/[^+\d]/g,'')}`} className="text-white hover:text-[#f9d02d] transition-colors">{phone}</a>
               </p>
               <p className="flex flex-col pt-2">
                 <span className="text-gray-500 mb-1">Location</span>
                 <span className="text-white leading-relaxed">
-                  Telkom University, Gedung Selaru 4th floor
+                  {settings?.address_text || 'Telkom University, Gedung Selaru 4th floor'}
                 </span>
               </p>
             </div>

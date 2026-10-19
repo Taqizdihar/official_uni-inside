@@ -1,0 +1,15 @@
+.enter { animation: editorialEnter 620ms cubic-bezier(.22,1,.36,1) both; }
+.enterLater { animation: editorialEnter 700ms 110ms cubic-bezier(.22,1,.36,1) both; }
+.richText { color: #383a39; font-size: clamp(1.06rem, 1.3vw, 1.24rem); line-height: 1.85; overflow-wrap: anywhere; }
+.richText > * + * { margin-top: 1.35em; }
+.richText h2, .richText h3 { color: #202121; font-weight: 900; line-height: 1.16; letter-spacing: -.04em; }
+.richText h2 { margin-top: 2em; font-size: clamp(1.7rem, 2.7vw, 2.5rem); }
+.richText h3 { margin-top: 1.7em; font-size: clamp(1.4rem, 2vw, 1.9rem); }
+.richText ul { list-style: disc; padding-left: 1.4rem; }
+.richText ol { list-style: decimal; padding-left: 1.4rem; }
+.richText li + li { margin-top: .45em; }
+.richText a { color: #202121; text-decoration: underline; text-decoration-color: #d5aa12; text-decoration-thickness: 2px; text-underline-offset: .2em; }
+.richText a:focus-visible { outline: 2px solid #202121; outline-offset: 3px; }
+.richText blockquote { border-left: 4px solid #f9d02d; padding: .25em 0 .25em 1.2em; color: #525452; font-size: 1.12em; font-weight: 600; }
+@keyframes editorialEnter { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .enter, .enterLater { animation: none; } }

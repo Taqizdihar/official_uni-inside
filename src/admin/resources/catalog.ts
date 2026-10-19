@@ -1,0 +1,102 @@
+export type FieldKind='text'|'textarea'|'rich'|'number'|'money'|'url'|'date'|'datetime'|'toggle'|'select'|'media'|'relation';
+export type Field={key:string;label:string;kind?:FieldKind;options?:[string,string][];related?:string;optional?:boolean;help?:string};
+export type ResourceDef={name:string;label:string;permission:string;kind:'dynamic'|'fixed';fields:Field[];titleField?:string;parent?:string;mediaScope?:string;children?:string[];group:'Homepage'|'Content'|'Site'};
+const fieldLabels:Record<string,string>={
+  'Display order':'Urutan tampilan','Visible or active':'Tampil / aktif','Visible':'Tampilkan','Search title':'Judul SEO','Search description':'Deskripsi SEO',
+  'Full name':'Nama lengkap','URL slug':'Slug URL','Role':'Peran','Joined date':'Tanggal bergabung','Departed date':'Tanggal selesai',
+  'Name':'Nama','Description':'Deskripsi','Product name':'Nama produk','Product type':'Jenis produk','Short description':'Deskripsi singkat',
+  'Full description':'Deskripsi lengkap','Base price':'Harga dasar','Currency':'Mata uang','Price note':'Catatan harga',
+  'Availability':'Ketersediaan','Lead time':'Estimasi pengerjaan','Minimum quantity':'Jumlah minimum','Featured':'Unggulan',
+  'Schedule at':'Jadwalkan pada','Cover image':'Gambar sampul','Image':'Gambar','Feature':'Fitur','Value':'Nilai',
+  'Color name':'Nama warna','Hex color':'Kode warna','Sample image':'Contoh gambar','Variant name':'Nama varian',
+  'Price adjustment':'Penyesuaian harga','Stock quantity':'Jumlah stok','Store or platform':'Toko atau platform',
+  'Button label':'Teks tombol','Purchase URL':'URL pembelian','Primary link':'Tautan utama','Service name':'Nama layanan',
+  'Pricing':'Jenis harga','Starting price':'Harga mulai','Estimated duration':'Estimasi durasi','Homepage slot':'Slot Homepage',
+  'CTA label':'Teks CTA','CTA path or URL':'Path atau URL CTA','Type':'Jenis','Item':'Item','Step title':'Judul langkah',
+  'Project title':'Judul proyek','Client or collaborator':'Klien atau kolaborator','Project date':'Tanggal proyek',
+  'Title':'Judul','Excerpt':'Ringkasan','Article body':'Isi artikel','CMS author':'Penulis CMS','Team author':'Penulis dari tim',
+  'Year':'Tahun','Exact date':'Tanggal tepat','Issuer':'Pemberi penghargaan','Icon choice':'Pilihan ikon',
+  'Platform':'Platform','Label':'Label','Icon name':'Nama ikon','Message':'Pesan','Speaker':'Pembicara',
+  'Site name':'Nama website','Tagline':'Tagline','Public email':'Email publik','Public phone':'Telepon publik',
+  'WhatsApp number':'Nomor WhatsApp','Default search title':'Judul SEO default','Eyebrow':'Teks pengantar',
+  'Heading':'Judul utama','Default sort':'Urutan default','Heading line 1':'Baris judul 1','Heading line 2':'Baris judul 2',
+  'Description line 1':'Baris deskripsi 1','Description line 2':'Baris deskripsi 2','Intro enabled':'Aktifkan intro',
+  'Default workspace':'Workspace awal','Number':'Angka','Suffix':'Akhiran','Display name':'Nama tampilan',
+  'Primary button':'Tombol utama','Primary URL':'URL utama','Secondary button':'Tombol kedua','Secondary URL':'URL kedua',
+  'Enabled':'Aktif','Lead text':'Teks pembuka','Workspace heading':'Judul Workspace','Principles heading':'Judul Principles',
+};
+const resourceLabels:Record<string,string>={'team-members':'Team Members','product-categories':'Kategori produk','product-images':'Galeri gambar','product-features':'Fitur produk','product-color-options':'Pilihan warna','product-variants':'Varian produk','product-purchase-links':'Tautan pembelian','service-categories':'Kategori layanan','service-list-items':'Hasil dan kebutuhan','service-process-steps':'Langkah proses','service-images':'Galeri gambar','project-images':'Galeri gambar','news-categories':'Kategori berita','news-images':'Galeri gambar','social-links':'Social Links','contact-chat-messages':'Percakapan Contact Us','site-settings':'Pengaturan website','page-settings':'Pengaturan halaman','homepage-sections':'Section Homepage','hero-hotspots':'Hero Callouts'};
+const optionLabels:Record<string,string>={
+  'Ready-made':'Siap pakai',Custom:'Kustom',Both:'Keduanya','Contact us':'Hubungi kami',Fixed:'Harga tetap',
+  'Starting from':'Mulai dari',Range:'Rentang harga',Deliverable:'Hasil pekerjaan',Included:'Termasuk',
+  Requirement:'Kebutuhan','Not included':'Tidak termasuk',Article:'Artikel',Update:'Pembaruan',Event:'Acara',
+  Fan:'Kipas',Ring:'Cincin',Visitor:'Pengunjung',None:'Tidak ada',
+};
+const f=(key:string,label:string,kind:FieldKind='text',extra:Partial<Field>={}):Field=>({
+  key,label:fieldLabels[label]??label,kind,...extra,
+  options:extra.options?.map(([value,caption])=>[value,optionLabels[caption]??caption]),
+});
+const order=f('sort_order','Display order','number');
+const image=(key:string,label:string)=>f(key,label,'media');
+const category=(key:string,label:string,related:string)=>f(key,label,'relation',{related,optional:true});
+const link=(key:string,label:string)=>f(key,label,'url',{optional:true});
+const text=(key:string,label:string)=>f(key,label,'textarea',{optional:true});
+const active=f('is_active','Visible or active','toggle');
+const visible=f('is_visible','Visible','toggle');
+const seo=[f('meta_title','Search title','text',{optional:true}),text('meta_description','Search description')];
+const resource=(name:string,label:string,permission:string,group:ResourceDef['group'],fields:Field[],options:Partial<ResourceDef>={}):ResourceDef=>({name,label:resourceLabels[name]??label,permission,group,fields,kind:'dynamic',...options});
+const fixed=(name:string,label:string,group:ResourceDef['group'],fields:Field[],permission='homepage'):ResourceDef=>resource(name,label,permission,group,fields,{kind:'fixed'});
+
+export const catalog:Record<string,ResourceDef>={
+  'team-members':resource('team-members','Team members','team','Content',[f('full_name','Full name'),f('slug','URL slug'),f('role_title','Role'),text('short_bio','Biography'),image('photo_media_id','Photo'),link('linkedin_url','LinkedIn'),link('instagram_url','Instagram'),link('x_url','X'),link('github_url','GitHub'),f('joined_at','Joined date','date',{optional:true}),f('departed_at','Departed date','date',{optional:true}),order],{titleField:'full_name',mediaScope:'team'}),
+  partners:resource('partners','Partners','partners','Content',[f('name','Name'),f('slug','URL slug'),image('logo_media_id','Logo'),link('website_url','Website'),text('description','Description'),order],{titleField:'name',mediaScope:'partners'}),
+  'product-categories':resource('product-categories','Product categories','products','Content',[f('name','Name'),f('slug','URL slug'),text('description','Description'),order,active],{titleField:'name'}),
+  products:resource('products','Products','products','Content',[f('name','Product name'),f('slug','URL slug'),category('category_id','Category','product-categories'),f('product_type','Product type','select',{options:[['ready_made','Ready-made'],['custom','Custom'],['both','Both']]}),f('short_description','Short description','textarea'),f('description','Full description','rich',{optional:true}),image('cover_media_id','Cover image'),f('base_price','Base price','money',{optional:true}),f('currency_code','Currency'),f('price_note','Price note','text',{optional:true}),f('availability_label','Availability','text',{optional:true}),f('lead_time_text','Lead time','text',{optional:true}),f('minimum_order_quantity','Minimum quantity','number',{optional:true}),f('is_featured','Featured','toggle'),order,...seo,f('scheduled_at','Schedule at','datetime',{optional:true})],{titleField:'name',mediaScope:'products',children:['product-images','product-features','product-color-options','product-variants','product-purchase-links']}),
+  'product-images':resource('product-images','Gallery images','products','Content',[image('media_id','Image'),text('alt_text','Alternative text'),f('is_cover','Cover image','toggle'),order],{parent:'products'}),
+  'product-features':resource('product-features','Features','products','Content',[f('label','Feature'),f('value_text','Value'),order],{parent:'products'}),
+  'product-color-options':resource('product-color-options','Colors','products','Content',[f('name','Color name'),f('hex_color','Hex color','text',{optional:true}),image('media_id','Sample image'),active,order],{parent:'products'}),
+  'product-variants':resource('product-variants','Variants','products','Content',[f('name','Variant name'),f('sku','SKU','text',{optional:true}),f('price_adjustment','Price adjustment','money'),f('stock_quantity','Stock quantity','number',{optional:true}),active,order],{parent:'products'}),
+  'product-purchase-links':resource('product-purchase-links','Purchase links','products','Content',[f('store_name','Store or platform'),f('button_label','Button label'),f('url','Purchase URL','url'),f('is_primary','Primary link','toggle'),active,order],{parent:'products'}),
+  'service-categories':resource('service-categories','Service categories','services','Content',[f('name','Name'),f('slug','URL slug'),text('description','Description'),order,active],{titleField:'name'}),
+  services:resource('services','Services','services','Content',[f('name','Service name'),f('slug','URL slug'),category('category_id','Category','service-categories'),f('short_description','Short description','textarea'),f('description','Full description','rich',{optional:true}),image('cover_media_id','Cover image'),f('pricing_type','Pricing','select',{options:[['contact','Contact us'],['fixed','Fixed'],['starting_from','Starting from'],['range','Range']]}),f('starting_price','Starting price','money',{optional:true}),f('currency_code','Currency'),text('price_note','Price note'),f('estimated_duration','Estimated duration','text',{optional:true}),f('featured_slot','Homepage slot','select',{optional:true,options:[['','None'],['1','Slot 1'],['2','Slot 2'],['3','Slot 3']]}),f('primary_cta_label','CTA label','text',{optional:true}),link('primary_cta_url','CTA path or URL'),order,...seo,f('scheduled_at','Schedule at','datetime',{optional:true})],{titleField:'name',mediaScope:'services',children:['service-list-items','service-process-steps','service-images']}),
+  'service-list-items':resource('service-list-items','Deliverables and requirements','services','Content',[f('item_type','Type','select',{options:[['deliverable','Deliverable'],['included','Included'],['requirement','Requirement'],['not_included','Not included']]}),f('label','Item'),order],{parent:'services'}),
+  'service-process-steps':resource('service-process-steps','Process steps','services','Content',[f('title','Step title'),text('description','Description'),order],{parent:'services'}),
+  'service-images':resource('service-images','Gallery images','services','Content',[image('media_id','Image'),text('alt_text','Alternative text'),f('is_cover','Cover image','toggle'),order],{parent:'services'}),
+  projects:resource('projects','Projects','projects','Content',[f('title','Project title'),f('slug','URL slug'),f('client_name','Client or collaborator','text',{optional:true}),f('project_date','Project date','date',{optional:true}),f('short_description','Short description','textarea'),text('challenge_text','Challenge'),text('solution_text','Solution'),text('outcome_text','Outcome'),image('cover_media_id','Cover image'),link('external_url','External link'),f('is_featured','Featured','toggle'),order],{titleField:'title',mediaScope:'projects',children:['project-images']}),
+  'project-images':resource('project-images','Gallery images','projects','Content',[image('media_id','Image'),text('alt_text','Alternative text'),order],{parent:'projects'}),
+  'news-categories':resource('news-categories','News categories','news','Content',[f('name','Name'),f('slug','URL slug'),text('description','Description'),order,active],{titleField:'name'}),
+  news:resource('news','News and articles','news','Content',[f('title','Title'),f('slug','URL slug'),category('category_id','Category','news-categories'),f('content_type','Type','select',{options:[['news','News'],['article','Article'],['update','Update'],['event','Event']]}),f('excerpt','Excerpt','textarea'),f('body','Article body','rich',{optional:true}),image('cover_media_id','Cover image'),f('author_user_id','CMS author','relation',{related:'users',optional:true}),f('author_team_member_id','Team author','relation',{related:'team-members',optional:true}),f('is_featured','Featured','toggle'),...seo,f('scheduled_at','Schedule at','datetime',{optional:true})],{titleField:'title',mediaScope:'news',children:['news-images']}),
+  'news-images':resource('news-images','Gallery images','news','Content',[image('media_id','Image'),text('alt_text','Alternative text'),text('caption','Caption'),order],{parent:'news'}),
+  achievements:resource('achievements','Achievements','achievements','Content',[f('title','Title'),text('description','Description'),f('year_label','Year','text',{optional:true}),f('achievement_date','Exact date','date',{optional:true}),f('issuer_name','Issuer','text',{optional:true}),link('external_url','External URL'),f('icon_key','Icon choice','text',{optional:true}),image('media_id','Image'),order],{titleField:'title',mediaScope:'achievements'}),
+  'social-links':resource('social-links','Social links','settings','Site',[f('platform_code','Platform'),f('label','Label'),f('url','URL','url'),f('icon_key','Icon name','text',{optional:true}),active,order]),
+  'contact-chat-messages':resource('contact-chat-messages','Contact conversation','settings','Site',[f('message_text','Message','textarea'),f('speaker','Speaker','select',{options:[['studio','Studio'],['visitor','Visitor']]}),active,order]),
+  'site-settings':fixed('site-settings','Site settings','Site',[f('site_name','Site name'),f('tagline','Tagline','text',{optional:true}),f('public_email','Public email','text',{optional:true}),f('public_phone','Public phone','text',{optional:true}),f('whatsapp_number','WhatsApp number','text',{optional:true}),text('address_text','Address'),text('footer_description','Footer description'),f('default_meta_title','Default search title','text',{optional:true}),text('default_meta_description','Default search description'),image('default_og_media_id','Social preview image')],'settings'),
+  'page-settings':fixed('page-settings','Page settings','Site',[f('eyebrow','Eyebrow','text',{optional:true}),f('heading','Heading'),text('description','Description'),f('primary_cta_label','Button label','text',{optional:true}),link('primary_cta_url','Button URL'),f('default_sort_key','Default sort','text',{optional:true}),...seo,image('og_media_id','Social image')],'settings'),
+  'homepage-sections':fixed('homepage-sections','Homepage sections','Homepage',[f('eyebrow','Eyebrow','text',{optional:true}),f('heading','Heading'),text('description','Description'),f('primary_cta_label','Button label','text',{optional:true}),link('primary_cta_url','Button URL'),visible]),
+  'hero-settings':fixed('hero-settings','Hero','Homepage',[f('eyebrow','Eyebrow','text',{optional:true}),f('heading_line_1','Heading line 1'),f('heading_line_2','Heading line 2'),f('description_line_1','Description line 1'),f('description_line_2','Description line 2','text',{optional:true}),f('intro_enabled','Intro enabled','toggle'),f('default_workspace','Default workspace','select',{options:[['studio','Studio'],['craft','Craft']]})]),
+  'hero-trust-signals':fixed('hero-trust-signals','Hero trust signals','Homepage',[f('numeric_value','Number','number'),f('suffix','Suffix','text',{optional:true}),f('label','Label'),visible]),
+  'hero-workspaces':fixed('hero-workspaces','Hero workspaces','Homepage',[f('display_name','Display name'),f('primary_cta_label','Primary button'),f('primary_cta_url','Primary URL','url'),f('secondary_cta_label','Secondary button','text',{optional:true}),link('secondary_cta_url','Secondary URL'),f('is_enabled','Enabled','toggle')]),
+  'hero-hotspots':fixed('hero-hotspots','Hero callouts','Homepage',[f('label','Label'),f('numeric_value','Number','number',{optional:true}),f('numeric_suffix','Suffix','text',{optional:true}),order,f('is_enabled','Enabled','toggle')]),
+  'about-settings':fixed('about-settings','About Us','Homepage',[f('eyebrow','Eyebrow','text',{optional:true}),f('heading','Heading'),f('lead_text','Lead text','textarea'),text('body_text','Body'),f('workspaces_heading','Workspace heading','text',{optional:true}),f('principles_heading','Principles heading','text',{optional:true})]),
+  'about-workspaces':fixed('about-workspaces','About workspaces','Homepage',[f('name','Name'),f('short_label','Short label','text',{optional:true}),f('description','Description','textarea'),f('cta_label','Button label','text',{optional:true}),link('cta_url','Button URL'),order,visible]),
+  'about-principles':fixed('about-principles','About principles','Homepage',[f('title','Title'),f('description','Description','textarea'),f('icon_key','Icon choice','text',{optional:true}),visible]),
+  'team-section-settings':fixed('team-section-settings','Team section','Homepage',[f('eyebrow','Eyebrow','text',{optional:true}),f('heading','Heading'),text('description','Description'),f('normal_mode_instruction','Fan instruction','text',{optional:true}),f('ring_mode_instruction','Ring instruction','text',{optional:true}),f('default_display_mode','Default view','select',{options:[['normal','Fan'],['ring','Ring']]})]),
+  'achievement-section-settings':fixed('achievement-section-settings','Achievement section','Homepage',[f('eyebrow','Eyebrow','text',{optional:true}),f('heading','Heading'),text('description','Description')]),
+  'contact-section-settings':fixed('contact-section-settings','Contact section','Homepage',[f('eyebrow','Eyebrow','text',{optional:true}),f('heading','Heading'),text('description','Description'),f('email_label','Email label','text',{optional:true}),f('phone_label','Phone label','text',{optional:true}),f('whatsapp_cta_label','WhatsApp label','text',{optional:true})]),
+};
+export const fixedKeys:Record<string,string[]>= {'site-settings':['1'],'hero-settings':['1'],'about-settings':['1'],'team-section-settings':['1'],'achievement-section-settings':['1'],'contact-section-settings':['1'],'hero-trust-signals':['1','2','3'],'hero-workspaces':['studio','craft'],'hero-hotspots':[],'about-workspaces':['studio','craft'],'about-principles':['1','2','3'],'page-settings':['products','services','news','media_kit'],'homepage-sections':['partners','products','services','news']};
+const fixedKeyFields:Record<string,string>={
+  'site-settings':'id','hero-settings':'id','about-settings':'id','team-section-settings':'id','achievement-section-settings':'id','contact-section-settings':'id',
+  'hero-trust-signals':'slot','hero-workspaces':'workspace_key','hero-hotspots':'hotspot_key','about-workspaces':'workspace_key','about-principles':'slot',
+  'page-settings':'page_key','homepage-sections':'section_key',
+};
+export function fixedRecordKey(def:ResourceDef,record:Record<string,unknown>){
+  const value=record[fixedKeyFields[def.name]];
+  if(value===undefined||value===null||value==='')throw new Error('Identitas slot tetap tidak tersedia.');
+  return String(value);
+}
+export function fixedLandingPath(def:ResourceDef,records:Record<string,unknown>[]){
+  return def.kind==='fixed'&&records.length?`${pathFor(def)}/${encodeURIComponent(fixedRecordKey(def,records[0]))}`:null;
+}
+export function pathFor(def:ResourceDef){return `/admin/${def.group==='Homepage'?'homepage':def.group==='Site'?'site':'content'}/${def.name}`;}
+export function slugify(value:string){return value.normalize('NFKD').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,190);}

@@ -34,6 +34,36 @@ npm run dev
 
 The development server runs on `http://localhost:3000` by default.
 
+The CMS REST API is a separate Node package under [`backend/`](backend/README.md). The frontend and backend have separate lockfiles and builds. Published API content replaces static public data; when the API is offline, the existing static content remains available.
+
+### Phase 2 local CMS workflow
+
+Create `backend/.env` from `backend/.env.example` on your machine and configure the local MySQL 8/Laragon connection, two distinct security peppers, and optional Cloudinary credentials. `VITE_API_BASE_URL=http://localhost:4000/api/v1` is the root frontend default; set it in a local root `.env` if the backend uses another address. Never commit either real `.env` file.
+
+Terminal 1, from the repository root:
+
+```bash
+cd backend
+npm ci
+npm run db:status
+npm run db:migrate
+npm run db:check
+npm run dev
+```
+
+Terminal 2, from the repository root:
+
+```bash
+npm ci
+npm run dev
+```
+
+Open the public site at `http://localhost:3000`, CMS login at `http://localhost:3000/admin/login`, API at `http://localhost:4000`, liveness at `http://localhost:4000/api/v1/health`, and database readiness at `http://localhost:4000/api/v1/ready`. If no administrator exists, create one using the password-stdin command in [backend/README.md](backend/README.md). There is no public registration.
+
+Sign in, save a draft, upload an image through the CMS media picker, complete the publishing requirements, and publish. The picker requests a short-lived signature, uploads directly to Cloudinary, then asks the backend to verify and record it in MySQL. `CLOUDINARY_ROOT_FOLDER` defaults to `uni-inside`; the backend controls subfolders. Manually uploaded Cloudinary images do not automatically become CMS media records. Cloudinary is external storage even when MySQL is local. SMTP can remain empty for local development; development-only invitation/reset links then appear in the API response.
+
+Stage 3 deployment preparation, operator configuration, and smoke-check steps are documented in [docs/deployment-stage-3.md](docs/deployment-stage-3.md). External Aiven migration and Render/Cloudflare configuration remain manual.
+
 ## Available scripts
 
 | Command | Purpose |
@@ -53,8 +83,14 @@ The development server runs on `http://localhost:3000` by default.
 | `/products` | Uni-Inside Craft product catalogue |
 | `/services` | Uni-Inside Studio service overview |
 | `/news` | News and insights listing |
+| `/products/:slug`, `/services/:slug`, `/projects/:slug`, `/news/:slug` | Published CMS detail templates |
+| `/projects` | Published project listing |
+| `/admin/login` | CMS sign-in |
+| `/admin/dashboard`, `/admin/analytics` | Authenticated overview |
+| `/admin/homepage/*`, `/admin/content/*`, `/admin/site/*` | Permission-aware CMS editors |
+| `/admin/media`, `/admin/users`, `/admin/roles`, `/admin/audit`, `/admin/profile` | Media and administration |
 
-Product, service, project, and article detail routes are planned as part of the CMS implementation.
+The `/admin/*` application, rich-text editor, and admin analytics chart are lazy-loaded so the landing page does not download them initially. DOMPurify is the only new runtime dependency; it sanitizes rich-text previews and public detail content. The backend still performs authoritative sanitation.
 
 ## Project structure
 
@@ -65,9 +101,12 @@ src/
 ├── data/         Temporary static content sources
 ├── hooks/        Shared React hooks
 ├── pages/        Routed pages
+├── admin/        Lazy-loaded CMS interface and API client
+├── public/       Public content provider and first-party analytics
 ├── App.tsx       Main landing-page composition
 └── main.tsx      Router and application bootstrap
 public/           Public static assets
+backend/          Independent CMS API, MySQL migration, tests, and deployment docs
 ```
 
 ## Content status
@@ -77,7 +116,7 @@ The current repository contains a mixture of production UI and temporary static 
 - News entries are mock content.
 - Achievement entries are placeholders and are not verified public claims.
 - Some team roles and biographies are temporary.
-- Product and service detail pages are not yet implemented.
+- New detail pages are functional templates that require published CMS records.
 
 Do not publish placeholder content as factual company information. Replace it with verified content through the planned CMS before treating the site as production-complete.
 
@@ -85,7 +124,7 @@ Do not publish placeholder content as factual company information. Replace it wi
 
 Use `.env.example` only as documentation. Never commit real credentials.
 
-Vite variables prefixed with `VITE_` are bundled into client-side code and must never contain private API keys or server credentials. Any future integration requiring a secret must run through a protected server-side service.
+Vite variables prefixed with `VITE_` are bundled into client-side code and must never contain private API keys or server credentials. `VITE_API_BASE_URL` is a public API URL; secrets belong only in the backend.
 
 ## Deployment
 

@@ -1,0 +1,594 @@
+openapi: 3.1.0
+info:
+  title: Uni-Inside CMS API
+  version: 1.0.0
+  description: Backend-only Phase 1. Content changes are reflected by the future CMS; the current website still uses static content.
+servers:
+  - url: http://localhost:4000/api/v1
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: uniinside_session
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    Csrf:
+      name: X-CSRF-Token
+      in: header
+      required: true
+      description: Token returned by login or current-session lookup; must also match the CSRF cookie.
+      schema: { type: string }
+    Resource:
+      name: resource
+      in: path
+      required: true
+      description: An explicitly configured CMS resource; fixed resources support only GET and PATCH.
+      schema:
+        type: string
+        enum: [social-links, partners, team-members, product-categories, products, product-images, product-features, product-color-options, product-variants, product-purchase-links, service-categories, services, service-list-items, service-process-steps, service-images, projects, project-images, news-categories, news, news-images, achievements, contact-chat-messages, site-settings, page-settings, homepage-sections, hero-settings, hero-trust-signals, hero-workspaces, hero-hotspots, about-settings, about-workspaces, about-principles, team-section-settings, achievement-section-settings, contact-section-settings]
+    Key:
+      name: key
+      in: path
+      required: true
+      schema: { type: string }
+  schemas:
+    ProductCompose:
+      type: object
+      additionalProperties: false
+      required: [action, name]
+      properties:
+        action: { type: string, enum: [draft, publish] }
+        name: { type: string, minLength: 1, maxLength: 190 }
+        category_id: { type: [integer, 'null'], minimum: 1 }
+        product_type: { type: string, enum: [ready_made, custom, both] }
+        description: { type: string, maxLength: 70000 }
+        cover_media_id: { type: [integer, 'null'], minimum: 1 }
+        gallery_media_ids: { type: array, maxItems: 8, uniqueItems: true, items: { type: integer, minimum: 1 } }
+        base_price: { type: [number, 'null'], minimum: 0, maximum: 999999999999 }
+        currency_code: { type: string, pattern: '^[A-Z]{3}$', default: IDR }
+        availability_label: { type: [string, 'null'], maxLength: 100 }
+        price_note: { type: [string, 'null'], maxLength: 255 }
+        lead_time_text: { type: [string, 'null'], maxLength: 255 }
+        minimum_order_quantity: { type: [integer, 'null'], minimum: 1, maximum: 2147483647 }
+        features:
+          type: array
+          maxItems: 100
+          items:
+            type: object
+            additionalProperties: false
+            required: [label, value_text]
+            properties:
+              label: { type: string, minLength: 1, maxLength: 150 }
+              value_text: { type: string, minLength: 1, maxLength: 500 }
+        variants:
+          type: array
+          maxItems: 100
+          items:
+            type: object
+            additionalProperties: false
+            required: [name, price, stock_quantity, is_active]
+            properties:
+              name: { type: string, minLength: 1, maxLength: 150 }
+              price: { type: number, minimum: 0, maximum: 999999999999, description: 'Final price; stored as an adjustment relative to base_price' }
+              stock_quantity: { type: [integer, 'null'], minimum: 0, maximum: 2147483647 }
+              is_active: { type: boolean }
+              media_id: { type: 'null', description: 'Non-null variant photos are rejected until the deferred schema update' }
+        platforms:
+          type: array
+          maxItems: 5
+          items:
+            type: object
+            additionalProperties: false
+            required: [platform]
+            properties:
+              platform: { type: string, enum: [shopee, tokopedia, tiktok, shopify, whatsapp] }
+              url: { type: string, maxLength: 1000, description: 'Required HTTP(S) product URL except WhatsApp; WhatsApp resolves the global setting and rejects a supplied URL' }
+    Envelope:
+      type: object
+      required: [data]
+      properties:
+        data: {}
+        meta: { type: object }
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, details, requestId]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: { type: array, items: {} }
+            requestId: { type: string }
+    Login:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, maxLength: 1024 }
+    Event:
+      type: object
+      additionalProperties: false
+      required: [eventUuid, eventName]
+      properties:
+        eventUuid: { type: string, format: uuid }
+        eventName: { type: string, enum: [page_view, product_view, product_purchase_link_click, service_view, news_view, cta_click] }
+        pagePath: { type: string, maxLength: 500 }
+        entityType: { type: string, enum: [product, service, news] }
+        entityId: { type: integer, minimum: 1 }
+        linkDestination: { type: string, format: uri }
+        referrerHost: { type: string, maxLength: 255 }
+    ServiceCreateInput:
+      type: object
+      additionalProperties: false
+      required: [name, category_id, description, cover_media_id, gallery_media_ids, pricing_type, starting_price, currency_code, price_note, estimated_duration, items, process_steps, primary_cta_label, primary_cta_url, status]
+      properties:
+        name: { type: string, maxLength: 190 }
+        category_id: { type: [integer, 'null'] }
+        description: { type: string, maxLength: 100000, description: Restricted rich text HTML }
+        cover_media_id: { type: [integer, 'null'] }
+        gallery_media_ids: { type: array, maxItems: 8, items: { type: integer } }
+        pricing_type: { type: string, enum: [contact, fixed, starting_from, range] }
+        starting_price: { type: [number, 'null'], minimum: 0 }
+        currency_code: { type: string, enum: [IDR, USD, SGD, EUR, AUD, MYR] }
+        price_note: { type: string, maxLength: 255 }
+        estimated_duration: { type: string, maxLength: 255 }
+        items:
+          type: array
+          maxItems: 100
+          items:
+            type: object
+            additionalProperties: false
+            required: [item_type, label]
+            properties:
+              item_type: { type: string, enum: [deliverable, included, requirement, not_included] }
+              label: { type: string, maxLength: 500 }
+        process_steps:
+          type: array
+          maxItems: 100
+          items:
+            type: object
+            additionalProperties: false
+            required: [title, description]
+            properties:
+              title: { type: string, maxLength: 150 }
+              description: { type: string, maxLength: 1000 }
+        primary_cta_label: { type: string, maxLength: 100 }
+        primary_cta_url: { type: string, maxLength: 1000 }
+        status: { type: string, enum: [draft, published] }
+    NewsCreateInput:
+      type: object
+      additionalProperties: false
+      required: [action, title, content_type, category_id, excerpt, body, cover_media_id, gallery_media_ids, author, reading_time_minutes]
+      properties:
+        action: { type: string, enum: [draft, publish] }
+        title: { type: string, maxLength: 255 }
+        content_type: { type: string, enum: [news, article, update, event] }
+        category_id: { type: [integer, 'null'] }
+        excerpt: { type: string, maxLength: 1000 }
+        body: { type: string, maxLength: 80000, description: Restricted editorial HTML }
+        cover_media_id: { type: [integer, 'null'] }
+        gallery_media_ids: { type: array, maxItems: 100, items: { type: integer, minimum: 1 } }
+        author:
+          oneOf:
+            - { type: 'null' }
+            - { type: object, additionalProperties: false, required: [source, id], properties: { source: { type: string, enum: [user, team] }, id: { type: integer, minimum: 1 } } }
+        reading_time_minutes: { type: [integer, 'null'], minimum: 1, maximum: 999, description: 'Null calculates from readable body text at 200 words per minute' }
+    ContentInput:
+      type: object
+      minProperties: 1
+      description: Resource-specific, strict writable fields. Unknown fields are rejected. See backend/src/schemas/resources.ts for each explicit Zod schema; status transitions also run publish validation.
+paths:
+  /health:
+    get:
+      summary: Process liveness without database access
+      responses: { '200': { description: Live, content: { application/json: { schema: { $ref: '#/components/schemas/Envelope' } } } } }
+  /ready:
+    get:
+      summary: Database and schema readiness
+      responses:
+        '200': { description: Ready }
+        '503': { description: Database or migration unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /site:
+    get:
+      summary: Public site settings, social links, and page settings
+      responses: { '200': { description: Published settings } }
+  /homepage:
+    get:
+      summary: Bounded public homepage aggregate
+      responses: { '200': { description: Homepage data } }
+  /team-members:
+    get:
+      summary: Published team members
+      parameters: [{ $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/Limit' }]
+      responses: { '200': { description: Team members } }
+  /partners:
+    get:
+      summary: Published partners
+      parameters: [{ $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/Limit' }]
+      responses: { '200': { description: Partners } }
+  /products:
+    get:
+      summary: Published products
+      parameters: [{ $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/Limit' }]
+      responses: { '200': { description: Products } }
+  /products/{slug}:
+    get:
+      summary: Published product with images and child records
+      parameters: [{ name: slug, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: Product }, '404': { description: Not published or not found } }
+  /services:
+    get:
+      summary: Published services
+      parameters: [{ $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/Limit' }]
+      responses: { '200': { description: Services } }
+  /services/{slug}:
+    get:
+      summary: Published service with images, items, and process steps
+      parameters: [{ name: slug, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: Service }, '404': { description: Not published or not found } }
+  /projects:
+    get:
+      summary: Published projects
+      parameters: [{ $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/Limit' }]
+      responses: { '200': { description: Projects } }
+  /projects/{slug}:
+    get:
+      summary: Published project with related services, images and people
+      parameters: [{ name: slug, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: Project }, '404': { description: Not published or not found } }
+  /news:
+    get:
+      summary: Published news
+      parameters: [{ $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/Limit' }]
+      responses: { '200': { description: News } }
+  /news/{slug}:
+    get:
+      summary: Published article with gallery
+      parameters: [{ name: slug, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: Article }, '404': { description: Not published or not found } }
+  /achievements:
+    get:
+      summary: Published achievements
+      parameters: [{ $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/Limit' }]
+      responses: { '200': { description: Achievements } }
+  /analytics/events:
+    post:
+      summary: Privacy-conscious first-party event collection, deduplicated by UUID
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Event' } } } }
+      responses: { '201': { description: Accepted }, '200': { description: Duplicate event }, '400': { description: Invalid event } }
+  /auth/login:
+    post:
+      summary: Sign in and set HttpOnly session and readable CSRF cookies
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Login' } } } }
+      responses: { '200': { description: Session and CSRF token }, '401': { description: Invalid credentials } }
+  /auth/me:
+    get:
+      summary: Current user, fresh permissions, and CSRF token
+      security: [{ sessionCookie: [] }]
+      responses: { '200': { description: Current user }, '401': { description: No active session } }
+  /auth/profile:
+    get:
+      summary: View own profile
+      security: [{ sessionCookie: [] }]
+      responses: { '200': { description: Profile } }
+    patch:
+      summary: Update own display name, avatar, title, and biography
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      responses: { '200': { description: Profile updated } }
+  /auth/logout:
+    post:
+      summary: Revoke current session
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      responses: { '200': { description: Logged out } }
+  /auth/logout-all:
+    post:
+      summary: Revoke all user sessions
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      responses: { '200': { description: Logged out everywhere } }
+  /auth/password-change:
+    post:
+      summary: Change password, revoke old sessions, and set new session
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [currentPassword, newPassword], properties: { currentPassword: { type: string }, newPassword: { type: string } } } } } }
+      responses: { '200': { description: Password changed } }
+  /auth/invitations/accept:
+    post:
+      summary: Accept an invitation and set a password
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [token, password], properties: { token: { type: string }, password: { type: string } } } } } }
+      responses: { '200': { description: Invitation accepted } }
+  /auth/password-reset/request:
+    post:
+      summary: Request a password reset with generic account response
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [email], properties: { email: { type: string, format: email } } } } } }
+      responses: { '200': { description: Generic response } }
+  /auth/password-reset/complete:
+    post:
+      summary: Complete reset and revoke prior sessions
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [token, password], properties: { token: { type: string }, password: { type: string } } } } } }
+      responses: { '200': { description: Password reset } }
+  /admin/dashboard:
+    get:
+      summary: Content, engagement, and recent audit summary
+      security: [{ sessionCookie: [] }]
+      responses: { '200': { description: Dashboard } }
+  /admin/analytics:
+    get:
+      summary: Rolled-up analytics
+      security: [{ sessionCookie: [] }]
+      responses: { '200': { description: Metrics } }
+  /admin/audit:
+    get:
+      summary: Authorized audit log, omitting sensitive snapshots
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/Limit' }]
+      responses: { '200': { description: Audit entries } }
+  /admin/users:
+    get:
+      summary: List CMS users
+      security: [{ sessionCookie: [] }]
+      responses: { '200': { description: Users } }
+  /admin/users/{id}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }]
+    get:
+      summary: View CMS user
+      security: [{ sessionCookie: [] }]
+      responses: { '200': { description: User } }
+    patch:
+      summary: Update role or status, preserving last active super administrator
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      responses: { '200': { description: User updated } }
+  /admin/invitations:
+    get:
+      summary: List invitations
+      security: [{ sessionCookie: [] }]
+      responses: { '200': { description: Invitations } }
+    post:
+      summary: Invite a user
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      responses: { '201': { description: Invitation created } }
+  /admin/invitations/{id}/resend:
+    post:
+      summary: Revoke old token and resend pending invitation
+      security: [{ sessionCookie: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }, { $ref: '#/components/parameters/Csrf' }]
+      responses: { '200': { description: Resent } }
+  /admin/invitations/{id}/revoke:
+    post:
+      summary: Revoke pending invitation
+      security: [{ sessionCookie: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }, { $ref: '#/components/parameters/Csrf' }]
+      responses: { '200': { description: Revoked } }
+  /admin/roles:
+    get:
+      summary: List roles
+      security: [{ sessionCookie: [] }]
+      responses: { '200': { description: Roles } }
+  /admin/permissions:
+    get:
+      summary: List permissions
+      security: [{ sessionCookie: [] }]
+      responses: { '200': { description: Permissions } }
+  /admin/roles/{id}/permissions:
+    get:
+      summary: Current permission IDs for a role
+      security: [{ sessionCookie: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: Role permissions } }
+    put:
+      summary: Replace a role's permissions; super administrator is immutable
+      security: [{ sessionCookie: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }, { $ref: '#/components/parameters/Csrf' }]
+      responses: { '200': { description: Permissions assigned } }
+  /admin/media:
+    get:
+      summary: Browse image library
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/Limit' }
+        - { name: search, in: query, schema: { type: string, maxLength: 100 } }
+        - { name: folder, in: query, schema: { type: string } }
+        - { name: scope, in: query, description: Backend-managed folder scope, schema: { type: string, enum: [site, users, team, partners, products, services, projects, news, achievements] } }
+        - { name: group, in: query, description: Canonical CMS section; choose instead of folder or scope, schema: { type: string, enum: [postingan, utama, lanjutan, pengaturan, administrasi, lainnya] } }
+        - { name: sort, in: query, schema: { type: string, enum: [created_at, bytes_size, original_filename], default: created_at } }
+        - { name: direction, in: query, schema: { type: string, enum: [asc, desc], default: desc } }
+      responses: { '200': { description: 'Media with page, limit, total, and totalPages metadata' } }
+  /admin/media/folders:
+    get:
+      summary: List active physical Cloudinary folders for authorized media users
+      security: [{ sessionCookie: [] }]
+      responses: { '200': { description: Distinct stored folder paths } }
+  /admin/media/sign-upload:
+    post:
+      summary: Signed Cloudinary image upload parameters for controlled folder
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      responses:
+        '200':
+          description: 'Signed payload with uploadUrl, apiKey, signature, asset_folder, public_id_prefix, timestamp, allowed_formats, and max_file_size'
+        '503': { description: Cloudinary unavailable }
+  /admin/media/finalize:
+    post:
+      summary: Verify Cloudinary image and record metadata
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      responses: { '201': { description: Image recorded } }
+  /admin/media/{id}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+    get:
+      summary: Read an image record for the media picker
+      security: [{ sessionCookie: [] }]
+      responses: { '200': { description: Image metadata }, '404': { description: Image not found } }
+    patch:
+      summary: Update image alt text and caption
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      responses: { '200': { description: Updated } }
+    delete:
+      summary: Delete an unreferenced image from Cloudinary, then soft-delete its CMS record
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      responses: { '200': { description: Cloudinary confirmed deleted or not_found and CMS record was soft-deleted }, '409': { description: Image is referenced }, '502': { description: Cloudinary deletion failed }, '503': { description: CMS could not save after Cloudinary deletion } }
+  /admin/media/{id}/rename:
+    patch:
+      summary: Rename an unreferenced image in Cloudinary and update its CMS record
+      security: [{ sessionCookie: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }, { $ref: '#/components/parameters/Csrf' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              additionalProperties: false
+              properties: { name: { type: string, minLength: 1, maxLength: 120 } }
+      responses: { '200': { description: Renamed image record }, '409': { description: Image is referenced or name exists }, '502': { description: Cloudinary rename failed } }
+  /admin/media/{id}/move:
+    patch:
+      summary: Move an unreferenced image to an existing Cloudinary asset folder
+      security: [{ sessionCookie: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }, { $ref: '#/components/parameters/Csrf' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [folder]
+              additionalProperties: false
+              properties: { folder: { type: string, maxLength: 255 } }
+      responses: { '200': { description: Moved image record }, '409': { description: Image is referenced }, '502': { description: Cloudinary move failed } }
+  /admin/projects/{key}/services:
+    get:
+      summary: Current related services with IDs and labels
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Key' }]
+      responses: { '200': { description: Related services } }
+    put:
+      summary: Transactionally replace project service links
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Key' }, { $ref: '#/components/parameters/Csrf' }]
+      responses: { '200': { description: Relations updated } }
+  /admin/projects/{key}/team-members:
+    get:
+      summary: Current related team members with IDs and labels
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Key' }]
+      responses: { '200': { description: Related team members } }
+    put:
+      summary: Transactionally replace project team links
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Key' }, { $ref: '#/components/parameters/Csrf' }]
+      responses: { '200': { description: Relations updated } }
+  /admin/revisions/{resource}/{key}:
+    get:
+      summary: List a content item's revisions
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Resource' }, { $ref: '#/components/parameters/Key' }]
+      responses: { '200': { description: Revisions } }
+  /admin/revisions/{resource}/{key}/restore/{id}:
+    post:
+      summary: Restore approved writable values as a new audited revision
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Resource' }, { $ref: '#/components/parameters/Key' }, { name: id, in: path, required: true, schema: { type: integer } }, { $ref: '#/components/parameters/Csrf' }]
+      responses: { '200': { description: Restored } }
+  /admin/services/create-complete:
+    post:
+      summary: Atomically create a service with ordered images, information items, and process steps
+      description: Requires services.create; publishing also requires services.update and services.publish. The server derives a unique slug and plain-text summary from the sanitized description.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ServiceCreateInput' } } } }
+      responses: { '201': { description: Service and all child records created }, '400': { description: Validation error }, '403': { description: Missing permission }, '409': { description: Slug conflict } }
+  /admin/news/author-options:
+    get:
+      summary: Eligible author display names for article creators
+      description: Requires news.create; returns only source, ID, and public display name.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: source, in: query, required: true, schema: { type: string, enum: [user, team] } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 100 } }
+      responses: { '200': { description: Paginated author names }, '403': { description: Missing news.create permission } }
+  /admin/news/create-complete:
+    post:
+      summary: Atomically create an article and its ordered images
+      description: Requires news.create; publishing also requires news.update and news.publish. Reading time is calculated only when no manual value is provided.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/NewsCreateInput' } } } }
+      responses: { '201': { description: Persisted article and gallery }, '400': { description: Invalid input or incomplete publication }, '403': { description: Missing permission } }
+  /admin/products/compose:
+    post:
+      summary: Atomically create a product and its ordered child records
+      description: 'Requires products.create; publish also requires products.update, products.publish, and publication completeness. Variant photos are explicitly unsupported until the deferred schema update.'
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductCompose' }
+      responses:
+        '201': { description: 'Persisted product; status confirms draft or published' }
+        '400': { description: 'Validation, unsupported variant photo, missing global WhatsApp, or incomplete publication; no data is committed' }
+        '403': { description: 'Missing permission or invalid CSRF token' }
+  /admin/{resource}:
+    get:
+      summary: Paginated CMS records; requires resource view permission
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/Resource' }
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/Limit' }
+        - { name: search, in: query, schema: { type: string } }
+        - { name: status, in: query, schema: { type: string, enum: [draft, scheduled, published, archived] } }
+        - { name: categoryId, in: query, schema: { type: integer } }
+        - { name: productType, in: query, description: 'Products only', schema: { type: string, enum: [ready_made, custom, both] } }
+        - { name: contentType, in: query, description: 'News only', schema: { type: string, enum: [news, article, update, event] } }
+        - { name: parentId, in: query, schema: { type: integer } }
+        - { name: isActive, in: query, schema: { type: boolean } }
+        - { name: sort, in: query, schema: { type: string } }
+        - { name: direction, in: query, schema: { type: string, enum: [asc, desc] } }
+      responses: { '200': { description: 'Filtered records with page, limit, total, and totalPages metadata' } }
+    post:
+      summary: Create a dynamic resource draft; fixed resources return 405
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Resource' }, { $ref: '#/components/parameters/Csrf' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ContentInput' } } } }
+      responses: { '201': { description: Created }, '405': { description: Fixed content } }
+  /admin/{resource}/{key}:
+    get:
+      summary: View a CMS record
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Resource' }, { $ref: '#/components/parameters/Key' }]
+      responses: { '200': { description: Record } }
+    patch:
+      summary: Update approved values; publish validation and permission rules apply
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Resource' }, { $ref: '#/components/parameters/Key' }, { $ref: '#/components/parameters/Csrf' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ContentInput' } } } }
+      responses: { '200': { description: Updated }, '400': { description: Invalid publish state } }
+    delete:
+      summary: Remove dynamic content; fixed content returns 405
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Resource' }, { $ref: '#/components/parameters/Key' }, { $ref: '#/components/parameters/Csrf' }]
+      responses: { '200': { description: Removed }, '405': { description: Fixed content } }

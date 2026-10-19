@@ -1,0 +1,36 @@
+.frame {
+  position: relative;
+  width: 100%;
+  max-width: 34rem;
+  aspect-ratio: 1 / 1;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
+}
+
+.image,
+.layerStack,
+.layer {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
+}
+
+.fallback {
+  z-index: 1;
+}
+
+.layerStack {
+  z-index: 2;
+}
+
+.layer {
+  inset: 0;
+}

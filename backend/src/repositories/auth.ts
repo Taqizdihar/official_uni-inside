@@ -1,0 +1,51 @@
+import type { RowDataPacket } from 'mysql2/promise';
+import type { Executor } from '../database/pool';
+import { rows, write } from '../database/pool';
+
+export const findUserByEmail = async (db: Executor, email: string) => (await rows<RowDataPacket>(db, 'SELECT u.id,u.email,u.display_name,u.password_hash,u.status,u.role_id,r.code AS role_code FROM users u JOIN roles r ON r.id=u.role_id WHERE u.email=? AND u.deleted_at IS NULL LIMIT 1', [email]))[0];
+export const findUserById = async (db: Executor, id: number) => (await rows<RowDataPacket>(db, 'SELECT u.id,u.email,u.display_name,u.status,u.role_id,r.code AS role_code FROM users u JOIN roles r ON r.id=u.role_id WHERE u.id=? AND u.deleted_at IS NULL LIMIT 1', [id]))[0];
+export const findProfile = async (db: Executor, id: number) => (await rows<RowDataPacket>(db,'SELECT p.user_id,p.avatar_media_id,p.job_title,p.bio FROM user_profiles p WHERE p.user_id=? LIMIT 1',[id]))[0];
+export const updateProfile = (db: Executor,id:number,data:{avatarMediaId:number|null;jobTitle:string|null;bio:string|null}) => write(db,'UPDATE user_profiles SET avatar_media_id=?,job_title=?,bio=? WHERE user_id=?',[data.avatarMediaId,data.jobTitle,data.bio,id]);
+export const updateDisplayName = (db: Executor,id:number,name:string) => write(db,'UPDATE users SET display_name=? WHERE id=?',[name,id]);
+export const findRole = async (db: Executor, code: string) => (await rows<RowDataPacket>(db, 'SELECT id,code FROM roles WHERE code=? LIMIT 1', [code]))[0];
+export const findInvitation = async (db: Executor, hash: string) => (await rows<RowDataPacket>(db, 'SELECT id,email,role_id,invited_by,expires_at,accepted_at,revoked_at FROM invitations WHERE token_hash=? FOR UPDATE', [hash]))[0];
+export const findReset = async (db: Executor, hash: string) => (await rows<RowDataPacket>(db, 'SELECT id,user_id,expires_at,used_at FROM password_reset_tokens WHERE token_hash=? FOR UPDATE', [hash]))[0];
+export const findSession = async (db: Executor, hash: string) => (await rows<RowDataPacket>(db, `SELECT s.id AS session_id,s.user_id,s.expires_at,s.last_activity_at,u.role_id,r.code AS role_code FROM auth_sessions s JOIN users u ON u.id=s.user_id JOIN roles r ON r.id=u.role_id WHERE s.token_hash=? AND s.revoked_at IS NULL AND s.expires_at>UTC_TIMESTAMP(3) AND u.status='active' AND u.deleted_at IS NULL AND u.password_hash IS NOT NULL LIMIT 1`, [hash]))[0];
+export const permissionsForRole = async (db: Executor, roleId: number) => rows<RowDataPacket>(db, 'SELECT p.code FROM role_permissions rp JOIN permissions p ON p.id=rp.permission_id WHERE rp.role_id=?', [roleId]);
+export const createSession = (db: Executor, userId: number, hash: string, ipHash: string | null, agent: string | null, ttlHours: number) => write(db, 'INSERT INTO auth_sessions (user_id,token_hash,ip_hash,user_agent,expires_at) VALUES (?,?,?,?,DATE_ADD(UTC_TIMESTAMP(3), INTERVAL ? HOUR))', [userId,hash,ipHash,agent,ttlHours]);
+export const revokeSession = (db: Executor, sessionId: number) => write(db, 'UPDATE auth_sessions SET revoked_at=UTC_TIMESTAMP(3) WHERE id=?', [sessionId]);
+export const revokeUserSessions = (db: Executor, userId: number) => write(db, 'UPDATE auth_sessions SET revoked_at=UTC_TIMESTAMP(3) WHERE user_id=? AND revoked_at IS NULL', [userId]);
+export const touchSession = (db: Executor, sessionId: number) => write(db, 'UPDATE auth_sessions SET last_activity_at=UTC_TIMESTAMP(3) WHERE id=?', [sessionId]);
+export const createInvitedUser = (db: Executor, email: string, roleId: number, name: string, actorId: number) => write(db, "INSERT INTO users (role_id,email,display_name,status,created_by) VALUES (?,?,?,'invited',?)", [roleId,email,name,actorId]);
+export const createProfile = (db: Executor, userId: number) => write(db, 'INSERT IGNORE INTO user_profiles (user_id) VALUES (?)', [userId]);
+export const createInvitation = (db: Executor, email: string, roleId: number, hash: string, actorId: number) => write(db, 'INSERT INTO invitations (email,role_id,token_hash,invited_by,expires_at) VALUES (?,?,?,?,DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 72 HOUR))', [email,roleId,hash,actorId]);
+export const revokeInvitation = (db: Executor, id: number) => write(db, 'UPDATE invitations SET revoked_at=UTC_TIMESTAMP(3) WHERE id=? AND accepted_at IS NULL AND revoked_at IS NULL', [id]);
+export const findInvitationById = async (db: Executor, id: number) => (await rows<RowDataPacket>(db, 'SELECT id,email,role_id,expires_at,accepted_at,revoked_at FROM invitations WHERE id=? LIMIT 1', [id]))[0];
+export const acceptInvitation = (db: Executor, id: number) => write(db, 'UPDATE invitations SET accepted_at=UTC_TIMESTAMP(3) WHERE id=?', [id]);
+export const activateInvitedUser = (db: Executor, email: string, roleId: number, hash: string) => write(db, "UPDATE users SET role_id=?,password_hash=?,status='active',email_verified_at=UTC_TIMESTAMP(3),password_changed_at=UTC_TIMESTAMP(3) WHERE email=? AND status='invited' AND deleted_at IS NULL", [roleId,hash,email]);
+export const createReset = (db: Executor, id: number, hash: string) => write(db, 'INSERT INTO password_reset_tokens (user_id,token_hash,expires_at) VALUES (?,?,DATE_ADD(UTC_TIMESTAMP(3), INTERVAL 1 HOUR))', [id,hash]);
+export const consumeReset = (db: Executor, id: number) => write(db, 'UPDATE password_reset_tokens SET used_at=UTC_TIMESTAMP(3) WHERE id=?', [id]);
+export const setPassword = (db: Executor, id: number, hash: string) => write(db, 'UPDATE users SET password_hash=?,password_changed_at=UTC_TIMESTAMP(3) WHERE id=?', [hash,id]);
+export const markLogin = (db: Executor, id: number) => write(db, 'UPDATE users SET last_login_at=UTC_TIMESTAMP(3) WHERE id=?', [id]);
+export const listUsers = (db: Executor, limit: number, offset: number) => rows<RowDataPacket>(db, 'SELECT u.id,u.email,u.display_name,u.status,u.role_id,r.code AS role_code,u.created_at,u.last_login_at FROM users u JOIN roles r ON r.id=u.role_id WHERE u.deleted_at IS NULL ORDER BY u.id DESC LIMIT ? OFFSET ?', [limit,offset]);
+export const listInvitations = (db: Executor, limit: number, offset: number) => rows<RowDataPacket>(db, 'SELECT i.id,i.email,i.role_id,r.code AS role_code,i.expires_at,i.accepted_at,i.revoked_at,i.created_at FROM invitations i JOIN roles r ON r.id=i.role_id ORDER BY i.id DESC LIMIT ? OFFSET ?', [limit,offset]);
+export const countUsers = async (db: Executor) => Number((await rows<RowDataPacket>(db,'SELECT COUNT(*) AS total FROM users WHERE deleted_at IS NULL'))[0]?.total ?? 0);
+export const countInvitations = async (db: Executor) => Number((await rows<RowDataPacket>(db,'SELECT COUNT(*) AS total FROM invitations'))[0]?.total ?? 0);
+export const rolePermissionIds = async (db: Executor, roleId: number) => (await rows<RowDataPacket>(db,'SELECT permission_id FROM role_permissions WHERE role_id=?',[roleId])).map(row=>Number(row.permission_id));
+export const listRoles = (db: Executor) => rows<RowDataPacket>(db, 'SELECT id,code,name,description FROM roles ORDER BY id');
+export const listPermissions = (db: Executor) => rows<RowDataPacket>(db, 'SELECT id,code,name,description FROM permissions ORDER BY code');
+export const lockUser = async (db: Executor, id: number) => (await rows<RowDataPacket>(db, 'SELECT u.id,u.status,u.role_id,r.code AS role_code FROM users u JOIN roles r ON r.id=u.role_id WHERE u.id=? AND u.deleted_at IS NULL FOR UPDATE', [id]))[0];
+export const countActiveSuperAdmins = async (db: Executor) => (await rows<RowDataPacket>(db, "SELECT u.id FROM users u JOIN roles r ON r.id=u.role_id WHERE r.code='super_admin' AND u.status='active' AND u.deleted_at IS NULL FOR UPDATE")).length;
+export const updateUser = (db: Executor, id: number, roleId: number, status: string) => write(db, 'UPDATE users SET role_id=?,status=? WHERE id=?', [roleId,status,id]);
+export const setRolePermissions = async (db: Executor, roleId: number, permissionIds: number[]) => {
+  await write(db, 'DELETE FROM role_permissions WHERE role_id=?', [roleId]);
+  for (const id of permissionIds) await write(db, 'INSERT INTO role_permissions (role_id,permission_id) VALUES (?,?)', [roleId,id]);
+};
+export const revokePendingInvitations = (db: Executor, email: string) => write(db,'UPDATE invitations SET revoked_at=UTC_TIMESTAMP(3) WHERE email=? AND accepted_at IS NULL AND revoked_at IS NULL',[email]);
+export const bootstrapUser = (db: Executor, email: string, name: string, roleId: number, hash: string) => write(db,"INSERT INTO users (role_id,email,password_hash,display_name,status,email_verified_at,password_changed_at) VALUES (?,?,?,?,'active',UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))",[roleId,email,hash,name]);
+export async function cleanupExpiredAuth(db: Executor) {
+  const sessions=await write(db,'DELETE FROM auth_sessions WHERE expires_at<UTC_TIMESTAMP(3) OR revoked_at<DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 30 DAY)');
+  const resets=await write(db,'DELETE FROM password_reset_tokens WHERE expires_at<UTC_TIMESTAMP(3) OR used_at<DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 7 DAY)');
+  const invitations=await write(db,'DELETE FROM invitations WHERE (accepted_at IS NOT NULL OR revoked_at IS NOT NULL OR expires_at<UTC_TIMESTAMP(3)) AND created_at<DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 90 DAY)');
+  return {sessions:sessions.affectedRows,resets:resets.affectedRows,invitations:invitations.affectedRows};
+}

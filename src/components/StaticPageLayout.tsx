@@ -1,10 +1,11 @@
 import type { PropsWithChildren } from 'react';
 import { Link } from 'react-router-dom';
 import { Footer } from './Footer';
+import navbarStyles from './Navbar.module.css';
 import logoDarkTheme from '../assets/global/Logo - Dark Theme.svg';
 
 type StaticPageLayoutProps = PropsWithChildren<{
-  activePage: 'MEDIA KIT' | 'PRODUCTS' | 'SERVICES';
+  activePage: 'MEDIA KIT' | 'PRODUCTS' | 'SERVICES' | 'NEWS' | 'PROJECTS' | 'UNI-TOOLS';
 }>;
 
 const navigation = [
@@ -30,10 +31,10 @@ export const BackToLandingLink = () => (
 );
 
 export const StaticPageLayout: React.FC<StaticPageLayoutProps> = ({ activePage, children }) => (
-  <div className="relative z-50 flex min-h-screen w-screen max-w-screen min-w-0 flex-col overflow-x-hidden bg-[#f0f0f0]">
+  <div className="relative flex min-h-screen w-screen max-w-screen min-w-0 flex-col overflow-x-hidden bg-[#f0f0f0]">
     <nav
       aria-label="Primary navigation"
-      className="fixed top-0 left-0 z-[100] flex w-full items-center justify-between px-8 py-8 lg:px-12"
+      className="fixed top-0 left-0 z-[100] flex w-full items-center justify-between px-8 py-8 lg:px-6 xl:px-12"
       style={{
         backgroundColor: 'rgba(32,33,33,0.85)',
         backdropFilter: 'blur(12px)',
@@ -63,14 +64,19 @@ export const StaticPageLayout: React.FC<StaticPageLayoutProps> = ({ activePage, 
         })}
       </div>
 
-      <Link
-        to="/media-kit"
-        className={`hidden rounded-full px-6 py-2.5 text-xs font-extrabold uppercase tracking-wider shadow-md transition-all hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f9d02d] focus-visible:ring-offset-2 focus-visible:ring-offset-[#202121] sm:block ${
-          activePage === 'MEDIA KIT' ? 'bg-white text-[#202121]' : 'bg-[#f9d02d] text-[#202121]'
-        }`}
-      >
-        Media Kit
-      </Link>
+      <div className="flex shrink-0 items-center gap-3 xl:gap-5">
+        <Link to="/tools" aria-current={activePage === 'UNI-TOOLS' ? 'page' : undefined} className={`${navbarStyles.uniTools} whitespace-nowrap rounded-full px-6 py-2.5 text-xs font-extrabold uppercase tracking-wider text-[#202121] transition-all hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f9d02d]`}>
+          <span>Uni-Tools</span>
+        </Link>
+        <Link
+          to="/media-kit"
+          className={`hidden rounded-full px-6 py-2.5 text-xs font-extrabold uppercase tracking-wider shadow-md transition-all hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f9d02d] focus-visible:ring-offset-2 focus-visible:ring-offset-[#202121] sm:block ${
+            activePage === 'MEDIA KIT' ? 'bg-white text-[#202121]' : 'bg-[#f9d02d] text-[#202121]'
+          }`}
+        >
+          Media Kit
+        </Link>
+      </div>
     </nav>
 
     <main id="main-content" tabIndex={-1} className="min-w-0 max-w-full flex-grow outline-none">

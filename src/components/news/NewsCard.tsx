@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { NewsArticle } from '../../data/mockNews';
+import {Link} from 'react-router-dom';
 
 interface NewsCardProps {
   article: NewsArticle;
@@ -43,7 +44,7 @@ export const NewsCard: React.FC<NewsCardProps> = ({ article, index }) => {
           <span>{article.author}</span>
         </div>
         <h3 className="text-xl sm:text-2xl font-bold text-[#202121] group-hover:text-[#f9d02d] transition-colors line-clamp-2 mb-3">
-          {article.title}
+          {article.slug?<Link to={`/news/${article.slug}`}>{article.title}</Link>:article.title}
         </h3>
         <p className="text-gray-600 line-clamp-3 text-sm leading-relaxed mb-auto">
           {article.description}

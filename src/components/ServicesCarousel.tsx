@@ -3,11 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useElementVisibility } from '../hooks/useElementVisibility';
 import { servicesData } from '../data/services';
 import { Link } from 'react-router-dom';
-
-const extendedServices = [
-  ...servicesData.map(s => ({ ...s, uniqueId: s.id + '-1' })),
-  ...servicesData.map(s => ({ ...s, uniqueId: s.id + '-2' }))
-];
+import { trackEvent, usePublicContent } from '../public/client';
 
 const getSlotProps = (slot: number, isMobile: boolean) => {
   switch (slot) {
@@ -71,6 +67,11 @@ const getSlotProps = (slot: number, isMobile: boolean) => {
 };
 
 export const ServicesCarousel = () => {
+  const {homepage}=usePublicContent();
+  const section=homepage?.sections?.find(item=>item.section_key==='services'&&item.is_visible!==0);
+  const featured=[1,2,3].map(slot=>homepage?.featured?.services?.find(item=>Number(item.featured_slot)===slot&&item.image?.secure_url));
+  const baseServices=featured.every(Boolean)?featured.map((item,index)=>({id:String(item!.id),text:String(item!.name).slice(0,16),img:String(item!.image.secure_url),uniqueId:`cms-${index}`})):servicesData;
+  const extendedServices=[...baseServices.map(s=>({...s,uniqueId:`${s.id}-1`})),...baseServices.map(s=>({...s,uniqueId:`${s.id}-2`}))];
   const sectionRef = useRef<HTMLDivElement>(null);
   const { isVisible, isPageVisible } = useElementVisibility(sectionRef, '600px 0px');
   const [activeIndex, setActiveIndex] = useState(0); 
@@ -128,13 +129,13 @@ export const ServicesCarousel = () => {
       {/* Typography Block - positioned at top-left with safe margins */}
       <div className="absolute top-[clamp(120px,18vh,200px)] left-[clamp(32px,8vw,120px)] z-10 pointer-events-none">
         <h2 className="text-[clamp(50px,8vw,115px)] font-black uppercase text-white leading-none tracking-tight drop-shadow-2xl">
-          OUR SERVICES
+          {section?.heading||'OUR SERVICES'}
         </h2>
         
         {/* Dynamic Text Row */}
         <div className="flex items-center mt-3">
           <motion.div
-            animate={{ width: widths[extendedServices[activeIndex].text] || 150 }}
+            animate={{ width: widths[extendedServices[activeIndex].text] || Math.min(350,Math.max(150,extendedServices[activeIndex].text.length*29)) }}
             transition={{ duration: 0.6, ease: "backOut" }}
             className="relative h-[70px] sm:h-[80px] flex items-center overflow-hidden"
           >
@@ -158,10 +159,11 @@ export const ServicesCarousel = () => {
         </div>
 
         <Link
-          to="/services"
+          to={section?.primary_cta_url||'/services'}
+          onClick={()=>trackEvent('cta_click',{linkDestination:section?.primary_cta_url||'/services'})}
           className="relative z-50 mt-6 inline-flex rounded-full bg-[#f9d02d] px-8 py-3.5 text-base font-extrabold text-[#202121] shadow-lg transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#202121] sm:text-lg pointer-events-auto"
         >
-          Check Our Services
+          {section?.primary_cta_label||'Check Our Services'}
         </Link>
       </div>
 
