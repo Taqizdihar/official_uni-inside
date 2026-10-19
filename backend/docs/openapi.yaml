@@ -414,6 +414,8 @@ paths:
         - { name: search, in: query, schema: { type: string } }
         - { name: status, in: query, schema: { type: string, enum: [draft, scheduled, published, archived] } }
         - { name: categoryId, in: query, schema: { type: integer } }
+        - { name: productType, in: query, description: 'Products only', schema: { type: string, enum: [ready_made, custom, both] } }
+        - { name: contentType, in: query, description: 'News only', schema: { type: string, enum: [news, article, update, event] } }
         - { name: parentId, in: query, schema: { type: integer } }
         - { name: isActive, in: query, schema: { type: boolean } }
         - { name: sort, in: query, schema: { type: string } }

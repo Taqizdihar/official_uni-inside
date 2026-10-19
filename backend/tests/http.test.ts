@@ -77,6 +77,10 @@ describe('HTTP behavior',()=>{
     expect(invalidParent.status).toBe(400);
     const invalidStatus=await request(app).get('/api/v1/admin/product-images?status=published').set('Cookie',cookie);
     expect(invalidStatus.status).toBe(400);
+    const invalidType=await request(app).get('/api/v1/admin/products?productType=made_up').set('Cookie',cookie);
+    expect(invalidType.status).toBe(400);
+    const wrongResourceType=await request(app).get('/api/v1/admin/products?contentType=news').set('Cookie',cookie);
+    expect(wrongResourceType.status).toBe(400);
     const badScope=await request(app).get('/api/v1/admin/media?scope=other').set('Cookie',cookie);
     expect(badScope.status).toBe(400);
   });

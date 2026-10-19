@@ -7,7 +7,7 @@ const ident = (value: string) => {
   if (!/^[a-z][a-z0-9_]*$/.test(value)) throw new Error('Unsafe database identifier');
   return `\`${value}\``;
 };
-export type ContentFilters = { search?: string; status?: string; categoryId?: number; parentId?: number; isActive?: boolean };
+export type ContentFilters = { search?: string; status?: string; categoryId?: number; productType?: string; contentType?: string; parentId?: number; isActive?: boolean };
 export function contentWhere(spec: ResourceSpec, filters: ContentFilters = {}) {
   const conditions = spec.softDelete ? ['deleted_at IS NULL'] : [];
   const values: unknown[] = [];
@@ -17,13 +17,40 @@ export function contentWhere(spec: ResourceSpec, filters: ContentFilters = {}) {
   }
   if (filters.status) { conditions.push('status=?'); values.push(filters.status); }
   if (filters.categoryId) { conditions.push('category_id=?');values.push(filters.categoryId); }
+  if (filters.productType) { conditions.push('product_type=?');values.push(filters.productType); }
+  if (filters.contentType) { conditions.push('content_type=?');values.push(filters.contentType); }
   if (filters.parentId && spec.childOf) { conditions.push(`${ident(spec.childOf.foreignKey)}=?`);values.push(filters.parentId); }
   if (filters.isActive !== undefined) { conditions.push('is_active=?'); values.push(filters.isActive ? 1 : 0); }
   return {sql:conditions.length?`WHERE ${conditions.join(' AND ')}`:'',values};
 }
 export async function listRecords(db: Executor, spec: ResourceSpec, limit: number, offset: number, sort: string, direction: 'ASC'|'DESC', filters: ContentFilters = {}) {
   const where=contentWhere(spec,filters);
-  return rows<RowDataPacket>(db, `SELECT * FROM ${ident(spec.table)} ${where.sql} ORDER BY ${ident(sort)} ${direction} LIMIT ? OFFSET ?`, [...where.values,limit,offset]);
+  const order=`${ident(sort)} ${direction}${sort===spec.key?'':`, ${ident(spec.key)} ${direction}`}`;
+  return rows<RowDataPacket>(db, `SELECT * FROM ${ident(spec.table)} ${where.sql} ORDER BY ${order} LIMIT ? OFFSET ?`, [...where.values,limit,offset]);
+}
+export async function postListingDetails(db: Executor, table: string, items: RowDataPacket[]) {
+  const categories: Record<string,string> = {products:'product_categories',services:'service_categories',news_articles:'news_categories'};
+  const categoryTable=categories[table];
+  if (!categoryTable || !items.length) return items;
+  const categoryIds=[...new Set(items.map(item=>Number(item.category_id)).filter(Boolean))];
+  const mediaIds=[...new Set(items.map(item=>Number(item.cover_media_id)).filter(Boolean))];
+  const userIds=table==='news_articles'?[...new Set(items.map(item=>Number(item.author_user_id)).filter(Boolean))]:[];
+  const teamIds=table==='news_articles'?[...new Set(items.map(item=>Number(item.author_team_member_id)).filter(Boolean))]:[];
+  const lookup=async (sql:string,ids:number[])=>ids.length?rows<RowDataPacket>(db,`${sql} (${ids.map(()=>'?').join(',')})`,ids):[];
+  const [categoryRows,mediaRows,userRows,teamRows]=await Promise.all([
+    lookup(`SELECT id,name FROM ${ident(categoryTable)} WHERE id IN`,categoryIds),
+    lookup('SELECT id,secure_url,alt_text FROM media_assets WHERE deleted_at IS NULL AND id IN',mediaIds),
+    lookup('SELECT id,display_name FROM users WHERE id IN',userIds),
+    lookup('SELECT id,full_name FROM team_members WHERE id IN',teamIds),
+  ]);
+  const byId=(data:RowDataPacket[])=>new Map(data.map(row=>[Number(row.id),row]));
+  const categoryById=byId(categoryRows),mediaById=byId(mediaRows),userById=byId(userRows),teamById=byId(teamRows);
+  return items.map(item=>({
+    ...item,
+    category_name:categoryById.get(Number(item.category_id))?.name??null,
+    image:mediaById.get(Number(item.cover_media_id))??null,
+    author_name:teamById.get(Number(item.author_team_member_id))?.full_name??userById.get(Number(item.author_user_id))?.display_name??null,
+  }));
 }
 export async function record(db: Executor, spec: ResourceSpec, key: string | number, lock = false) {
   return (await rows<RowDataPacket>(db, `SELECT * FROM ${ident(spec.table)} WHERE ${ident(spec.key)}=? ${spec.softDelete ? 'AND deleted_at IS NULL' : ''} LIMIT 1 ${lock ? 'FOR UPDATE' : ''}`, [key]))[0];

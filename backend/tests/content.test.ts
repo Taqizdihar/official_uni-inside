@@ -3,7 +3,7 @@ import { describe,expect,it } from 'vitest';
 import type { Pool } from 'mysql2/promise';
 import { resources,fixedKeyAllowed,slugify } from '../src/schemas/resources';
 import { parseBody,publishProblems,update } from '../src/services/content';
-import { contentWhere, countRecords, projectRelationList, publicList, publicNewsCategories } from '../src/repositories/content';
+import { contentWhere, countRecords, listRecords, postListingDetails, projectRelationList, publicList, publicNewsCategories } from '../src/repositories/content';
 
 describe('CMS content rules',()=>{
   it('preserves the authoritative migration counts',()=>{
@@ -64,6 +64,23 @@ describe('CMS content rules',()=>{
     const db={execute:async(options:{sql:string},values:unknown[])=>{sql=options.sql;params=values;return [[{count:4}],[]];}} as any;
     expect(await countRecords(db,resources.products!,{categoryId:3,status:'draft'})).toBe(4);
     expect(sql).toContain('category_id=?');expect(sql).toContain('status=?');expect(params).toEqual(['draft',3]);
+    expect(contentWhere(resources.products!,{productType:'ready_made'})).toEqual({sql:'WHERE deleted_at IS NULL AND product_type=?',values:['ready_made']});
+    expect(contentWhere(resources.news!,{contentType:'article',categoryId:2}).values).toEqual([2,'article']);
+  });
+  it('adds listing images, categories, and authors in bounded queries',async()=>{
+    const queries:string[]=[];
+    const db={execute:async(options:{sql:string})=>{queries.push(options.sql);const sql=options.sql;if(sql.includes('news_categories'))return [[{id:2,name:'Wawasan'}],[]];if(sql.includes('media_assets'))return [[{id:4,secure_url:'https://example.test/cover.jpg',alt_text:'Sampul'}],[]];if(sql.includes('users'))return [[{id:7,display_name:'Penulis CMS'}],[]];return [[],[]];}} as any;
+    const rows=await postListingDetails(db,'news_articles',[{id:1,category_id:2,cover_media_id:4,author_user_id:7},{id:2,category_id:2,cover_media_id:null,author_user_id:null}] as any);
+    expect(rows[0]).toMatchObject({category_name:'Wawasan',image:{secure_url:'https://example.test/cover.jpg'},author_name:'Penulis CMS'});
+    expect(rows[1]).toMatchObject({category_name:'Wawasan',image:null,author_name:null});
+    expect(queries).toHaveLength(3);
+  });
+  it('uses the record key to break equal sort-order ties in either direction',async()=>{
+    let sql='';const db={execute:async(options:{sql:string})=>{sql=options.sql;return [[],[]];}} as any;
+    await listRecords(db,resources.products!,20,0,'sort_order','DESC');
+    expect(sql).toContain('ORDER BY `sort_order` DESC, `id` DESC');
+    await listRecords(db,resources.news!,20,0,'id','ASC');
+    expect(sql).toContain('ORDER BY `id` ASC LIMIT');
   });
   it('reads project relation labels through bounded database queries',async()=>{
     const queries:string[]=[];

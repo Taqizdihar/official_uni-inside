@@ -8,6 +8,7 @@ import {catalog,fixedLandingPath,fixedRecordKey,pathFor,slugify,type Field,type 
 import {setEditorDirty} from '../dirty';
 import {formatDate,statusLabels} from '../copy';
 import {SocialIcon} from '../components/SocialIcon';
+import {PostListPage} from './PostListPage';
 import {ArrowLeft,ArrowRight,Plus,Search} from 'lucide-react';
 const RichEditor=lazy(()=>import('../components/RichEditor'));
 type RecordValue=Record<string,unknown>;
@@ -17,7 +18,7 @@ function defFor(name?:string){return name?catalog[name]:undefined;}
 function permission(def:ResourceDef,action:'view'|'create'|'update'|'archive'|'publish'){if(def.permission==='settings'||def.permission==='homepage')return `${def.permission}.${action==='view'?'view':'update'}`;return `${def.permission}.${action}`;}
 function idFor(record:RecordValue,def:ResourceDef){return def.kind==='fixed'?fixedRecordKey(def,record):String(record.id);}
 
-export function ResourceLandingPage(){const {resource}=useParams();const def=defFor(resource);return def?.kind==='fixed'?<FixedResourceLandingPage key={def.name} def={def}/>:<ResourceListPage/>;}
+export function ResourceLandingPage(){const {resource}=useParams();const def=defFor(resource);return def?.kind==='fixed'?<FixedResourceLandingPage key={def.name} def={def}/>:resource&&['products','services','news'].includes(resource)?<PostListPage key={resource} resource={resource as 'products'|'services'|'news'}/>:<ResourceListPage/>;}
 
 function FixedResourceLandingPage({def}:{def:ResourceDef}){const {has}=useAuth();const canView=has(permission(def,'view'));const [key,setKey]=useState<string|null>(null);const [loading,setLoading]=useState(true);const [error,setError]=useState<unknown>(null);
   useEffect(()=>{if(!canView)return;const controller=new AbortController();setLoading(true);setKey(null);api<RecordValue[]>(`/admin/${def.name}?limit=100`,{signal:controller.signal}).then(result=>{if(!controller.signal.aborted){setKey(fixedLandingPath(def,result.data));setError(null);}}).catch(e=>{if(!controller.signal.aborted)setError(e);}).finally(()=>{if(!controller.signal.aborted)setLoading(false);});return()=>controller.abort();},[def,canView]);
