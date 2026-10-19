@@ -5,6 +5,7 @@ import {LoginPage,TokenPage,ResetRequestPage} from './pages/AuthPages';
 import {DashboardPage,AnalyticsPage} from './pages/OverviewPages';
 import {ResourceLandingPage,ResourceEditorPage} from './pages/ResourcePages';
 import {MediaPage} from './pages/MediaPage';
+import {ServiceCreatePage} from './pages/ServiceCreatePage';
 import {UsersPage,RolesPage,AuditPage,ProfilePage} from './pages/AdministrationPages';
 import './admin.css';
 
@@ -26,6 +27,7 @@ export default function AdminApp(){return <div className="cms" lang="id"><AuthPr
     <Route path="site/:resource/new" element={<ResourceEditorPage create/>}/>
     <Route path="site/:resource/:key" element={<ResourceEditorPage/>}/>
     <Route path="content/:resource" element={<ResourceLandingPage/>}/>
+    <Route path="content/services/new" element={<ServiceCreatePage/>}/>
     <Route path="content/:resource/new" element={<ResourceEditorPage create/>}/>
     <Route path="content/:resource/:key" element={<ResourceEditorPage/>}/>
     <Route path="media" element={<MediaPage/>}/>

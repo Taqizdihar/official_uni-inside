@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
 import { ArrowLeft, ArrowRight, ArrowUpRight, ChevronLeft, ChevronRight, Clapperboard } from 'lucide-react';
-import DOMPurify from 'dompurify';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { StaticPageLayout } from '../components/StaticPageLayout';
 import { trackEvent, usePublicContent, usePublicDetail } from '../public/client';
@@ -8,11 +7,9 @@ import { useDesignPreviewNoIndex } from '../public/designPreview';
 import { StudioImage } from './StudioImage';
 import { canShowStudioPreview, safeServiceHref, servicePrice, studioPreviewServices, type StudioImage as StudioImageData, type StudioService } from './studioService';
 import styles from './StudioServices.module.css';
+import { safeRichHtml } from '../utils/safeRichHtml';
 
-const safeHtml = (value: string) => DOMPurify.sanitize(value, {
-  ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'ul', 'ol', 'li', 'h2', 'h3', 'blockquote', 'a'],
-  ALLOWED_ATTR: ['href', 'title', 'target', 'rel'],
-});
+const safeHtml = safeRichHtml;
 
 function ServiceAction({ service, preview, light = false }: { service: StudioService; preview: boolean; light?: boolean }) {
   if (preview) return <p className={`border-l-4 border-[#f9d02d] pl-4 text-sm leading-relaxed ${light ? 'text-white/70' : 'text-[#202121]/65'}`}>Sample content only — enquiry actions are unavailable in design preview.</p>;

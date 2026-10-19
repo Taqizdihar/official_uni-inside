@@ -32,7 +32,7 @@ const sections:{label:string;items:Item[]}[]=[
   {label:'KONTEN',items:[
     resource('team-members','Team Members',Users),resource('partners','Partners',Handshake),
     {label:'Products',icon:Package,children:[resource('products','Daftar produk',Package),resource('product-categories','Kategori produk',Tag)]},
-    {label:'Services',icon:BriefcaseBusiness,children:[resource('services','Daftar layanan',BriefcaseBusiness),resource('service-categories','Kategori layanan',Tag)]},
+    {label:'Services',icon:BriefcaseBusiness,children:[resource('services','Jasa/Layanan',BriefcaseBusiness),resource('service-categories','Kategori layanan',Tag)]},
     resource('projects','Projects',FolderKanban),
     {label:'News',icon:Newspaper,children:[resource('news','Berita dan artikel',Newspaper),resource('news-categories','Kategori berita',Tag)]},
     resource('achievements','Achievements',Trophy),

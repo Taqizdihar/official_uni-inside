@@ -77,6 +77,44 @@ components:
         entityId: { type: integer, minimum: 1 }
         linkDestination: { type: string, format: uri }
         referrerHost: { type: string, maxLength: 255 }
+    ServiceCreateInput:
+      type: object
+      additionalProperties: false
+      required: [name, category_id, description, cover_media_id, gallery_media_ids, pricing_type, starting_price, currency_code, price_note, estimated_duration, items, process_steps, primary_cta_label, primary_cta_url, status]
+      properties:
+        name: { type: string, maxLength: 190 }
+        category_id: { type: [integer, 'null'] }
+        description: { type: string, maxLength: 100000, description: Restricted rich text HTML }
+        cover_media_id: { type: [integer, 'null'] }
+        gallery_media_ids: { type: array, maxItems: 8, items: { type: integer } }
+        pricing_type: { type: string, enum: [contact, fixed, starting_from, range] }
+        starting_price: { type: [number, 'null'], minimum: 0 }
+        currency_code: { type: string, enum: [IDR, USD, SGD, EUR, AUD, MYR] }
+        price_note: { type: string, maxLength: 255 }
+        estimated_duration: { type: string, maxLength: 255 }
+        items:
+          type: array
+          maxItems: 100
+          items:
+            type: object
+            additionalProperties: false
+            required: [item_type, label]
+            properties:
+              item_type: { type: string, enum: [deliverable, included, requirement, not_included] }
+              label: { type: string, maxLength: 500 }
+        process_steps:
+          type: array
+          maxItems: 100
+          items:
+            type: object
+            additionalProperties: false
+            required: [title, description]
+            properties:
+              title: { type: string, maxLength: 150 }
+              description: { type: string, maxLength: 1000 }
+        primary_cta_label: { type: string, maxLength: 100 }
+        primary_cta_url: { type: string, maxLength: 1000 }
+        status: { type: string, enum: [draft, published] }
     ContentInput:
       type: object
       minProperties: 1
@@ -365,6 +403,14 @@ paths:
       security: [{ sessionCookie: [] }]
       parameters: [{ $ref: '#/components/parameters/Resource' }, { $ref: '#/components/parameters/Key' }, { name: id, in: path, required: true, schema: { type: integer } }, { $ref: '#/components/parameters/Csrf' }]
       responses: { '200': { description: Restored } }
+  /admin/services/create-complete:
+    post:
+      summary: Atomically create a service with ordered images, information items, and process steps
+      description: Requires services.create; publishing also requires services.publish. The server derives a unique slug and plain-text summary from the sanitized description.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ServiceCreateInput' } } } }
+      responses: { '201': { description: Service and all child records created }, '400': { description: Validation error }, '403': { description: Missing permission }, '409': { description: Slug conflict } }
   /admin/{resource}:
     get:
       summary: Paginated CMS records; requires resource view permission

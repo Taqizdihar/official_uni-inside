@@ -7,6 +7,7 @@ import * as repo from '../repositories/content';
 import { audit, revision } from '../repositories/audit';
 import { transaction } from '../database/pool';
 import * as content from '../services/content';
+import { createCompleteService } from '../services/serviceCreation';
 import { resources } from '../schemas/resources';
 import { asyncRoute, HttpError, parse } from '../utils/http';
 
@@ -70,6 +71,9 @@ export function adminContentRoutes(config: Config, db: Pool) {
       await audit(conn,{actorId:req.actor!.id,action:'projects.team.update',entityType:'projects',entityId:id,requestId:req.requestId,after:{teamMemberIds:input.ids}});
     });
     res.json({data:{teamMemberIds:input.ids}});
+  }));
+  router.post('/admin/services/create-complete', requireAuth, requireCsrf, asyncRoute(async (req,res) => {
+    res.status(201).json({ data: await createCompleteService(db,req.body,req.actor!,req.requestId,config.CLOUDINARY_ROOT_FOLDER) });
   }));
   router.get('/admin/:resource', requireAuth, asyncRoute(async (req,res) => {
     const spec = content.getResource(String(req.params.resource));

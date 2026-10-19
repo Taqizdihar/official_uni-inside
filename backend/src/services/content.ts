@@ -5,6 +5,7 @@ import * as content from '../repositories/content';
 import { audit, revision } from '../repositories/audit';
 import { fixedKeyAllowed, inputSchema, resources, slugify, type ResourceSpec } from '../schemas/resources';
 import { HttpError, parse } from '../utils/http';
+import { sanitizeServiceDescription } from './serviceCreation';
 
 type Actor = { id: number; permissions: Set<string> };
 const authorColumns = new Set(['partners','team_members','products','services','projects','achievements']);
@@ -21,13 +22,19 @@ export function permissionFor(spec: ResourceSpec, operation: 'view'|'create'|'up
 function checkPermission(actor: Actor, permission: string) {
   if (!actor.permissions.has(permission)) throw new HttpError(403, 'FORBIDDEN', 'You do not have permission for this action.');
 }
+function validateServiceCtaPair(item: Record<string, unknown>) {
+  const label = String(item.primary_cta_label ?? '').trim();
+  const href = String(item.primary_cta_url ?? '').trim();
+  if (Boolean(label) !== Boolean(href)) throw new HttpError(400, 'VALIDATION_ERROR', 'Isi label dan URL tombol utama bersama-sama.', [{ path: label ? 'primary_cta_url' : 'primary_cta_label', message: 'Isi label dan URL tombol utama bersama-sama.' }]);
+}
 export function parseBody(spec: ResourceSpec, value: unknown) {
   const data = parse(inputSchema(spec), value) as Record<string, unknown>;
   if (!Object.keys(data).length) throw new HttpError(400, 'VALIDATION_ERROR', 'Provide at least one editable field.');
   return Object.fromEntries(Object.entries(data).map(([key, item]) => {
     if (typeof item === 'boolean') return [key, item ? 1 : 0];
     if (key === 'scheduled_at' && typeof item === 'string') return [key, new Date(item).toISOString().slice(0, 23).replace('T', ' ')];
-    if (richFields.has(key) && typeof item === 'string' && ['products','services','news_articles'].includes(spec.table)) return [key, sanitizeHtml(item, { allowedTags: ['p','br','strong','em','ul','ol','li','h2','h3','blockquote','a'], allowedAttributes: { a: ['href','title','target','rel'] }, allowedSchemes: ['http','https','mailto'], transformTags: { a: sanitizeHtml.simpleTransform('a', { rel:'noopener noreferrer' }) } })];
+    if (key === 'description' && spec.table === 'services' && typeof item === 'string') return [key, sanitizeServiceDescription(item)];
+    if (richFields.has(key) && typeof item === 'string' && ['products','news_articles'].includes(spec.table)) return [key, sanitizeHtml(item, { allowedTags: ['p','br','strong','em','ul','ol','li','h2','h3','blockquote','a'], allowedAttributes: { a: ['href','title','target','rel'] }, allowedSchemes: ['http','https','mailto'], transformTags: { a: sanitizeHtml.simpleTransform('a', { rel:'noopener noreferrer' }) } })];
     return [key, item];
   }));
 }
@@ -37,7 +44,7 @@ export function publishProblems(name: string, item: Record<string, unknown>, ext
   if (name === 'team-members') { need('full_name','name'); need('slug'); need('role_title','role'); need('short_bio','biography'); need('photo_media_id','photo'); }
   if (name === 'partners') { need('name'); need('slug'); need('logo_media_id','logo'); }
   if (name === 'products') { need('name'); need('slug'); need('product_type','type'); need('short_description'); need('category_id','category'); need('cover_media_id','cover image'); if (item.base_price == null && !item.price_note) missing.push('price or pricing note'); if (!extras.purchaseLinks) missing.push('purchase/contact link'); }
-  if (name === 'services') { need('name'); need('slug'); need('short_description'); need('category_id','category'); need('cover_media_id','cover image'); need('primary_cta_url','contact path'); }
+  if (name === 'services') { need('name'); need('slug'); need('short_description'); need('category_id','category'); need('cover_media_id','cover image'); }
   if (name === 'projects') { need('title'); need('slug'); need('short_description'); need('cover_media_id','cover image'); }
   if (name === 'news') { need('title'); need('slug'); need('excerpt'); need('body'); need('category_id','category'); if (!item.author_user_id && !item.author_team_member_id) missing.push('author'); need('cover_media_id','cover image'); }
   if (name === 'achievements') { need('title'); if (!item.year_label && !item.achievement_date && !item.description) missing.push('date, year, or supporting description'); }
@@ -69,6 +76,7 @@ export async function create(db: Pool, name: string, raw: unknown, actor: Actor,
   if (spec.kind !== 'dynamic') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Fixed content cannot be created.');
   checkPermission(actor, permissionFor(spec,'create'));
   const data = { ...spec.defaults, ...parseBody(spec, raw) };
+  if (name === 'services') validateServiceCtaPair(data);
   for (const field of spec.required ?? []) if (!data[field]) throw new HttpError(400, 'VALIDATION_ERROR', `Please provide ${field}.`);
   if (spec.titleField && !data.slug) data.slug = slugify(String(data[spec.titleField]));
   if (spec.titleField && !data.slug) throw new HttpError(400, 'VALIDATION_ERROR', 'Use a title that produces a valid URL slug.');
@@ -109,6 +117,7 @@ export async function update(db: Pool, name: string, key: string, raw: unknown, 
       if (owner && Number(owner.id) !== Number(resolvedKey)) throw new HttpError(409, 'FEATURED_SLOT_TAKEN', 'This featured service slot is already assigned.');
     }
     const proposed = { ...before, ...data } as Record<string, unknown>;
+    if (name === 'services' && (data.primary_cta_label !== undefined || data.primary_cta_url !== undefined)) validateServiceCtaPair(proposed);
     if (proposed.status === 'published' || proposed.status === 'scheduled') await validatePublish(conn, name, proposed, Number(resolvedKey));
     if (data.status === 'published' && before.status !== 'published') data.published_at = new Date().toISOString().slice(0,23).replace('T',' ');
     if (name === 'news' && data.body != null) data.reading_time_minutes = Math.max(1,Math.ceil(String(data.body).replace(/<[^>]+>/g,' ').trim().split(/\s+/).length/200));

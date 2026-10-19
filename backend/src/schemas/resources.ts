@@ -1,10 +1,12 @@
 import { z } from 'zod';
+import { safeServiceCtaHref } from '../utils/serviceLinks';
 
 const text = (max: number) => z.string().trim().min(1).max(max);
 const optionalText = (max: number) => z.string().max(max).nullable();
 const url = z.url().max(1000).refine(value => /^https?:\/\//.test(value), 'Use an HTTPS or HTTP URL');
 const optionalUrl = url.nullable();
 const optionalLink = z.string().max(1000).refine(value => /^https?:\/\//.test(value) || /^\/(?!\/)/.test(value), 'Use a site path or HTTPS/HTTP URL').nullable();
+const optionalServiceLink = z.string().max(1000).refine(safeServiceCtaHref, 'Use a safe site path, HTTP(S), mailto, or tel URL').nullable();
 const link = optionalLink.unwrap();
 const int = z.number().int().nonnegative().max(2_147_483_647);
 const id = z.number().int().positive();
@@ -54,7 +56,7 @@ export const resources: Record<string, ResourceSpec> = {
   'product-variants': dynamic('product_variants','products',{product_id:id,name:text(150),sku:optionalText(100),price_adjustment:z.number().min(-999_999_999).max(999_999_999),stock_quantity:int.nullable(),is_active:bool,...ordering},{required:['product_id','name'],childOf:{table:'products',foreignKey:'product_id'}}),
   'product-purchase-links': dynamic('product_purchase_links','products',{product_id:id,store_name:text(100),button_label:text(100),url,is_primary:bool,is_active:bool,...ordering},{required:['product_id','store_name','button_label','url'],childOf:{table:'products',foreignKey:'product_id'}}),
   'service-categories': dynamic('service_categories','services',{name:text(150),slug,description:optionalText(1000),...ordering,is_active:bool},{required:['name'],titleField:'name',publicFields:['id','name','slug','description','sort_order']}),
-  services: dynamic('services','services',{category_id:optionalId,name:text(190),slug,...short,description:longBody,pricing_type:z.enum(['fixed','starting_from','range','contact']),starting_price:price,currency_code:z.string().regex(/^[A-Z]{3}$/),price_note:optionalText(255),estimated_duration:optionalText(255),...media,status:scheduledStatus,featured_slot:z.number().int().min(1).max(3).nullable(),...ordering,primary_cta_label:optionalText(100),primary_cta_url:optionalLink,...seo,scheduled_at:datetime},{required:['name'],defaults:{short_description:''},titleField:'name',softDelete:true,publicFields:['id','category_id','name','slug','short_description','description','pricing_type','starting_price','currency_code','price_note','estimated_duration','cover_media_id','featured_slot','sort_order','primary_cta_label','primary_cta_url','meta_title','meta_description','published_at']}),
+  services: dynamic('services','services',{category_id:optionalId,name:text(190),slug,...short,description:longBody,pricing_type:z.enum(['fixed','starting_from','range','contact']),starting_price:price,currency_code:z.string().regex(/^[A-Z]{3}$/),price_note:optionalText(255),estimated_duration:optionalText(255),...media,status:scheduledStatus,featured_slot:z.number().int().min(1).max(3).nullable(),...ordering,primary_cta_label:optionalText(100),primary_cta_url:optionalServiceLink,...seo,scheduled_at:datetime},{required:['name'],defaults:{short_description:''},titleField:'name',softDelete:true,publicFields:['id','category_id','name','slug','short_description','description','pricing_type','starting_price','currency_code','price_note','estimated_duration','cover_media_id','featured_slot','sort_order','primary_cta_label','primary_cta_url','meta_title','meta_description','published_at']}),
   'service-list-items': dynamic('service_list_items','services',{service_id:id,item_type:z.enum(['deliverable','included','requirement','not_included']),label:text(500),...ordering},{required:['service_id','item_type','label'],childOf:{table:'services',foreignKey:'service_id'}}),
   'service-process-steps': dynamic('service_process_steps','services',{service_id:id,title:text(150),description:optionalText(1000),...ordering},{required:['service_id','title'],childOf:{table:'services',foreignKey:'service_id'}}),
   'service-images': dynamic('service_images','services',{service_id:id,media_id:id,alt_text:optionalText(255),is_cover:bool,...ordering},{required:['service_id','media_id'],childOf:{table:'services',foreignKey:'service_id'}}),

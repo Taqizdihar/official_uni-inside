@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe,expect,it } from 'vitest';
 import type { Pool } from 'mysql2/promise';
 import { resources,fixedKeyAllowed,slugify } from '../src/schemas/resources';
-import { parseBody,publishProblems,update } from '../src/services/content';
+import { create,parseBody,publishProblems,update } from '../src/services/content';
 import { contentWhere, countRecords, projectRelationList, publicList, publicNewsCategories } from '../src/repositories/content';
 
 describe('CMS content rules',()=>{
@@ -21,6 +21,21 @@ describe('CMS content rules',()=>{
     expect(fixedKeyAllowed('hero-hotspots','../../secret')).toBe(false);
     expect(slugify('The Golden Cube!')).toBe('the-golden-cube');
     expect(parseBody(resources.news!,{body:'<script>alert(1)</script><p>Allowed</p>'}).body).toBe('<p>Allowed</p>');
+    expect(()=>parseBody(resources.services!,{primary_cta_url:'javascript:alert(1)'})).toThrow();
+    expect(parseBody(resources.services!,{primary_cta_url:'mailto:halo@example.com'}).primary_cta_url).toBe('mailto:halo@example.com');
+  });
+  it('keeps legacy service creation from saving a half-configured CTA',async()=>{
+    const actor={id:7,permissions:new Set(['services.create'])};
+    await expect(create({} as Pool,'services',{name:'Film',primary_cta_label:'Hubungi'},actor,'request')).rejects.toThrow('label dan URL');
+  });
+  it('validates the CTA pair when an existing service is edited',async()=>{
+    const conn={beginTransaction:async()=>{},commit:async()=>{},rollback:async()=>{},release:()=>{},execute:async(options:{sql:string})=>{
+      if(options.sql.includes('FROM `services`'))return [[{id:9,name:'Film',slug:'film',status:'draft',primary_cta_label:null,primary_cta_url:null}],[]];
+      return [{affectedRows:1},[]];
+    }};
+    const db={getConnection:async()=>conn} as unknown as Pool;
+    const actor={id:7,permissions:new Set(['services.update'])};
+    await expect(update(db,'services','9',{primary_cta_label:'Hubungi'},actor,'request')).rejects.toThrow('label dan URL');
   });
   it('saves an existing fixed slot without changing its key or other fields',async()=>{
     const row={id:1,heading_line_1:'Old',heading_line_2:'Made tangible',updated_by:2};
@@ -42,6 +57,7 @@ describe('CMS content rules',()=>{
     expect(publishProblems('team-members',{full_name:'A',slug:'a',role_title:'Maker'})).toContain('photo');
     expect(publishProblems('products',{name:'Cube',slug:'cube',product_type:'ready_made',short_description:'A cube',category_id:1,cover_media_id:1,base_price:100},{purchaseLinks:0})).toContain('purchase/contact link');
     expect(publishProblems('services',{name:'Film',slug:'film',short_description:'Film',category_id:1,cover_media_id:1,primary_cta_url:'/contact'})).toEqual([]);
+    expect(publishProblems('services',{name:'Film',slug:'film',short_description:'Film',category_id:1,cover_media_id:1})).toEqual([]);
     expect(publishProblems('projects',{title:'Project',slug:'project',short_description:'A project',cover_media_id:1})).toEqual([]);
     expect(publishProblems('news',{title:'Story',slug:'story',excerpt:'Excerpt',body:'Body',category_id:1,author_user_id:1,cover_media_id:1})).toEqual([]);
     expect(publishProblems('partners',{name:'Partner',slug:'partner',logo_media_id:1})).toEqual([]);
