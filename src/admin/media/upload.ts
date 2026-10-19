@@ -1,4 +1,4 @@
-export type Media = {id:number;public_id:string;secure_url:string;original_filename:string;alt_text:string|null;caption:string|null;format:string;width_px:number;height_px:number;bytes_size:number;folder_path:string};
+export type Media = {id:number;public_id:string;secure_url:string;original_filename:string|null;alt_text:string|null;caption:string|null;format:string|null;width_px:number|null;height_px:number|null;bytes_size:number|null;folder_path:string|null;created_at:string};
 export type SignedUpload = {uploadUrl:string;apiKey:string;signature:string;asset_folder:string;public_id_prefix:string;timestamp:number;allowed_formats:string};
 export type UploadRequest = <T>(path:string, options?:RequestInit)=>Promise<{data:T}>;
 
@@ -32,7 +32,8 @@ export async function uploadImage(file:File,scope:string,entity:string|undefined
     let signed:SignedUpload;
     try {
       signed=(await request<SignedUpload>('/admin/media/sign-upload',{method:'POST',body:JSON.stringify({scope,entity})})).data;
-    } catch {
+    } catch (error) {
+      if(error&&typeof error==='object'&&'code' in error&&error.code==='INTEGRATION_NOT_CONFIGURED')throw new Error('Cloudinary belum siap. Hubungi administrator untuk memeriksa konfigurasi penyimpanan.');
       throw new Error('Tidak dapat menyiapkan izin unggah dari server CMS. Periksa sesi atau koneksi, lalu coba lagi.');
     }
     const form=uploadForm(signed,file);

@@ -17,7 +17,7 @@ const destination=(label:string,permission:string,icon:Icon,path?:string):Destin
 const resource=(name:string,label:string,icon:Icon)=>destination(label,`${catalog[name].permission}.view`,icon,pathFor(catalog[name]));
 const sections:Section[]=[
   {label:'RINGKASAN',items:[destination('Dashboard','dashboard.view',LayoutDashboard,'/admin/dashboard'),destination('Analitik','analytics.view',BarChart3,'/admin/analytics')]},
-  {label:'MANAJEMEN ASET',items:[destination('Aset Gambar','media.view',Image,'/admin/media')]},
+  {label:'MANAJEMEN ASET',items:[destination('Manajemen Aset','media.view',Image,'/admin/media')]},
   {label:'POSTINGAN',items:[resource('products','Produk',Package),resource('services','Jasa/Layanan',BriefcaseBusiness),resource('news','Artikel',Newspaper),{label:'Manajemen Kategori',icon:Tag,permission:'',children:[resource('product-categories','Kategori Produk',Tag),resource('service-categories','Kategori Layanan',Tag),resource('news-categories','Kategori Artikel',Tag)]}]},
   {label:'HALAMAN UTAMA',items:[
     resource('hero-settings','Hero',Sparkles),resource('about-settings','About Us',BookOpen),resource('team-section-settings','Our Team',Users),

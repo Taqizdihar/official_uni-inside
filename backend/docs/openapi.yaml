@@ -299,7 +299,15 @@ paths:
         - { name: search, in: query, schema: { type: string, maxLength: 100 } }
         - { name: folder, in: query, schema: { type: string } }
         - { name: scope, in: query, description: Backend-managed folder scope, schema: { type: string, enum: [site, users, team, partners, products, services, projects, news, achievements] } }
+        - { name: group, in: query, description: Canonical CMS section; choose instead of folder or scope, schema: { type: string, enum: [postingan, utama, lanjutan, pengaturan, administrasi, lainnya] } }
+        - { name: sort, in: query, schema: { type: string, enum: [created_at, bytes_size, original_filename], default: created_at } }
+        - { name: direction, in: query, schema: { type: string, enum: [asc, desc], default: desc } }
       responses: { '200': { description: 'Media with page, limit, total, and totalPages metadata' } }
+  /admin/media/folders:
+    get:
+      summary: List active physical Cloudinary folders for authorized media users
+      security: [{ sessionCookie: [] }]
+      responses: { '200': { description: Distinct stored folder paths } }
   /admin/media/sign-upload:
     post:
       summary: Signed Cloudinary image upload parameters for controlled folder
@@ -327,10 +335,40 @@ paths:
       parameters: [{ $ref: '#/components/parameters/Csrf' }]
       responses: { '200': { description: Updated } }
     delete:
-      summary: Soft delete unreferenced image
+      summary: Delete an unreferenced image from Cloudinary, then soft-delete its CMS record
       security: [{ sessionCookie: [] }]
       parameters: [{ $ref: '#/components/parameters/Csrf' }]
-      responses: { '200': { description: Deleted }, '409': { description: Image is referenced } }
+      responses: { '200': { description: Cloudinary confirmed deleted or not_found and CMS record was soft-deleted }, '409': { description: Image is referenced }, '502': { description: Cloudinary deletion failed }, '503': { description: CMS could not save after Cloudinary deletion } }
+  /admin/media/{id}/rename:
+    patch:
+      summary: Rename an unreferenced image in Cloudinary and update its CMS record
+      security: [{ sessionCookie: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }, { $ref: '#/components/parameters/Csrf' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              additionalProperties: false
+              properties: { name: { type: string, minLength: 1, maxLength: 120 } }
+      responses: { '200': { description: Renamed image record }, '409': { description: Image is referenced or name exists }, '502': { description: Cloudinary rename failed } }
+  /admin/media/{id}/move:
+    patch:
+      summary: Move an unreferenced image to an existing Cloudinary asset folder
+      security: [{ sessionCookie: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }, { $ref: '#/components/parameters/Csrf' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [folder]
+              additionalProperties: false
+              properties: { folder: { type: string, maxLength: 255 } }
+      responses: { '200': { description: Moved image record }, '409': { description: Image is referenced }, '502': { description: Cloudinary move failed } }
   /admin/projects/{key}/services:
     get:
       summary: Current related services with IDs and labels
