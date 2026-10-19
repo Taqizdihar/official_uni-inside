@@ -2,6 +2,7 @@ import type { RowDataPacket } from 'mysql2/promise';
 import type { Executor } from '../database/pool';
 import { rows, write } from '../database/pool';
 import type { ResourceSpec } from '../schemas/resources';
+import { sanitizeProductDescription } from '../utils/productDescription';
 
 const ident = (value: string) => {
   if (!/^[a-z][a-z0-9_]*$/.test(value)) throw new Error('Unsafe database identifier');
@@ -102,11 +103,16 @@ export async function publicDetail(db: Executor, spec: ResourceSpec, slug: strin
   if (coverId) data.image = (await rows<RowDataPacket>(db,'SELECT secure_url,alt_text,width_px,height_px FROM media_assets WHERE id=? AND deleted_at IS NULL',[coverId]))[0] ?? null;
   const children: Record<string, RowDataPacket[]> = {};
   if (spec.table === 'products') {
+    if(typeof data.description==='string')data.description=sanitizeProductDescription(data.description);
     children.images = await rows<RowDataPacket>(db, 'SELECT i.id,i.alt_text,i.is_cover,i.sort_order,m.secure_url,m.width_px,m.height_px FROM product_images i JOIN media_assets m ON m.id=i.media_id AND m.deleted_at IS NULL WHERE i.product_id=? ORDER BY i.sort_order,i.id LIMIT 100', [id]);
     children.features = await rows<RowDataPacket>(db, 'SELECT label,value_text,sort_order FROM product_features WHERE product_id=? ORDER BY sort_order,id LIMIT 100', [id]);
     children.colors = await rows<RowDataPacket>(db, 'SELECT name,hex_color,sort_order FROM product_color_options WHERE product_id=? AND is_active=1 ORDER BY sort_order,id LIMIT 100', [id]);
     children.variants = await rows<RowDataPacket>(db, 'SELECT name,sku,price_adjustment,stock_quantity,sort_order FROM product_variants WHERE product_id=? AND is_active=1 ORDER BY sort_order,id LIMIT 100', [id]);
     children.purchaseLinks = await rows<RowDataPacket>(db, 'SELECT id,store_name,button_label,url,is_primary,sort_order FROM product_purchase_links WHERE product_id=? AND is_active=1 ORDER BY is_primary DESC,sort_order,id LIMIT 100', [id]);
+    if(children.purchaseLinks.some(link=>String(link.store_name).toLowerCase().replace(/[^a-z]/g,'')==='whatsapp')){
+      const whatsapp=await globalWhatsApp(db);
+      children.purchaseLinks=children.purchaseLinks.flatMap(link=>String(link.store_name).toLowerCase().replace(/[^a-z]/g,'')==='whatsapp'?(whatsapp?[{...link,url:whatsapp} as RowDataPacket]:[]):[link]);
+    }
   }
   if (spec.table === 'services') {
     children.images = await rows<RowDataPacket>(db, 'SELECT i.id,i.alt_text,i.is_cover,i.sort_order,m.secure_url FROM service_images i JOIN media_assets m ON m.id=i.media_id AND m.deleted_at IS NULL WHERE i.service_id=? ORDER BY i.sort_order,i.id LIMIT 100', [id]);
@@ -136,6 +142,12 @@ export function projectRelationList(db: Executor, projectId:number, kind:'servic
 }
 export async function activePurchaseLinkCount(db: Executor, productId: number) {
   return Number((await rows<RowDataPacket>(db, 'SELECT COUNT(*) AS count FROM product_purchase_links WHERE product_id=? AND is_active=1', [productId]))[0]?.count ?? 0);
+}
+export function validPurchaseUrl(value:string){try{const url=new URL(value);return ['http:','https:'].includes(url.protocol)&&!url.username&&!url.password;}catch{return false;}}
+export async function globalWhatsApp(db:Executor){
+  const links=await rows<RowDataPacket>(db,'SELECT platform_code,url FROM social_links WHERE is_active=1 ORDER BY sort_order,id LIMIT 24');
+  const value=links.find(link=>String(link.platform_code).toLowerCase().replace(/[^a-z]/g,'')==='whatsapp')?.url;
+  return typeof value==='string'&&validPurchaseUrl(value)?value:null;
 }
 export async function featuredServiceOwner(db: Executor, slot: number) {
   return (await rows<RowDataPacket>(db, 'SELECT id FROM services WHERE featured_slot=? AND deleted_at IS NULL FOR UPDATE', [slot]))[0];

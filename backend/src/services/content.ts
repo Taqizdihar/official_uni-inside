@@ -5,6 +5,7 @@ import * as content from '../repositories/content';
 import { audit, revision } from '../repositories/audit';
 import { fixedKeyAllowed, inputSchema, resources, slugify, type ResourceSpec } from '../schemas/resources';
 import { HttpError, parse } from '../utils/http';
+import { productSummary,sanitizeProductDescription } from '../utils/productDescription';
 
 type Actor = { id: number; permissions: Set<string> };
 const authorColumns = new Set(['partners','team_members','products','services','projects','achievements']);
@@ -24,12 +25,15 @@ function checkPermission(actor: Actor, permission: string) {
 export function parseBody(spec: ResourceSpec, value: unknown) {
   const data = parse(inputSchema(spec), value) as Record<string, unknown>;
   if (!Object.keys(data).length) throw new HttpError(400, 'VALIDATION_ERROR', 'Provide at least one editable field.');
-  return Object.fromEntries(Object.entries(data).map(([key, item]) => {
+  const result=Object.fromEntries(Object.entries(data).map(([key, item]) => {
     if (typeof item === 'boolean') return [key, item ? 1 : 0];
     if (key === 'scheduled_at' && typeof item === 'string') return [key, new Date(item).toISOString().slice(0, 23).replace('T', ' ')];
-    if (richFields.has(key) && typeof item === 'string' && ['products','services','news_articles'].includes(spec.table)) return [key, sanitizeHtml(item, { allowedTags: ['p','br','strong','em','ul','ol','li','h2','h3','blockquote','a'], allowedAttributes: { a: ['href','title','target','rel'] }, allowedSchemes: ['http','https','mailto'], transformTags: { a: sanitizeHtml.simpleTransform('a', { rel:'noopener noreferrer' }) } })];
+    if(spec.table==='products'&&key==='description'&&typeof item==='string')return [key,sanitizeProductDescription(item,true)];
+    if (richFields.has(key) && typeof item === 'string' && ['services','news_articles'].includes(spec.table)) return [key, sanitizeHtml(item, { allowedTags: ['p','br','strong','em','ul','ol','li','h2','h3','blockquote','a'], allowedAttributes: { a: ['href','title','target','rel'] }, allowedSchemes: ['http','https','mailto'], transformTags: { a: sanitizeHtml.simpleTransform('a', { rel:'noopener noreferrer' }) } })];
     return [key, item];
   }));
+  if(spec.table==='products'&&typeof result.description==='string'&&data.short_description===undefined)result.short_description=productSummary(result.description);
+  return result;
 }
 export function publishProblems(name: string, item: Record<string, unknown>, extras: { purchaseLinks?: number } = {}) {
   const missing: string[] = [];

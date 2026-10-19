@@ -1,17 +1,15 @@
 import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
 import { ArrowLeft, ArrowRight, ArrowUpRight, Box, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Link, useLocation, useParams } from 'react-router-dom';
-import DOMPurify from 'dompurify';
+import {cleanProductHtml} from '../public/productRichText';
+import {PurchasePlatformIcon} from '../components/PurchasePlatformIcon';
 import { StaticPageLayout } from '../components/StaticPageLayout';
 import { trackEvent, usePublicContent, usePublicDetail } from '../public/client';
 import { CraftImage } from './CraftImage';
 import { canShowCraftPreview, craftPreviewDetail, craftPreviewItems, formatPriceAdjustment, formatProductPrice, productTypeLabel, safePurchaseHref, useCraftPreviewNoIndex, type CraftImage as CraftImageType, type CraftProduct } from './craftProduct';
 import styles from './CraftProducts.module.css';
 
-const safeHtml = (value: string) => DOMPurify.sanitize(value, {
-  ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'ul', 'ol', 'li', 'h2', 'h3', 'blockquote', 'a'],
-  ALLOWED_ATTR: ['href', 'title', 'target', 'rel'],
-});
+const safeHtml=cleanProductHtml;
 
 function ProductGallery({ product }: { product: CraftProduct }) {
   const [selected, setSelected] = useState(0);
@@ -58,7 +56,7 @@ function ProductPurchase({ product, preview }: { product: CraftProduct; preview:
   if (preview) return <div className="border-l-4 border-[#f9d02d] bg-white p-5 text-sm leading-relaxed text-[#202121]/75">Purchase actions are unavailable in this sample preview. Published products will show their real store or contact links here.</div>;
   if (!links.length) return <div className="border-t border-[#202121]/20 pt-6"><p className="text-sm text-[#202121]/65">Purchase links are not listed for this object.</p><Link to="/#contact-us" className="mt-4 inline-flex items-center gap-2 text-sm font-extrabold text-[#202121] underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[#202121]">Ask about this object <ArrowUpRight size={16} aria-hidden="true" /></Link></div>;
   return <div className="border-t border-[#202121]/20 pt-6"><p className="mb-3 text-[10px] font-extrabold uppercase tracking-[.15em] text-[#202121]/55">Purchase or enquire</p><div className="flex flex-wrap gap-2">
-    {links.map((link, index) => <a key={link.id} href={link.href!} target={/^https?:\/\//i.test(link.href!) ? '_blank' : undefined} rel={/^https?:\/\//i.test(link.href!) ? 'noopener noreferrer' : undefined} onClick={() => trackEvent('product_purchase_link_click', { entityType: 'product', entityId: Number(product.id), linkDestination: link.href! })} className={`inline-flex min-h-12 items-center gap-2 px-5 py-3 text-sm font-extrabold transition-colors active:scale-[.98] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[#202121] motion-reduce:transition-none ${index === 0 ? 'bg-[#f9d02d] text-[#202121] hover:bg-[#ffe054]' : 'border border-[#202121]/45 bg-transparent text-[#202121] hover:border-[#202121]'}`}>{link.button_label?.trim() || link.store_name}<ArrowUpRight size={16} aria-hidden="true" /></a>)}
+    {links.map((link, index) => <a key={link.id} href={link.href!} target={/^https?:\/\//i.test(link.href!) ? '_blank' : undefined} rel={/^https?:\/\//i.test(link.href!) ? 'noopener noreferrer' : undefined} onClick={() => trackEvent('product_purchase_link_click', { entityType: 'product', entityId: Number(product.id), linkDestination: link.href! })} aria-label={link.button_label?.trim() || link.store_name} title={link.store_name} className={`inline-flex min-h-12 min-w-12 items-center justify-center px-3 py-3 text-sm font-extrabold transition-colors active:scale-[.98] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[#202121] motion-reduce:transition-none ${index === 0 ? 'bg-[#f9d02d] text-[#202121] hover:bg-[#ffe054]' : 'border border-[#202121]/45 bg-transparent text-[#202121] hover:border-[#202121]'}`}><PurchasePlatformIcon platform={link.store_name} size={23}/></a>)}
   </div></div>;
 }
 

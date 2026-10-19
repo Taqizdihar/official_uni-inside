@@ -40,6 +40,57 @@ components:
       required: true
       schema: { type: string }
   schemas:
+    ProductCompose:
+      type: object
+      additionalProperties: false
+      required: [action, name]
+      properties:
+        action: { type: string, enum: [draft, publish] }
+        name: { type: string, minLength: 1, maxLength: 190 }
+        category_id: { type: [integer, 'null'], minimum: 1 }
+        product_type: { type: string, enum: [ready_made, custom, both] }
+        description: { type: string, maxLength: 70000 }
+        cover_media_id: { type: [integer, 'null'], minimum: 1 }
+        gallery_media_ids: { type: array, maxItems: 8, uniqueItems: true, items: { type: integer, minimum: 1 } }
+        base_price: { type: [number, 'null'], minimum: 0, maximum: 999999999999 }
+        currency_code: { type: string, pattern: '^[A-Z]{3}$', default: IDR }
+        availability_label: { type: [string, 'null'], maxLength: 100 }
+        price_note: { type: [string, 'null'], maxLength: 255 }
+        lead_time_text: { type: [string, 'null'], maxLength: 255 }
+        minimum_order_quantity: { type: [integer, 'null'], minimum: 1, maximum: 2147483647 }
+        features:
+          type: array
+          maxItems: 100
+          items:
+            type: object
+            additionalProperties: false
+            required: [label, value_text]
+            properties:
+              label: { type: string, minLength: 1, maxLength: 150 }
+              value_text: { type: string, minLength: 1, maxLength: 500 }
+        variants:
+          type: array
+          maxItems: 100
+          items:
+            type: object
+            additionalProperties: false
+            required: [name, price, stock_quantity, is_active]
+            properties:
+              name: { type: string, minLength: 1, maxLength: 150 }
+              price: { type: number, minimum: 0, maximum: 999999999999, description: 'Final price; stored as an adjustment relative to base_price' }
+              stock_quantity: { type: [integer, 'null'], minimum: 0, maximum: 2147483647 }
+              is_active: { type: boolean }
+              media_id: { type: 'null', description: 'Non-null variant photos are rejected until the deferred schema update' }
+        platforms:
+          type: array
+          maxItems: 5
+          items:
+            type: object
+            additionalProperties: false
+            required: [platform]
+            properties:
+              platform: { type: string, enum: [shopee, tokopedia, tiktok, shopify, whatsapp] }
+              url: { type: string, maxLength: 1000, description: 'Required HTTP(S) product URL except WhatsApp; WhatsApp resolves the global setting and rejects a supplied URL' }
     Envelope:
       type: object
       required: [data]
@@ -403,6 +454,21 @@ paths:
       security: [{ sessionCookie: [] }]
       parameters: [{ $ref: '#/components/parameters/Resource' }, { $ref: '#/components/parameters/Key' }, { name: id, in: path, required: true, schema: { type: integer } }, { $ref: '#/components/parameters/Csrf' }]
       responses: { '200': { description: Restored } }
+  /admin/products/compose:
+    post:
+      summary: Atomically create a product and its ordered child records
+      description: 'Requires products.create; publish also requires products.update, products.publish, and publication completeness. Variant photos are explicitly unsupported until the deferred schema update.'
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductCompose' }
+      responses:
+        '201': { description: 'Persisted product; status confirms draft or published' }
+        '400': { description: 'Validation, unsupported variant photo, missing global WhatsApp, or incomplete publication; no data is committed' }
+        '403': { description: 'Missing permission or invalid CSRF token' }
   /admin/{resource}:
     get:
       summary: Paginated CMS records; requires resource view permission

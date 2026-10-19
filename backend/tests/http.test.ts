@@ -67,6 +67,13 @@ describe('HTTP behavior',()=>{
     expect(denied.status).toBe(403);
     expect(denied.body.error.code).toBe('FORBIDDEN');
   });
+  it('protects the composed product endpoint with CSRF and create permission',async()=>{
+    const raw='session-token',csrf=csrfToken(config,raw),cookies=[`${config.SESSION_COOKIE_NAME}=${raw}`,`${config.CSRF_COOKIE_NAME}=${csrf}`];
+    const noCsrf=await request(app).post('/api/v1/admin/products/compose').set('Origin','http://localhost:3000').set('Cookie',cookies).send({action:'draft',name:'Product'});
+    expect(noCsrf.status).toBe(403);expect(noCsrf.body.error.code).toBe('CSRF_INVALID');
+    const forbidden=await request(app).post('/api/v1/admin/products/compose').set('Origin','http://localhost:3000').set('Cookie',cookies).set('X-CSRF-Token',csrf).send({action:'draft',name:'Product'});
+    expect(forbidden.status).toBe(403);expect(forbidden.body.error.code).toBe('FORBIDDEN');
+  });
   it('rejects invalid pagination and unsupported sort columns',async()=>{
     const cookie=`${config.SESSION_COOKIE_NAME}=session-token`;
     const limit=await request(app).get('/api/v1/admin/products?limit=101').set('Cookie',cookie);

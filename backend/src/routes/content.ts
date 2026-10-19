@@ -8,6 +8,7 @@ import { audit, revision } from '../repositories/audit';
 import { transaction } from '../database/pool';
 import * as content from '../services/content';
 import { resources } from '../schemas/resources';
+import { createProductForm } from '../services/productCreate';
 import { asyncRoute, HttpError, parse } from '../utils/http';
 
 const pagination = z.strictObject({ page: z.coerce.number().int().positive().default(1), limit: z.coerce.number().int().min(1).max(100).default(20), categoryId: z.coerce.number().int().positive().optional() });
@@ -42,6 +43,9 @@ export function publicContentRoutes(db: Pool) {
 export function adminContentRoutes(config: Config, db: Pool) {
   const router = Router();
   const requireAuth = auth(config,db); const requireCsrf = csrf(config);
+  router.post('/admin/products/compose',requireAuth,requireCsrf,asyncRoute(async(req,res)=>{
+    res.status(201).json({data:await createProductForm(db,req.body,req.actor!,req.requestId)});
+  }));
   for(const kind of ['services','team-members'] as const) router.get(`/admin/projects/:key/${kind}`,requireAuth,permit('projects.view'),asyncRoute(async(req,res)=>{
     const id=parse(z.coerce.number().int().positive(),req.params.key);
     if(!await repo.record(db,resources.projects!,id))throw new HttpError(404,'NOT_FOUND','Project not found.');
