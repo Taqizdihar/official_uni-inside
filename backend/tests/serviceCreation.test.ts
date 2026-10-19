@@ -11,7 +11,7 @@ const input = {
   process_steps: [{ title: 'Diskusi', description: 'Bahas kebutuhan' }, { title: 'Produksi', description: '' }],
   primary_cta_label: '', primary_cta_url: '', status: 'published',
 };
-const actor = { id: 7, permissions: new Set(['services.create', 'services.publish']) };
+const actor = { id: 7, permissions: new Set(['services.create', 'services.update', 'services.publish']) };
 
 function fakeDatabase(failStep = false, slugTaken = false) {
   const calls: { sql: string; values: unknown[] }[] = [];
@@ -56,8 +56,10 @@ describe('complete service creation', () => {
     expect(validateServiceCreate({ ...input, primary_cta_label: 'Email', primary_cta_url: 'mailto:halo@example.com' }, true).primary_cta_url).toBe('mailto:halo@example.com');
     expect(validateServiceCreate({ ...input, primary_cta_label: 'Telepon', primary_cta_url: 'tel:+6222 123456' }, true).primary_cta_url).toBe('tel:+6222 123456');
   });
-  it('requires publish permission and model-specific public pricing details', () => {
+  it('requires publish permission and model-specific public pricing details', async () => {
     expect(() => validateServiceCreate(input, false)).toThrow();
+    const publishOnly = { id: 7, permissions: new Set(['services.create', 'services.publish']) };
+    await expect(createCompleteService(fakeDatabase().db, input, publishOnly, 'request-no-update')).rejects.toThrow();
     expect(() => validateServiceCreate({ ...input, starting_price: null }, true)).toThrow();
     expect(() => validateServiceCreate({ ...input, pricing_type: 'range', price_note: '' }, true)).toThrow();
     expect(validateServiceCreate({ ...input, pricing_type: 'contact', starting_price: null, status: 'draft' }, false).status).toBe('draft');

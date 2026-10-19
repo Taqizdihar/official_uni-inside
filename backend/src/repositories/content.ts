@@ -2,12 +2,13 @@ import type { RowDataPacket } from 'mysql2/promise';
 import type { Executor } from '../database/pool';
 import { rows, write } from '../database/pool';
 import type { ResourceSpec } from '../schemas/resources';
+import { sanitizeProductDescription } from '../utils/productDescription';
 
 const ident = (value: string) => {
   if (!/^[a-z][a-z0-9_]*$/.test(value)) throw new Error('Unsafe database identifier');
   return `\`${value}\``;
 };
-export type ContentFilters = { search?: string; status?: string; categoryId?: number; parentId?: number; isActive?: boolean };
+export type ContentFilters = { search?: string; status?: string; categoryId?: number; productType?: string; contentType?: string; parentId?: number; isActive?: boolean };
 export function contentWhere(spec: ResourceSpec, filters: ContentFilters = {}) {
   const conditions = spec.softDelete ? ['deleted_at IS NULL'] : [];
   const values: unknown[] = [];
@@ -17,13 +18,40 @@ export function contentWhere(spec: ResourceSpec, filters: ContentFilters = {}) {
   }
   if (filters.status) { conditions.push('status=?'); values.push(filters.status); }
   if (filters.categoryId) { conditions.push('category_id=?');values.push(filters.categoryId); }
+  if (filters.productType) { conditions.push('product_type=?');values.push(filters.productType); }
+  if (filters.contentType) { conditions.push('content_type=?');values.push(filters.contentType); }
   if (filters.parentId && spec.childOf) { conditions.push(`${ident(spec.childOf.foreignKey)}=?`);values.push(filters.parentId); }
   if (filters.isActive !== undefined) { conditions.push('is_active=?'); values.push(filters.isActive ? 1 : 0); }
   return {sql:conditions.length?`WHERE ${conditions.join(' AND ')}`:'',values};
 }
 export async function listRecords(db: Executor, spec: ResourceSpec, limit: number, offset: number, sort: string, direction: 'ASC'|'DESC', filters: ContentFilters = {}) {
   const where=contentWhere(spec,filters);
-  return rows<RowDataPacket>(db, `SELECT * FROM ${ident(spec.table)} ${where.sql} ORDER BY ${ident(sort)} ${direction} LIMIT ? OFFSET ?`, [...where.values,limit,offset]);
+  const order=`${ident(sort)} ${direction}${sort===spec.key?'':`, ${ident(spec.key)} ${direction}`}`;
+  return rows<RowDataPacket>(db, `SELECT * FROM ${ident(spec.table)} ${where.sql} ORDER BY ${order} LIMIT ? OFFSET ?`, [...where.values,limit,offset]);
+}
+export async function postListingDetails(db: Executor, table: string, items: RowDataPacket[]) {
+  const categories: Record<string,string> = {products:'product_categories',services:'service_categories',news_articles:'news_categories'};
+  const categoryTable=categories[table];
+  if (!categoryTable || !items.length) return items;
+  const categoryIds=[...new Set(items.map(item=>Number(item.category_id)).filter(Boolean))];
+  const mediaIds=[...new Set(items.map(item=>Number(item.cover_media_id)).filter(Boolean))];
+  const userIds=table==='news_articles'?[...new Set(items.map(item=>Number(item.author_user_id)).filter(Boolean))]:[];
+  const teamIds=table==='news_articles'?[...new Set(items.map(item=>Number(item.author_team_member_id)).filter(Boolean))]:[];
+  const lookup=async (sql:string,ids:number[])=>ids.length?rows<RowDataPacket>(db,`${sql} (${ids.map(()=>'?').join(',')})`,ids):[];
+  const [categoryRows,mediaRows,userRows,teamRows]=await Promise.all([
+    lookup(`SELECT id,name FROM ${ident(categoryTable)} WHERE id IN`,categoryIds),
+    lookup('SELECT id,secure_url,alt_text FROM media_assets WHERE deleted_at IS NULL AND id IN',mediaIds),
+    lookup('SELECT id,display_name FROM users WHERE id IN',userIds),
+    lookup('SELECT id,full_name FROM team_members WHERE id IN',teamIds),
+  ]);
+  const byId=(data:RowDataPacket[])=>new Map(data.map(row=>[Number(row.id),row]));
+  const categoryById=byId(categoryRows),mediaById=byId(mediaRows),userById=byId(userRows),teamById=byId(teamRows);
+  return items.map(item=>({
+    ...item,
+    category_name:categoryById.get(Number(item.category_id))?.name??null,
+    image:mediaById.get(Number(item.cover_media_id))??null,
+    author_name:teamById.get(Number(item.author_team_member_id))?.full_name??userById.get(Number(item.author_user_id))?.display_name??null,
+  }));
 }
 export async function record(db: Executor, spec: ResourceSpec, key: string | number, lock = false) {
   return (await rows<RowDataPacket>(db, `SELECT * FROM ${ident(spec.table)} WHERE ${ident(spec.key)}=? ${spec.softDelete ? 'AND deleted_at IS NULL' : ''} LIMIT 1 ${lock ? 'FOR UPDATE' : ''}`, [key]))[0];
@@ -75,11 +103,16 @@ export async function publicDetail(db: Executor, spec: ResourceSpec, slug: strin
   if (coverId) data.image = (await rows<RowDataPacket>(db,'SELECT secure_url,alt_text,width_px,height_px FROM media_assets WHERE id=? AND deleted_at IS NULL',[coverId]))[0] ?? null;
   const children: Record<string, RowDataPacket[]> = {};
   if (spec.table === 'products') {
+    if(typeof data.description==='string')data.description=sanitizeProductDescription(data.description);
     children.images = await rows<RowDataPacket>(db, 'SELECT i.id,i.alt_text,i.is_cover,i.sort_order,m.secure_url,m.width_px,m.height_px FROM product_images i JOIN media_assets m ON m.id=i.media_id AND m.deleted_at IS NULL WHERE i.product_id=? ORDER BY i.sort_order,i.id LIMIT 100', [id]);
     children.features = await rows<RowDataPacket>(db, 'SELECT label,value_text,sort_order FROM product_features WHERE product_id=? ORDER BY sort_order,id LIMIT 100', [id]);
     children.colors = await rows<RowDataPacket>(db, 'SELECT name,hex_color,sort_order FROM product_color_options WHERE product_id=? AND is_active=1 ORDER BY sort_order,id LIMIT 100', [id]);
     children.variants = await rows<RowDataPacket>(db, 'SELECT name,sku,price_adjustment,stock_quantity,sort_order FROM product_variants WHERE product_id=? AND is_active=1 ORDER BY sort_order,id LIMIT 100', [id]);
     children.purchaseLinks = await rows<RowDataPacket>(db, 'SELECT id,store_name,button_label,url,is_primary,sort_order FROM product_purchase_links WHERE product_id=? AND is_active=1 ORDER BY is_primary DESC,sort_order,id LIMIT 100', [id]);
+    if(children.purchaseLinks.some(link=>String(link.store_name).toLowerCase().replace(/[^a-z]/g,'')==='whatsapp')){
+      const whatsapp=await globalWhatsApp(db);
+      children.purchaseLinks=children.purchaseLinks.flatMap(link=>String(link.store_name).toLowerCase().replace(/[^a-z]/g,'')==='whatsapp'?(whatsapp?[{...link,url:whatsapp} as RowDataPacket]:[]):[link]);
+    }
   }
   if (spec.table === 'services') {
     children.images = await rows<RowDataPacket>(db, 'SELECT i.id,i.alt_text,i.is_cover,i.sort_order,m.secure_url FROM service_images i JOIN media_assets m ON m.id=i.media_id AND m.deleted_at IS NULL WHERE i.service_id=? ORDER BY i.sort_order,i.id LIMIT 100', [id]);
@@ -109,6 +142,12 @@ export function projectRelationList(db: Executor, projectId:number, kind:'servic
 }
 export async function activePurchaseLinkCount(db: Executor, productId: number) {
   return Number((await rows<RowDataPacket>(db, 'SELECT COUNT(*) AS count FROM product_purchase_links WHERE product_id=? AND is_active=1', [productId]))[0]?.count ?? 0);
+}
+export function validPurchaseUrl(value:string){try{const url=new URL(value);return ['http:','https:'].includes(url.protocol)&&!url.username&&!url.password;}catch{return false;}}
+export async function globalWhatsApp(db:Executor){
+  const links=await rows<RowDataPacket>(db,'SELECT platform_code,url FROM social_links WHERE is_active=1 ORDER BY sort_order,id LIMIT 24');
+  const value=links.find(link=>String(link.platform_code).toLowerCase().replace(/[^a-z]/g,'')==='whatsapp')?.url;
+  return typeof value==='string'&&validPurchaseUrl(value)?value:null;
 }
 export async function featuredServiceOwner(db: Executor, slot: number) {
   return (await rows<RowDataPacket>(db, 'SELECT id FROM services WHERE featured_slot=? AND deleted_at IS NULL FOR UPDATE', [slot]))[0];

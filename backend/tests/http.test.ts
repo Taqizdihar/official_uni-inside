@@ -1,4 +1,5 @@
-import { describe,expect,it } from 'vitest';
+import { describe,expect,it,vi } from 'vitest';
+import { v2 as cloudinary } from 'cloudinary';
 import request from 'supertest';
 import type { Pool } from 'mysql2/promise';
 import { createApp } from '../src/app';
@@ -66,6 +67,13 @@ describe('HTTP behavior',()=>{
     expect(denied.status).toBe(403);
     expect(denied.body.error.code).toBe('FORBIDDEN');
   });
+  it('protects the composed product endpoint with CSRF and create permission',async()=>{
+    const raw='session-token',csrf=csrfToken(config,raw),cookies=[`${config.SESSION_COOKIE_NAME}=${raw}`,`${config.CSRF_COOKIE_NAME}=${csrf}`];
+    const noCsrf=await request(app).post('/api/v1/admin/products/compose').set('Origin','http://localhost:3000').set('Cookie',cookies).send({action:'draft',name:'Product'});
+    expect(noCsrf.status).toBe(403);expect(noCsrf.body.error.code).toBe('CSRF_INVALID');
+    const forbidden=await request(app).post('/api/v1/admin/products/compose').set('Origin','http://localhost:3000').set('Cookie',cookies).set('X-CSRF-Token',csrf).send({action:'draft',name:'Product'});
+    expect(forbidden.status).toBe(403);expect(forbidden.body.error.code).toBe('FORBIDDEN');
+  });
   it('rejects invalid pagination and unsupported sort columns',async()=>{
     const cookie=`${config.SESSION_COOKIE_NAME}=session-token`;
     const limit=await request(app).get('/api/v1/admin/products?limit=101').set('Cookie',cookie);
@@ -76,6 +84,10 @@ describe('HTTP behavior',()=>{
     expect(invalidParent.status).toBe(400);
     const invalidStatus=await request(app).get('/api/v1/admin/product-images?status=published').set('Cookie',cookie);
     expect(invalidStatus.status).toBe(400);
+    const invalidType=await request(app).get('/api/v1/admin/products?productType=made_up').set('Cookie',cookie);
+    expect(invalidType.status).toBe(400);
+    const wrongResourceType=await request(app).get('/api/v1/admin/products?contentType=news').set('Cookie',cookie);
+    expect(wrongResourceType.status).toBe(400);
     const badScope=await request(app).get('/api/v1/admin/media?scope=other').set('Cookie',cookie);
     expect(badScope.status).toBe(400);
   });
@@ -116,5 +128,54 @@ describe('HTTP behavior',()=>{
     const raw='session-token';const csrf=csrfToken(config,raw);
     const result=await request(app).post('/api/v1/admin/media/sign-upload').set('Origin','http://localhost:3000').set('X-CSRF-Token',csrf).set('Cookie',[`${config.SESSION_COOKIE_NAME}=${raw}`,`${config.CSRF_COOKIE_NAME}=${csrf}`]).send({scope:'products',entity:'cube'});
     expect(result.status).toBe(503);expect(result.body.error.code).toBe('INTEGRATION_NOT_CONFIGURED');
+  });
+  it('requires media action permissions and blocks referenced assets before Cloudinary changes',async()=>{
+    const raw='session-token',csrf=csrfToken(config,raw),cookies=[`${config.SESSION_COOKIE_NAME}=${raw}`,`${config.CSRF_COOKIE_NAME}=${csrf}`];
+    const headers=(method:'patch'|'delete',path:string)=>request(app)[method](path).set('Origin','http://localhost:3000').set('X-CSRF-Token',csrf).set('Cookie',cookies);
+    for(const path of ['/api/v1/admin/media/7/rename','/api/v1/admin/media/7/move']){
+      const denied=await headers('patch',path).send(path.endsWith('rename')?{name:'renamed'}:{folder:'uni-inside/team'});
+      expect(denied.status).toBe(403);expect(denied.body.error.code).toBe('FORBIDDEN');
+    }
+    const deniedDelete=await headers('delete','/api/v1/admin/media/7');expect(deniedDelete.status).toBe(403);
+    const protectedDb={...db,execute:async(options:{sql:string})=>{
+      if(options.sql.includes('FROM role_permissions'))return [[{code:'media.view'},{code:'media.update'},{code:'media.delete'}],[]];
+      if(options.sql.includes('SELECT DISTINCT folder_path'))return [[{folder_path:'uni-inside/team'}],[]];
+      return db.execute(options);
+    },getConnection:async()=>({beginTransaction:async()=>{},commit:async()=>{},rollback:async()=>{},release:()=>{},execute:async(options:{sql:string})=>{
+      if(options.sql.includes('FROM media_assets WHERE id='))return [[{id:7,provider:'cloudinary',resource_type:'image',public_id:'uni-inside/site/photo',secure_url:'https://res.cloudinary.com/example/image/upload/photo.jpg',folder_path:'uni-inside/site',format:'jpg',deleted_at:null}],[]];
+      if(options.sql.includes('SELECT SUM(count)'))return [[{count:1}],[]];
+      return [[],[]];
+    }})} as unknown as Pool;
+    const protectedApp=createApp(config,protectedDb);
+    const response=await request(protectedApp).delete('/api/v1/admin/media/7').set('Origin','http://localhost:3000').set('X-CSRF-Token',csrf).set('Cookie',cookies);
+    expect(response.status).toBe(409);expect(response.body.error.code).toBe('MEDIA_REFERENCED');
+    for(const [path,body] of [['rename',{name:'new-photo'}],['move',{folder:'uni-inside/team'}]] as const){
+      const blocked=await request(protectedApp).patch(`/api/v1/admin/media/7/${path}`).set('Origin','http://localhost:3000').set('X-CSRF-Token',csrf).set('Cookie',cookies).send(body);
+      expect(blocked.status).toBe(409);expect(blocked.body.error.code).toBe('MEDIA_REFERENCED');
+    }
+  });
+  it('updates the media record only after Cloudinary confirms deletion',async()=>{
+    const configured=loadConfig({DB_HOST:'localhost',DB_NAME:'uni-inside',DB_USER:'root',AUTH_TOKEN_PEPPER:'a'.repeat(40),ANALYTICS_HASH_PEPPER:'b'.repeat(40),CLOUDINARY_CLOUD_NAME:'test-cloud',CLOUDINARY_API_KEY:'test-key',CLOUDINARY_API_SECRET:'test-secret',CORS_ALLOWED_ORIGINS:'http://localhost:3000',LOG_LEVEL:'silent'});
+    const actions:string[]=[];let dbFail=false;
+    const execute=async(options:{sql:string})=>{
+      const sql=options.sql;
+      if(sql.includes('FROM auth_sessions'))return [[{session_id:2,user_id:1,role_id:1,role_code:'super_admin',last_activity_at:new Date().toISOString().replace('T',' ').replace('Z','')}],[]];
+      if(sql.includes('FROM role_permissions'))return [[{code:'media.delete'}],[]];
+      if(sql.includes('FROM media_assets WHERE id='))return [[{id:7,provider:'cloudinary',resource_type:'image',public_id:'uni-inside/site/photo',secure_url:'https://res.cloudinary.com/test-cloud/image/upload/v1/uni-inside/site/photo.jpg',folder_path:'uni-inside/site',format:'jpg',deleted_at:null}],[]];
+      if(sql.includes('SELECT SUM(count)'))return [[{count:0}],[]];
+      if(sql.includes('UPDATE media_assets')){actions.push('database');if(dbFail)throw new Error('Database unavailable');}
+      return [{affectedRows:1},[]];
+    };
+    const mediaDb={execute,getConnection:async()=>({execute,beginTransaction:async()=>{},commit:async()=>{},rollback:async()=>{},release:()=>{}})} as unknown as Pool;
+    const mediaApp=createApp(configured,mediaDb);const csrf=csrfToken(configured,'session-token');
+    const remove=vi.spyOn(cloudinary.api,'delete_resources').mockImplementation(async()=>{actions.push('cloudinary');return {deleted:{'uni-inside/site/photo':'deleted'}} as never;});
+    try{
+      const call=()=>request(mediaApp).delete('/api/v1/admin/media/7').set('Origin','http://localhost:3000').set('X-CSRF-Token',csrf).set('Cookie',[`${configured.SESSION_COOKIE_NAME}=session-token`,`${configured.CSRF_COOKIE_NAME}=${csrf}`]);
+      const success=await call();expect(success.status).toBe(200);expect(success.body.data).toEqual({deleted:true,cloudinary:'deleted'});expect(actions).toEqual(['cloudinary','database']);
+      actions.length=0;remove.mockRejectedValue(new Error('Cloudinary unavailable'));
+      const failure=await call();expect(failure.status).toBe(502);expect(failure.body.error.code).toBe('CLOUDINARY_DELETE_FAILED');expect(actions).toEqual([]);
+      actions.length=0;dbFail=true;remove.mockImplementation(async()=>{actions.push('cloudinary');return {deleted:{'uni-inside/site/photo':'deleted'}} as never;});
+      const databaseFailure=await call();expect(databaseFailure.status).toBe(503);expect(databaseFailure.body.error.code).toBe('MEDIA_DATABASE_FAILED');expect(actions).toEqual(['cloudinary','database']);
+    }finally{remove.mockRestore();}
   });
 });

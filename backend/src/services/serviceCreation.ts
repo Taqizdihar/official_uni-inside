@@ -48,7 +48,7 @@ export function validateServiceCreate(raw: unknown, canPublish: boolean): Servic
   const summary = serviceSummary(sanitizedDescription);
   const errors: { path: string; message: string }[] = [];
   const fail = (path: string, message: string) => errors.push({ path, message });
-  if (input.status === 'published' && !canPublish) throw new HttpError(403, 'FORBIDDEN', 'Publishing permission is required.');
+  if (input.status === 'published' && !canPublish) throw new HttpError(403, 'FORBIDDEN', 'Anda tidak memiliki izin untuk menerbitkan layanan.');
   if (input.primary_cta_url && !safeServiceCtaHref(input.primary_cta_url)) fail('primary_cta_url', 'Gunakan path internal, URL HTTP(S), mailto, atau tel yang aman.');
   if (Boolean(input.primary_cta_label) !== Boolean(input.primary_cta_url)) fail(input.primary_cta_label ? 'primary_cta_url' : 'primary_cta_label', 'Isi label dan URL tombol bersama-sama.');
   const mediaIds = [input.cover_media_id, ...input.gallery_media_ids].filter((id): id is number => id !== null);
@@ -65,8 +65,8 @@ export function validateServiceCreate(raw: unknown, canPublish: boolean): Servic
 }
 
 export async function createCompleteService(db: Pool, raw: unknown, actor: { id: number; permissions: Set<string> }, requestId: string, mediaRoot = 'uni-inside') {
-  if (!actor.permissions.has('services.create')) throw new HttpError(403, 'FORBIDDEN', 'Creating services is not permitted.');
-  const input = validateServiceCreate(raw, actor.permissions.has('services.publish'));
+  if (!actor.permissions.has('services.create')) throw new HttpError(403, 'FORBIDDEN', 'Anda tidak memiliki izin untuk membuat layanan.');
+  const input = validateServiceCreate(raw, actor.permissions.has('services.publish') && actor.permissions.has('services.update'));
   return transaction(db, async conn => {
     if (input.category_id) {
       const category = await rows(conn, 'SELECT id FROM service_categories WHERE id=? AND is_active=1 LIMIT 1', [input.category_id]);

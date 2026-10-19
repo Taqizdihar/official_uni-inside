@@ -1,7 +1,9 @@
 import { describe,expect,it,vi } from 'vitest';
 import { v2 as cloudinary } from 'cloudinary';
 import { loadConfig } from '../src/config/env';
-import { folderFor,imageFormats,signedUpload,verifyUpload } from '../src/services/media';
+import { folderFor,imageFormats,signedUpload,verifyUpload,deleteCloudinary,moveCloudinary,renameCloudinary,safeMediaName } from '../src/services/media';
+import {listMedia,countMedia,mediaReferenceCount} from '../src/repositories/media';
+import type {Executor} from '../src/database/pool';
 
 const config=loadConfig({DB_HOST:'localhost',DB_NAME:'uni-inside',DB_USER:'root',AUTH_TOKEN_PEPPER:'a'.repeat(40),ANALYTICS_HASH_PEPPER:'b'.repeat(40),CLOUDINARY_CLOUD_NAME:'test-cloud',CLOUDINARY_API_KEY:'test-key',CLOUDINARY_API_SECRET:'test-secret'});
 
@@ -31,5 +33,54 @@ describe('signed Media Library uploads',()=>{
       await expect(verifyUpload(config,'elsewhere/photo','site')).rejects.toThrow();
       expect(resource).toHaveBeenCalledOnce();
     } finally {resource.mockRestore();}
+  });
+});
+
+describe('Cloudinary media actions',()=>{
+  const media={provider:'cloudinary',resource_type:'image',public_id:'uni-inside/site/photo',secure_url:'https://res.cloudinary.com/test-cloud/image/upload/v123/uni-inside/site/photo.jpg',folder_path:'uni-inside/site',format:'jpg'};
+  it('deletes by stored public ID and confirms the Admin API result',async()=>{
+    const remove=vi.spyOn(cloudinary.api,'delete_resources').mockResolvedValue({deleted:{[media.public_id]:'deleted'}} as never);
+    try{
+      await expect(deleteCloudinary(config,media)).resolves.toBe('deleted');
+      expect(remove).toHaveBeenCalledWith([media.public_id],{resource_type:'image',type:'upload',invalidate:true});
+      remove.mockResolvedValue({deleted:{[media.public_id]:'not_found'}} as never);
+      await expect(deleteCloudinary(config,media)).resolves.toBe('not_found');
+    }finally{remove.mockRestore();}
+  });
+  it('rejects failed deletion and assets outside the configured account',async()=>{
+    const remove=vi.spyOn(cloudinary.api,'delete_resources').mockResolvedValue({deleted:{[media.public_id]:'error'}} as never);
+    try{
+      await expect(deleteCloudinary(config,media)).rejects.toMatchObject({code:'CLOUDINARY_DELETE_FAILED'});
+      await expect(deleteCloudinary(config,{...media,secure_url:'https://res.cloudinary.com/another-cloud/image/upload/photo.jpg'})).rejects.toMatchObject({code:'INVALID_MEDIA'});
+      expect(remove).toHaveBeenCalledTimes(1);
+    }finally{remove.mockRestore();}
+  });
+  it('validates rename and moves the physical asset folder without changing its public ID',async()=>{
+    expect(safeMediaName(' Team Photo ')).toEqual({name:'Team Photo',slug:'team-photo'});
+    expect(()=>safeMediaName('../secret')).toThrow();
+    const rename=vi.spyOn(cloudinary.uploader,'rename').mockResolvedValue({public_id:'uni-inside/site/team-photo',secure_url:'https://res.cloudinary.com/test-cloud/image/upload/v124/uni-inside/site/team-photo.jpg'} as never);
+    const move=vi.spyOn(cloudinary.api,'update').mockResolvedValue({public_id:media.public_id,asset_folder:'uni-inside/team'} as never);
+    try{
+      await expect(renameCloudinary(config,media,'uni-inside/site/team-photo')).resolves.toContain('team-photo.jpg');
+      expect(rename).toHaveBeenCalledWith(media.public_id,'uni-inside/site/team-photo',{resource_type:'image',type:'upload',overwrite:false,invalidate:true});
+      await expect(moveCloudinary(config,media,'uni-inside/team')).resolves.toBeUndefined();
+      expect(move).toHaveBeenCalledWith(media.public_id,{resource_type:'image',type:'upload',asset_folder:'uni-inside/team'});
+    }finally{rename.mockRestore();move.mockRestore();}
+  });
+});
+
+describe('Media Library queries',()=>{
+  it('filters logical folders before pagination and uses a stable sort',async()=>{
+    const calls:{sql:string;values:unknown[]}[]=[];
+    const db={execute:async(options:{sql:string},values:unknown[])=>{calls.push({sql:options.sql,values});return [options.sql.includes('COUNT(*) AS total')?[{total:3}]:[],[]];}} as unknown as Executor;
+    await listMedia(db,20,0,{search:'team',folders:['uni-inside/site','uni-inside/team'],sort:'bytes_size',direction:'ASC'});
+    expect(calls[0]!.sql).toContain('ORDER BY bytes_size ASC,id ASC LIMIT ? OFFSET ?');
+    expect(calls[0]!.values).toEqual(['%team%','%team%','uni-inside/site','uni-inside/site/%','uni-inside/team','uni-inside/team/%',20,0]);
+    await expect(countMedia(db,{otherFolders:['uni-inside/site']})).resolves.toBe(3);
+    expect(calls[1]!.sql).toContain('folder_path IS NULL OR');
+  });
+  it('counts content references before allowing destructive actions',async()=>{
+    const db={execute:async(options:{sql:string},values:unknown[])=>{expect(options.sql).toContain('FROM news_images');expect(values).toHaveLength(15);return [[{count:2}],[]];}} as unknown as Executor;
+    await expect(mediaReferenceCount(db,4)).resolves.toBe(2);
   });
 });
