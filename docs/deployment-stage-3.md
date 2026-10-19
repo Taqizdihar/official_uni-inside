@@ -59,6 +59,7 @@ Set these on the Render service. “Secret” means the value belongs in Render'
 | `DB_PASSWORD` | Yes | Yes | Aiven-issued password | Database authentication |
 | `DB_CONNECTION_LIMIT` | No | No | `5` | Pool size suitable for Free service limits |
 | `DB_SSL_MODE` | Yes | No | `required` | Require TLS to Aiven |
+| `DB_SSL_ALLOW_PRIVATE_NETWORK` | Yes | No | `false` | Keep the private-network plaintext exception off for Aiven |
 | `DB_SSL_CA_BASE64` | Yes | Yes | Single-line base64 PEM | Verify Aiven's server certificate |
 | `DB_SSL_REJECT_UNAUTHORIZED` | Yes | No | `true` | Require certificate verification |
 | `REQUIRE_LATEST_MIGRATION` | Yes | No | `true` | Gate readiness on migration state |
@@ -108,6 +109,7 @@ DB_NAME=<Aiven database name>
 DB_USER=<Aiven application user>
 DB_PASSWORD=<Aiven password>
 DB_SSL_MODE=required
+DB_SSL_ALLOW_PRIVATE_NETWORK=false
 DB_SSL_CA_BASE64=<single-line base64 CA>
 DB_SSL_REJECT_UNAUTHORIZED=true
 REQUIRE_LATEST_MIGRATION=true
@@ -179,7 +181,7 @@ The backend uses root folder `uni-inside` by default and creates entity/slug fol
 13. Test logout and session restoration.
 14. Test analytics events and dashboard summaries.
 
-The Pages and Render hosts are different sites (`pages.dev` and `onrender.com`), so browser privacy settings may block third-party cookies. The preferred long-term arrangement is a same-site API hostname such as `api.uniinside.net` or a carefully designed same-origin proxy. This task does not add a proxy. Keep exact CORS origins, Secure cookies, `SameSite=None`, and CSRF checks enabled.
+The Pages and Render hosts are different sites (`pages.dev` and `onrender.com`), so browser privacy settings may block third-party cookies. The preferred long-term arrangement is a separately confirmed same-site API hostname or a carefully designed same-origin proxy. `api.uniinside.net` already belongs to another Uni-Inside service. This task does not add a proxy. Keep exact CORS origins, Secure cookies, `SameSite=None`, and CSRF checks enabled for the current cross-site setup.
 
 ## Smoke verification and browser checks
 
@@ -196,11 +198,42 @@ The script checks liveness, readiness, a public envelope, allowed and disallowed
 
 ## Future official production switch
 
-1. Review and merge `hosting` into `main`.
+1. Keep the official `main` branch current with approved application changes.
 2. Change the Render deployment branch to `main` in its Dashboard.
 3. Keep Cloudflare Pages production on `main` or switch it there.
 4. Update frontend and backend URLs to official domains and update exact CORS origins.
-5. Prefer a same-site backend domain such as `api.uniinside.net` and reassess `SameSite` after that domain is active.
+5. Choose a confirmed unused API subdomain under `uniinside.net` and reassess `SameSite` after that domain is active.
 6. Redeploy and repeat all smoke and browser checks.
 
 Do not merge branches as part of this preparation.
+
+## Official Kroombox configuration planning
+
+Kroombox has not been configured or verified by this guide. Confirm its Node runtime, environment-variable mechanism, SPA route fallback, API routing, reverse-proxy chain, MySQL compatibility, database network exposure, and TLS support before entering production values. Do not reuse `api.uniinside.net`; it serves another Uni-Inside system. The CMS frontend must eventually use `VITE_API_BASE_URL=https://<dedicated-api-subdomain>.uniinside.net/api/v1`, with a separately confirmed unused hostname. The backend's frontend/CORS values would be:
+
+```env
+NODE_ENV=production
+PUBLIC_FRONTEND_URL=https://uniinside.net
+ADMIN_FRONTEND_URL=https://uniinside.net/admin
+CORS_ALLOWED_ORIGINS=https://uniinside.net
+API_BASE_PATH=/api/v1
+SESSION_COOKIE_SECURE=true
+SESSION_COOKIE_SAME_SITE=lax
+TRUST_PROXY=<set only after confirming one trusted reverse-proxy hop>
+DB_HOST=<Kroombox database host>
+DB_PORT=<Kroombox database port>
+DB_NAME=<Kroombox database name>
+DB_USER=<Kroombox application user>
+DB_PASSWORD=<protected Kroombox database password>
+```
+
+Use `SESSION_COOKIE_SAME_SITE=lax` only when the browser frontend and dedicated API subdomain are confirmed same-site over HTTPS; use `none` with Secure cookies for genuinely cross-site requests. Cookies stay host-only, CORS accepts only exact HTTPS origins, and CSRF protection remains enabled. Production currently requires `TRUST_PROXY=true` and trusts one proxy hop; verify Kroombox's actual proxy chain before setting it. If the chain differs, review the backend configuration rather than trusting all proxies.
+
+Choose one database profile **after** Kroombox confirms its MySQL networking:
+
+| Confirmed database capability | Settings | Safety condition |
+| --- | --- | --- |
+| MySQL TLS available | `DB_SSL_MODE=required`, `DB_SSL_ALLOW_PRIVATE_NETWORK=false`, `DB_SSL_REJECT_UNAUTHORIZED=true` | Supply `DB_SSL_CA_BASE64` if Kroombox requires a custom CA; otherwise use verified system trust roots. Never retry failed TLS as plaintext. |
+| MySQL TLS unavailable and host private-only | `DB_SSL_MODE=disabled`, `DB_SSL_ALLOW_PRIVATE_NETWORK=true`, `DB_SSL_CA_BASE64=` | Set the opt-in only after Kroombox confirms that this database host is reachable exclusively through its private network and is not publicly exposed. The flag itself cannot prove network isolation. |
+
+The current Render/Aiven profile above continues to require verified TLS with the Aiven CA and `SameSite=None`. Do not put database passwords, peppers, Cloudinary secrets, or SMTP credentials in repository files or logs. `/api/v1/health` is process liveness; `/api/v1/ready` checks database, schema, and migration readiness. Do not run migrations or switch provider settings merely to evaluate these profiles.

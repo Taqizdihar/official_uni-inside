@@ -31,16 +31,29 @@ describe('security boundaries',()=>{
     expect(originAllowed('https://attacker.example',config())).toBe(false);
     expect(()=>loadConfig({NODE_ENV:'production',DB_HOST:'x',DB_NAME:'uni-inside',DB_USER:'root',AUTH_TOKEN_PEPPER:'replace-with-a-long-random-secret-of-at-least-32-chars',ANALYTICS_HASH_PEPPER:'b'.repeat(40),SESSION_COOKIE_SECURE:'true'})).toThrow(/Replace example security peppers/);
   });
-  it('validates production Aiven TLS and preserves local SSL-disabled development',()=>{
+  it('keeps Render/Aiven TLS verified and accepts system roots when no custom CA is needed',()=>{
     const production=productionConfig();
     expect(databaseTlsOptions(production)).toEqual({rejectUnauthorized:true,ca:caPem});
-    expect(()=>productionConfig({DB_SSL_CA_BASE64:''})).toThrow(/DB_SSL_CA_BASE64/);
+    expect(databaseTlsOptions(productionConfig({DB_SSL_CA_BASE64:''}))).toEqual({rejectUnauthorized:true});
     expect(()=>productionConfig({DB_SSL_CA_BASE64:'%%%'})).toThrow(/base64/);
     expect(()=>productionConfig({DB_SSL_CA_BASE64:Buffer.from('not a certificate').toString('base64')})).toThrow(/PEM certificate/);
     expect(()=>productionConfig({DB_SSL_CA_BASE64:Buffer.from('-----BEGIN CERTIFICATE-----\n%%%\n-----END CERTIFICATE-----\n').toString('base64')})).toThrow(/PEM certificate/);
     expect(()=>productionConfig({DB_SSL_CA_BASE64:Buffer.from('-----BEGIN CERTIFICATE-----\nYWJj\n-----END CERTIFICATE-----\n').toString('base64')})).toThrow(/PEM certificate/);
     expect(()=>productionConfig({DB_SSL_REJECT_UNAUTHORIZED:'false'})).toThrow(/DB_SSL_REJECT_UNAUTHORIZED/);
+    expect(()=>productionConfig({DB_SSL_ALLOW_PRIVATE_NETWORK:'true'})).toThrow(/DB_SSL_ALLOW_PRIVATE_NETWORK/);
+    expect(config().DB_SSL_ALLOW_PRIVATE_NETWORK).toBe(false);
     expect(databaseTlsOptions(config())).toBeUndefined();
+  });
+  it('requires an exact private-network opt-in before production can disable database TLS',()=>{
+    const plaintext={DB_SSL_MODE:'disabled',DB_SSL_CA_BASE64:''};
+    expect(()=>productionConfig(plaintext)).toThrow(/DB_SSL_ALLOW_PRIVATE_NETWORK/);
+    expect(()=>productionConfig({...plaintext,DB_SSL_ALLOW_PRIVATE_NETWORK:'false'})).toThrow(/DB_SSL_ALLOW_PRIVATE_NETWORK/);
+    for(const value of ['', '1', 'yes', 'TRUE']) expect(()=>productionConfig({...plaintext,DB_SSL_ALLOW_PRIVATE_NETWORK:value})).toThrow(/DB_SSL_ALLOW_PRIVATE_NETWORK/);
+    const privateNetwork=productionConfig({...plaintext,DB_SSL_ALLOW_PRIVATE_NETWORK:'true'});
+    expect(privateNetwork.DB_SSL_ALLOW_PRIVATE_NETWORK).toBe(true);
+    expect(databaseTlsOptions(privateNetwork)).toBeUndefined();
+    expect(()=>productionConfig({...plaintext,DB_SSL_ALLOW_PRIVATE_NETWORK:'true',DB_SSL_CA_BASE64:Buffer.from(caPem).toString('base64')})).toThrow(/DB_SSL_CA_BASE64/);
+    expect(()=>productionConfig({...plaintext,DB_SSL_ALLOW_PRIVATE_NETWORK:'true',DB_SSL_REJECT_UNAUTHORIZED:'false'})).toThrow(/DB_SSL_REJECT_UNAUTHORIZED/);
   });
   it('requires exact production origins, distinct peppers, proxy trust, and complete Cloudinary settings',()=>{
     expect(productionConfig().origins).toEqual(['https://uni-inside.pages.dev']);
@@ -59,6 +72,12 @@ describe('security boundaries',()=>{
     expect(csrfCookieOptions(crossSite)).toMatchObject({httpOnly:false,secure:true,sameSite:'none',path:'/'});
     expect(clearSessionCookieOptions(crossSite)).toMatchObject({httpOnly:true,secure:true,sameSite:'none',path:'/'});
     expect(clearCsrfCookieOptions(crossSite)).toMatchObject({httpOnly:false,secure:true,sameSite:'none',path:'/'});
+    const sameSite=productionConfig({PUBLIC_FRONTEND_URL:'https://uniinside.net',ADMIN_FRONTEND_URL:'https://uniinside.net/admin',CORS_ALLOWED_ORIGINS:'https://uniinside.net',SESSION_COOKIE_SAME_SITE:'lax'});
+    expect(sessionCookieOptions(sameSite)).toMatchObject({httpOnly:true,secure:true,sameSite:'lax',path:'/'});
+    expect(csrfCookieOptions(sameSite)).toMatchObject({httpOnly:false,secure:true,sameSite:'lax',path:'/'});
+    expect(sessionCookieOptions(sameSite)).not.toHaveProperty('domain');
+    expect(()=>productionConfig({SESSION_COOKIE_SECURE:'false',SESSION_COOKIE_SAME_SITE:'none'})).toThrow(/Secure cookies/);
+    expect(()=>loadConfig({DB_HOST:'127.0.0.1',DB_NAME:'uni-inside',DB_USER:'root',AUTH_TOKEN_PEPPER:'a'.repeat(40),ANALYTICS_HASH_PEPPER:'b'.repeat(40),SESSION_COOKIE_SAME_SITE:'none'})).toThrow(/SameSite=None/);
   });
   it('keeps media folders controlled and analytics events matched to entities',()=>{
     expect(folderFor('products','golden-cube')).toBe('uni-inside/products/golden-cube');

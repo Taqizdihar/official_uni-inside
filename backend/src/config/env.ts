@@ -17,6 +17,7 @@ const schema = z.object({
   DB_USER: z.string().min(1), DB_PASSWORD: z.string().default(''),
   DB_CONNECTION_LIMIT: positive(10),
   DB_SSL_MODE: z.enum(['disabled', 'required']).default('disabled'),
+  DB_SSL_ALLOW_PRIVATE_NETWORK: bool,
   DB_SSL_CA_BASE64: z.string().default(''),
   DB_SSL_REJECT_UNAUTHORIZED: z.enum(['true', 'false']).default('true').transform(v => v === 'true'),
   REQUIRE_LATEST_MIGRATION: z.enum(['true', 'false']).default('true').transform(v => v === 'true'),
@@ -43,14 +44,14 @@ const schema = z.object({
   if (v.NODE_ENV === 'production' && !v.SESSION_COOKIE_SECURE) ctx.addIssue({ code: 'custom', path: ['SESSION_COOKIE_SECURE'], message: 'Production sessions require Secure cookies' });
   if (v.NODE_ENV === 'production' && (v.AUTH_TOKEN_PEPPER.startsWith('replace-with') || v.ANALYTICS_HASH_PEPPER.startsWith('replace-with'))) ctx.addIssue({ code: 'custom', path: ['AUTH_TOKEN_PEPPER'], message: 'Replace example security peppers before production' });
   if (v.NODE_ENV === 'production' && v.AUTH_TOKEN_PEPPER === v.ANALYTICS_HASH_PEPPER) ctx.addIssue({ code: 'custom', path: ['ANALYTICS_HASH_PEPPER'], message: 'Production security peppers must be distinct' });
-  if (v.NODE_ENV === 'production' && v.SESSION_COOKIE_SAME_SITE !== 'none') ctx.addIssue({ code: 'custom', path: ['SESSION_COOKIE_SAME_SITE'], message: 'Cross-site production sessions require SameSite=None' });
-  if (v.NODE_ENV === 'production' && !v.TRUST_PROXY) ctx.addIssue({ code: 'custom', path: ['TRUST_PROXY'], message: 'Production behind Render requires TRUST_PROXY=true' });
+  if (v.NODE_ENV === 'production' && !v.TRUST_PROXY) ctx.addIssue({ code: 'custom', path: ['TRUST_PROXY'], message: 'Production behind a single trusted reverse-proxy hop requires TRUST_PROXY=true' });
   if (v.NODE_ENV === 'production' && (publicFrontend.protocol !== 'https:' || publicFrontend.username || publicFrontend.password || publicFrontend.pathname !== '/' || publicFrontend.search || publicFrontend.hash)) ctx.addIssue({ code: 'custom', path: ['PUBLIC_FRONTEND_URL'], message: 'Production frontend URL must be an HTTPS origin without credentials' });
   if (v.NODE_ENV === 'production' && (adminFrontend.protocol !== 'https:' || adminFrontend.username || adminFrontend.password || adminFrontend.pathname !== '/admin' || adminFrontend.search || adminFrontend.hash)) ctx.addIssue({ code: 'custom', path: ['ADMIN_FRONTEND_URL'], message: 'Production admin URL must be HTTPS and end in /admin without credentials' });
-  if (v.NODE_ENV === 'production' && v.DB_SSL_MODE !== 'required') ctx.addIssue({ code: 'custom', path: ['DB_SSL_MODE'], message: 'Production database connections require TLS' });
-  if (v.NODE_ENV === 'production' && v.DB_SSL_MODE === 'required' && !v.DB_SSL_CA_BASE64) ctx.addIssue({ code: 'custom', path: ['DB_SSL_CA_BASE64'], message: 'Production Aiven TLS requires the CA certificate' });
+  if (v.NODE_ENV === 'production' && v.DB_SSL_MODE === 'disabled' && !v.DB_SSL_ALLOW_PRIVATE_NETWORK) ctx.addIssue({ code: 'custom', path: ['DB_SSL_ALLOW_PRIVATE_NETWORK'], message: 'Production without database TLS requires DB_SSL_ALLOW_PRIVATE_NETWORK=true after confirming private-only database access' });
+  if (v.DB_SSL_MODE === 'required' && v.DB_SSL_ALLOW_PRIVATE_NETWORK) ctx.addIssue({ code: 'custom', path: ['DB_SSL_ALLOW_PRIVATE_NETWORK'], message: 'DB_SSL_ALLOW_PRIVATE_NETWORK must remain false when DB_SSL_MODE=required' });
+  if (v.DB_SSL_MODE === 'disabled' && v.DB_SSL_CA_BASE64) ctx.addIssue({ code: 'custom', path: ['DB_SSL_CA_BASE64'], message: 'DB_SSL_CA_BASE64 is unused when DB_SSL_MODE=disabled; remove it or require TLS' });
   if (v.SESSION_COOKIE_SAME_SITE === 'none' && !v.SESSION_COOKIE_SECURE) ctx.addIssue({ code: 'custom', path: ['SESSION_COOKIE_SAME_SITE'], message: 'SameSite=None requires Secure cookies' });
-  if (v.DB_SSL_MODE === 'required' && !v.DB_SSL_REJECT_UNAUTHORIZED) ctx.addIssue({ code: 'custom', path: ['DB_SSL_REJECT_UNAUTHORIZED'], message: 'TLS certificate verification is required' });
+  if ((v.NODE_ENV === 'production' || v.DB_SSL_MODE === 'required') && !v.DB_SSL_REJECT_UNAUTHORIZED) ctx.addIssue({ code: 'custom', path: ['DB_SSL_REJECT_UNAUTHORIZED'], message: 'TLS certificate verification must remain enabled' });
   const cloudinary = [v.CLOUDINARY_CLOUD_NAME, v.CLOUDINARY_API_KEY, v.CLOUDINARY_API_SECRET];
   if (cloudinary.some(Boolean) && cloudinary.some(value => !value)) ctx.addIssue({ code: 'custom', path: ['CLOUDINARY_API_SECRET'], message: 'Configure all Cloudinary credentials together or leave all three empty' });
 });
@@ -71,10 +72,6 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): Config {
     } catch { return true; }
   });
   if (!origins.length || invalidOrigin) throw new Error('Invalid CORS_ALLOWED_ORIGINS: use exact origins without paths, wildcards, or trailing slashes; production origins must use HTTPS');
-  if (result.data.NODE_ENV === 'production' && result.data.DB_SSL_MODE === 'required') {
-    if (!result.data.DB_SSL_REJECT_UNAUTHORIZED) throw new Error('DB_SSL_REJECT_UNAUTHORIZED must be true in production');
-    if (!result.data.DB_SSL_CA_BASE64) throw new Error('DB_SSL_CA_BASE64 is required for production Aiven TLS');
-    decodeDatabaseCa(result.data.DB_SSL_CA_BASE64);
-  }
+  if (result.data.DB_SSL_CA_BASE64) decodeDatabaseCa(result.data.DB_SSL_CA_BASE64);
   return { ...result.data, origins };
 }
