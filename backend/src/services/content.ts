@@ -1,5 +1,4 @@
 import type { Pool, PoolConnection } from 'mysql2/promise';
-import sanitizeHtml from 'sanitize-html';
 import { transaction } from '../database/pool';
 import * as content from '../repositories/content';
 import { audit, revision } from '../repositories/audit';
@@ -7,10 +6,10 @@ import { fixedKeyAllowed, inputSchema, resources, slugify, type ResourceSpec } f
 import { HttpError, parse } from '../utils/http';
 import { sanitizeServiceDescription, serviceSummary } from './serviceCreation';
 import { productSummary,sanitizeProductDescription } from '../utils/productDescription';
+import { sanitizeNewsBody, suggestedNewsMinutes } from '../utils/newsText';
 
 type Actor = { id: number; permissions: Set<string> };
 const authorColumns = new Set(['partners','team_members','products','services','projects','achievements']);
-const richFields = new Set(['description','body']);
 export function getResource(name: string) {
   const spec = Object.hasOwn(resources, name) ? resources[name] : undefined;
   if (!spec) throw new HttpError(404, 'NOT_FOUND', 'Content resource not found.');
@@ -36,7 +35,7 @@ export function parseBody(spec: ResourceSpec, value: unknown) {
     if (key === 'scheduled_at' && typeof item === 'string') return [key, new Date(item).toISOString().slice(0, 23).replace('T', ' ')];
     if (key === 'description' && spec.table === 'services' && typeof item === 'string') return [key, sanitizeServiceDescription(item)];
     if(spec.table==='products'&&key==='description'&&typeof item==='string')return [key,sanitizeProductDescription(item,true)];
-    if (richFields.has(key) && typeof item === 'string' && spec.table==='news_articles') return [key, sanitizeHtml(item, { allowedTags: ['p','br','strong','em','ul','ol','li','h2','h3','blockquote','a'], allowedAttributes: { a: ['href','title','target','rel'] }, allowedSchemes: ['http','https','mailto'], transformTags: { a: sanitizeHtml.simpleTransform('a', { rel:'noopener noreferrer' }) } })];
+    if (key === 'body' && typeof item === 'string' && spec.table === 'news_articles') return [key, sanitizeNewsBody(item)];
     return [key, item];
   }));
   if (spec.table === 'services' && typeof result.description === 'string' && data.short_description === undefined) result.short_description = serviceSummary(result.description);
@@ -89,7 +88,7 @@ export async function create(db: Pool, name: string, raw: unknown, actor: Actor,
   const result = await transaction(db, async conn => {
     if (spec.maxRows && await content.countRecords(conn, spec) >= spec.maxRows) throw new HttpError(409, 'ROW_LIMIT', `This resource allows at most ${spec.maxRows} entries.`);
     if (authorColumns.has(spec.table)) { data.created_by = actor.id; data.updated_by = actor.id; }
-    if (name === 'news' && data.body) data.reading_time_minutes = Math.max(1, Math.ceil(String(data.body).replace(/<[^>]+>/g,' ').split(/\s+/).length / 200));
+    if (name === 'news' && data.body && data.reading_time_minutes == null) data.reading_time_minutes = suggestedNewsMinutes(String(data.body));
     const id = await content.insertRecord(conn, spec, data);
     const saved = await content.record(conn, spec, id, true);
     await revision(conn, { entityType: spec.table, entityId: id, snapshot: saved, actorId: actor.id, summary: 'Created' });
@@ -125,7 +124,7 @@ export async function update(db: Pool, name: string, key: string, raw: unknown, 
     if (name === 'services' && (data.primary_cta_label !== undefined || data.primary_cta_url !== undefined)) validateServiceCtaPair(proposed);
     if (proposed.status === 'published' || proposed.status === 'scheduled') await validatePublish(conn, name, proposed, Number(resolvedKey));
     if (data.status === 'published' && before.status !== 'published') data.published_at = new Date().toISOString().slice(0,23).replace('T',' ');
-    if (name === 'news' && data.body != null) data.reading_time_minutes = Math.max(1,Math.ceil(String(data.body).replace(/<[^>]+>/g,' ').trim().split(/\s+/).length/200));
+    if (name === 'news' && data.body != null && data.reading_time_minutes === null) data.reading_time_minutes = suggestedNewsMinutes(String(data.body));
     if (authorColumns.has(spec.table) || spec.kind === 'fixed') data.updated_by = actor.id;
     await content.updateRecord(conn, spec, resolvedKey, data);
     const after = await content.record(conn, spec, resolvedKey);

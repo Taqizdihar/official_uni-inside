@@ -12,11 +12,12 @@ export function ProductMediaDialog({ current, used, onSelect, onClose, scope = '
   used: number[];
   onSelect: (photo: Photo) => void;
   onClose: () => void;
-  scope?: 'products' | 'services';
+  scope?: 'products' | 'services' | 'news';
 }) {
   const { has } = useAuth();
   const allowed = has('media.view');
-  const noun = scope === 'services' ? 'Layanan' : 'Produk';
+  const noun = scope === 'services' ? 'Layanan' : scope === 'news' ? 'Artikel' : 'Produk';
+  const folder = scope === 'news' ? 'Berita' : noun;
   const [items, setItems] = useState<Photo[]>([]);
   const [selected, setSelected] = useState<Photo | null>(current);
   const [page, setPage] = useState(1);
@@ -40,11 +41,11 @@ export function ProductMediaDialog({ current, used, onSelect, onClose, scope = '
   }, [allowed, scope, page, debounced, retry]);
 
   return <ProductModal title={`Pilih Foto ${noun}`} onClose={onClose} className="cms-product-media-modal">
-    <p className="cms-product-muted">Media Library · Folder {noun}</p>
-    {scope === 'services' && <p className="cms-product-muted">Untuk mengunggah foto baru ke folder Layanan, simpan draf terlebih dahulu agar layanan memiliki slug.</p>}
+    <p className="cms-product-muted">Media Library · Folder {folder}</p>
+    {scope !== 'products' && <p className="cms-product-muted">Untuk mengunggah foto baru ke folder {folder}, simpan draf terlebih dahulu agar konten memiliki slug.</p>}
     {!allowed ? <p role="alert">Anda tidak memiliki izin untuk melihat Media Library.</p> : <>
       <div className="cms-search-wrap"><Search size={17} /><input className="cms-search" aria-label={`Cari foto ${noun.toLowerCase()}`} placeholder="Cari nama foto" value={search} onChange={event => { setSearch(event.target.value); setPage(1); }} /></div>
-      <div className="cms-product-media-results">{error ? <><Notice error={error} /><button type="button" className="cms-button secondary" onClick={() => setRetry(value => value + 1)}>Coba lagi</button></> : loading ? <Loading /> : items.length ? <div className="cms-product-media-grid">{items.map(item => <button type="button" key={item.id} disabled={used.includes(item.id) && item.id !== current?.id} aria-pressed={selected?.id === item.id} aria-label={`Pilih ${item.original_filename || `foto ${item.id}`}`} onClick={() => setSelected(item)}><img src={mediaUrl(item.secure_url, 240)} alt="" loading="lazy" /><span>{item.original_filename || `Foto ${item.id}`}</span>{selected?.id === item.id && <Check size={19} />}</button>)}</div> : <Empty>Belum ada foto yang cocok di folder {noun}.</Empty>}<Pagination page={page} totalPages={pages} onChange={setPage} /></div>
+      <div className="cms-product-media-results">{error ? <><Notice error={error} /><button type="button" className="cms-button secondary" onClick={() => setRetry(value => value + 1)}>Coba lagi</button></> : loading ? <Loading /> : items.length ? <div className="cms-product-media-grid">{items.map(item => <button type="button" key={item.id} disabled={used.includes(item.id) && item.id !== current?.id} aria-pressed={selected?.id === item.id} aria-label={`Pilih ${item.original_filename || `foto ${item.id}`}`} onClick={() => setSelected(item)}><img src={mediaUrl(item.secure_url, 240)} alt="" loading="lazy" /><span>{item.original_filename || `Foto ${item.id}`}</span>{selected?.id === item.id && <Check size={19} />}</button>)}</div> : <Empty>Belum ada foto yang cocok di folder {folder}.</Empty>}<Pagination page={page} totalPages={pages} onChange={setPage} /></div>
       <div className="cms-actions end"><button className="cms-button secondary" type="button" onClick={onClose}>Batal</button><button className="cms-button primary" type="button" disabled={!selected} onClick={() => { if (selected) onSelect(selected); }}>Gunakan gambar</button></div>
     </>}
   </ProductModal>;

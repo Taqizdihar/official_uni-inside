@@ -43,6 +43,7 @@ function ArticleView({ article, categories, related, preview }: { article: NewsA
   const date = newsDate(article.published_at);
   const label = newsLabel(article, categories);
   const duration = readingTime(article.reading_time_minutes);
+  const author = article.author_name?.trim();
   const gallery = (article.images ?? []).filter((image, index, images) => image.secure_url && image.secure_url !== article.image?.secure_url && images.findIndex((candidate) => candidate.secure_url === image.secure_url) === index);
   const html = article.body?.trim() ? safeNewsHtml(article.body) : '';
   return <StaticPageLayout activePage="NEWS">
@@ -54,7 +55,7 @@ function ArticleView({ article, categories, related, preview }: { article: NewsA
           {label && <p className="flex items-center gap-3 text-xs font-extrabold uppercase tracking-[.18em] text-[#202121]/60"><span className="h-px w-10 bg-[#d5aa12]" />{label}</p>}
           <h1 className="mt-5 break-words text-[clamp(3.1rem,7.5vw,7.4rem)] font-black leading-[.95] tracking-[-.07em] text-[#202121]">{article.title}</h1>
           {article.excerpt?.trim() && <p className="mt-7 max-w-[800px] text-[clamp(1.2rem,2vw,1.65rem)] leading-[1.5] text-[#202121]/70">{article.excerpt}</p>}
-          {(date || duration) && <div className="mt-8 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-[#202121]/25 pt-5 text-xs font-bold uppercase tracking-[.14em] text-[#202121]/55">{date && <time dateTime={article.published_at || undefined}>{date}</time>}{date && duration && <span aria-hidden="true">/</span>}{duration && <span>{duration}</span>}</div>}
+          {(date || author || duration) && <div className="mt-8 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-[#202121]/25 pt-5 text-xs font-bold uppercase tracking-[.14em] text-[#202121]/55">{date && <time dateTime={article.published_at || undefined}>{date}</time>}{date && (author || duration) && <span aria-hidden="true">/</span>}{author && <span>By {author}</span>}{author && duration && <span aria-hidden="true">/</span>}{duration && <span>{duration}</span>}</div>}
         </header>
         {article.image?.secure_url ? <figure className={`mt-12 ${styles.enterLater}`}><NewsImage image={article.image} alt={article.title} preview={preview} eager className="aspect-[1.65] max-h-[690px] w-full" />{article.image.caption?.trim() && <figcaption className="mt-3 text-sm text-[#202121]/60">{article.image.caption}</figcaption>}</figure>
           : <div className="mt-12 border-t border-[#202121]/25" aria-hidden="true" />}

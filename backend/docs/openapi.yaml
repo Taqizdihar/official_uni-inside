@@ -166,6 +166,24 @@ components:
         primary_cta_label: { type: string, maxLength: 100 }
         primary_cta_url: { type: string, maxLength: 1000 }
         status: { type: string, enum: [draft, published] }
+    NewsCreateInput:
+      type: object
+      additionalProperties: false
+      required: [action, title, content_type, category_id, excerpt, body, cover_media_id, gallery_media_ids, author, reading_time_minutes]
+      properties:
+        action: { type: string, enum: [draft, publish] }
+        title: { type: string, maxLength: 255 }
+        content_type: { type: string, enum: [news, article, update, event] }
+        category_id: { type: [integer, 'null'] }
+        excerpt: { type: string, maxLength: 1000 }
+        body: { type: string, maxLength: 80000, description: Restricted editorial HTML }
+        cover_media_id: { type: [integer, 'null'] }
+        gallery_media_ids: { type: array, maxItems: 100, items: { type: integer, minimum: 1 } }
+        author:
+          oneOf:
+            - { type: 'null' }
+            - { type: object, additionalProperties: false, required: [source, id], properties: { source: { type: string, enum: [user, team] }, id: { type: integer, minimum: 1 } } }
+        reading_time_minutes: { type: [integer, 'null'], minimum: 1, maximum: 999, description: 'Null calculates from readable body text at 200 words per minute' }
     ContentInput:
       type: object
       minProperties: 1
@@ -500,6 +518,24 @@ paths:
       parameters: [{ $ref: '#/components/parameters/Csrf' }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ServiceCreateInput' } } } }
       responses: { '201': { description: Service and all child records created }, '400': { description: Validation error }, '403': { description: Missing permission }, '409': { description: Slug conflict } }
+  /admin/news/author-options:
+    get:
+      summary: Eligible author display names for article creators
+      description: Requires news.create; returns only source, ID, and public display name.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: source, in: query, required: true, schema: { type: string, enum: [user, team] } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 100 } }
+      responses: { '200': { description: Paginated author names }, '403': { description: Missing news.create permission } }
+  /admin/news/create-complete:
+    post:
+      summary: Atomically create an article and its ordered images
+      description: Requires news.create; publishing also requires news.update and news.publish. Reading time is calculated only when no manual value is provided.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/NewsCreateInput' } } } }
+      responses: { '201': { description: Persisted article and gallery }, '400': { description: Invalid input or incomplete publication }, '403': { description: Missing permission } }
   /admin/products/compose:
     post:
       summary: Atomically create a product and its ordered child records

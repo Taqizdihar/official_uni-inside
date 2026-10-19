@@ -1,4 +1,5 @@
 import {lazy,Suspense,useEffect,useState} from 'react';
+import {Link} from 'react-router-dom';
 import {Activity,BriefcaseBusiness,Eye,FilePenLine,FileText,History,MousePointer2,MousePointerClick,Newspaper,Package,Plus,Users,Zap} from 'lucide-react';
 import {api} from '../api/client';
 import {useAuth,type CmsUser} from '../auth/AuthProvider';
@@ -37,8 +38,13 @@ export function DashboardPage(){
     {label:'Konten aktif',value:published,icon:Eye},
     {label:'Konten draf',value:drafts,icon:FilePenLine},
   ];
+  const quickActions=[
+    {label:'Produk',to:'/admin/content/products/new',permission:'products.create'},
+    {label:'Layanan',to:'/admin/content/services/new',permission:'services.create'},
+    {label:'Artikel',to:'/admin/content/news/new',permission:'news.create'},
+  ];
   return <div className="cms-page cms-dashboard">
-    <div className="cms-page-head cms-dashboard-head"><div><h1>Dashboard</h1><p>Ringkasan konten dan aktivitas</p></div><div className="cms-dashboard-quick" aria-label="Aksi Cepat"><span className="cms-dashboard-quick-title"><Zap size={20} aria-hidden="true"/> Aksi Cepat</span><div>{['Produk','Layanan','Artikel'].map(label=><span key={label} className="cms-dashboard-quick-hint" tabIndex={0} title="Form belum tersedia" aria-label={`${label}: Form belum tersedia`}><button type="button" disabled className="cms-dashboard-quick-button"><Plus size={16} aria-hidden="true"/>{label}</button></span>)}</div></div></div>
+    <div className="cms-page-head cms-dashboard-head"><div><h1>Dashboard</h1><p>Ringkasan konten dan aktivitas</p></div><div className="cms-dashboard-quick" aria-label="Akses Cepat"><span className="cms-dashboard-quick-title"><Zap size={20} aria-hidden="true"/> Akses Cepat</span><div>{quickActions.map(({label,to,permission})=>has(permission)?<Link key={label} className="cms-dashboard-quick-button" to={to}><Plus size={16} aria-hidden="true"/>{label}</Link>:<span key={label} className="cms-dashboard-quick-button cms-dashboard-quick-unavailable" aria-disabled="true" aria-label={`${label}: Anda tidak memiliki izin untuk membuat konten ini.`} title="Anda tidak memiliki izin membuat konten ini."><Plus size={16} aria-hidden="true"/>{label}</span>)}</div></div></div>
     {error&&<div><Notice error={error}/><button type="button" className="cms-button secondary" onClick={()=>setRetry(value=>value+1)}>Coba lagi</button></div>}
     {loading?<Loading/>:data&&<>
       <div className="cms-stats cms-dashboard-stats">{stats.map(({label,value,icon:Icon})=><div className="cms-card cms-stat" key={label}><div className="cms-dashboard-stat-line"><Icon size={22} aria-hidden="true"/><span className="cms-stat-value">{number(Number(value??0))}</span></div><span>{label}</span></div>)}</div>

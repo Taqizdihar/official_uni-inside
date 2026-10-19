@@ -16,6 +16,7 @@ export type NewsArticle = {
   category_id?: number | null;
   content_type?: 'news' | 'article' | 'update' | 'event' | null;
   reading_time_minutes?: number | null;
+  author_name?: string | null;
   image?: NewsImageData | null;
   images?: NewsImageData[] | null;
   meta_title?: string | null;
@@ -50,7 +51,7 @@ export function uniqueNews(articles: NewsArticle[]) {
 
 export function safeNewsHtml(raw: string) {
   const cleaned = DOMPurify.sanitize(raw, {
-    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'ul', 'ol', 'li', 'h2', 'h3', 'blockquote', 'a'],
+    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'b', 'i', 'ul', 'ol', 'li', 'h2', 'h3', 'blockquote', 'a'],
     ALLOWED_ATTR: ['href', 'title', 'target', 'rel'],
   });
   const template = document.createElement('template');

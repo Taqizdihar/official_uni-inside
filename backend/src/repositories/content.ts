@@ -124,7 +124,14 @@ export async function publicDetail(db: Executor, spec: ResourceSpec, slug: strin
     children.services = await rows<RowDataPacket>(db, "SELECT s.name,s.slug FROM project_services ps JOIN services s ON s.id=ps.service_id WHERE ps.project_id=? AND s.status='published' AND s.deleted_at IS NULL ORDER BY s.sort_order,s.id LIMIT 100", [id]);
     children.teamMembers = await rows<RowDataPacket>(db, "SELECT t.full_name,t.slug,pt.contribution_label FROM project_team_members pt JOIN team_members t ON t.id=pt.team_member_id WHERE pt.project_id=? AND t.status='published' AND t.deleted_at IS NULL ORDER BY t.sort_order,t.id LIMIT 100", [id]);
   }
-  if (spec.table === 'news_articles') children.images = await rows<RowDataPacket>(db, 'SELECT i.alt_text,i.caption,i.sort_order,m.secure_url FROM news_images i JOIN media_assets m ON m.id=i.media_id AND m.deleted_at IS NULL WHERE i.article_id=? ORDER BY i.sort_order,i.id LIMIT 100', [id]);
+  if (spec.table === 'news_articles') {
+    children.images = await rows<RowDataPacket>(db, 'SELECT COALESCE(i.alt_text,m.alt_text) AS alt_text,COALESCE(i.caption,m.caption) AS caption,i.sort_order,m.secure_url,m.width_px,m.height_px FROM news_images i JOIN media_assets m ON m.id=i.media_id AND m.deleted_at IS NULL WHERE i.article_id=? ORDER BY i.sort_order,i.id LIMIT 100', [id]);
+    const author = await rows<RowDataPacket>(db, `SELECT COALESCE(t.full_name,u.display_name) AS author_name FROM news_articles n
+      LEFT JOIN users u ON u.id=n.author_user_id AND u.deleted_at IS NULL
+      LEFT JOIN team_members t ON t.id=n.author_team_member_id AND t.deleted_at IS NULL
+      WHERE n.id=? LIMIT 1`, [id]);
+    data.author_name = author[0]?.author_name ?? null;
+  }
   if (['team_members','partners','achievements'].includes(spec.table)) {
     const mediaId = Number(data.photo_media_id ?? data.logo_media_id ?? data.media_id ?? 0);
     if (mediaId) data.image = (await rows<RowDataPacket>(db, 'SELECT secure_url,alt_text,width_px,height_px FROM media_assets WHERE id=? AND deleted_at IS NULL', [mediaId]))[0] ?? null;

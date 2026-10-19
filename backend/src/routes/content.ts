@@ -10,6 +10,7 @@ import * as content from '../services/content';
 import { createCompleteService } from '../services/serviceCreation';
 import { resources } from '../schemas/resources';
 import { createProductForm } from '../services/productCreate';
+import { articleAuthorOptions, createNewsArticle } from '../services/newsCreation';
 import { asyncRoute, HttpError, parse } from '../utils/http';
 
 const pagination = z.strictObject({ page: z.coerce.number().int().positive().default(1), limit: z.coerce.number().int().min(1).max(100).default(20), categoryId: z.coerce.number().int().positive().optional() });
@@ -46,6 +47,14 @@ export function adminContentRoutes(config: Config, db: Pool) {
   const requireAuth = auth(config,db); const requireCsrf = csrf(config);
   router.post('/admin/products/compose',requireAuth,requireCsrf,asyncRoute(async(req,res)=>{
     res.status(201).json({data:await createProductForm(db,req.body,req.actor!,req.requestId)});
+  }));
+  router.get('/admin/news/author-options', requireAuth, permit('news.create'), asyncRoute(async (req, res) => {
+    const q = parse(z.strictObject({ source: z.enum(['user', 'team']), page: z.coerce.number().int().positive().default(1), limit: z.coerce.number().int().min(1).max(100).default(100) }), req.query);
+    const result = await articleAuthorOptions(db, q.source, q.limit, (q.page - 1) * q.limit);
+    res.set('Cache-Control', 'no-store').json({ data: result.items, meta: { page: q.page, limit: q.limit, total: result.total, totalPages: Math.ceil(result.total / q.limit) } });
+  }));
+  router.post('/admin/news/create-complete', requireAuth, requireCsrf, asyncRoute(async (req, res) => {
+    res.status(201).json({ data: await createNewsArticle(db, req.body, req.actor!, req.requestId, config.CLOUDINARY_ROOT_FOLDER) });
   }));
   for(const kind of ['services','team-members'] as const) router.get(`/admin/projects/:key/${kind}`,requireAuth,permit('projects.view'),asyncRoute(async(req,res)=>{
     const id=parse(z.coerce.number().int().positive(),req.params.key);
