@@ -13,6 +13,7 @@ import { authRoutes } from './routes/auth';
 import { publicContentRoutes, adminContentRoutes } from './routes/content';
 import { mediaRoutes } from './routes/media';
 import { analyticsRoutes } from './routes/analytics';
+import { socialMediaRoutes } from './routes/socialMedia';
 
 export function originAllowed(origin: string | undefined, config: Config) { return !!origin && config.origins.includes(origin); }
 export function createApp(config: Config, db: Pool) {
@@ -58,7 +59,8 @@ export function createApp(config: Config, db: Pool) {
   app.use(config.API_BASE_PATH,authRoutes(config,db));
   app.use(config.API_BASE_PATH,mediaRoutes(config,db));
   app.use(config.API_BASE_PATH,analyticsRoutes(config,db));
-  app.use(config.API_BASE_PATH,publicContentRoutes(db));
+  app.use(config.API_BASE_PATH,socialMediaRoutes(config,db));
+  app.use(config.API_BASE_PATH,publicContentRoutes(db,config));
   app.use(config.API_BASE_PATH,adminContentRoutes(config,db));
   app.use((_req,_res,next)=>next(new HttpError(404,'NOT_FOUND','Route not found.')));
   app.use(errorHandler);

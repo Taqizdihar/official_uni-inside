@@ -12,11 +12,12 @@ import { resources } from '../schemas/resources';
 import { createProductForm } from '../services/productCreate';
 import { articleAuthorOptions, createNewsArticle } from '../services/newsCreation';
 import { asyncRoute, HttpError, parse } from '../utils/http';
+import { cmsCapabilities } from '../services/capabilities';
 
 const pagination = z.strictObject({ page: z.coerce.number().int().positive().default(1), limit: z.coerce.number().int().min(1).max(100).default(20), categoryId: z.coerce.number().int().positive().optional() });
 const publicNames = ['team-members','partners','products','services','projects','news','achievements'] as const;
 const coreDetails = new Set(['products','services','projects','news']);
-export function publicContentRoutes(db: Pool) {
+export function publicContentRoutes(db: Pool, config?: Config) {
   const router = Router();
   router.get('/news/categories', asyncRoute(async (_req,res) => {
     res.set('Cache-Control','public, max-age=60').json({ data: await repo.publicNewsCategories(db) });
@@ -35,7 +36,8 @@ export function publicContentRoutes(db: Pool) {
     }));
     if (coreDetails.has(name)) router.get(`/${name}/:slug`, asyncRoute(async (req,res) => {
       const slug = parse(z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(190),req.params.slug);
-      const data = await repo.publicDetail(db,resources[name]!,slug);
+      const capabilities=name==='products'&&config&&(config.SOCIAL_MEDIA_V2_ENABLED||config.PRODUCT_VARIANT_MEDIA_ENABLED)?await cmsCapabilities(db,config):null;
+      const data = await repo.publicDetail(db,resources[name]!,slug,capabilities?.socialMediaV2.enabled??false,capabilities?.productVariantMedia.enabled??false);
       if (!data) throw new HttpError(404,'NOT_FOUND','Content not found.');
       res.set('Cache-Control','public, max-age=60').json({ data });
     }));
@@ -46,7 +48,8 @@ export function adminContentRoutes(config: Config, db: Pool) {
   const router = Router();
   const requireAuth = auth(config,db); const requireCsrf = csrf(config);
   router.post('/admin/products/compose',requireAuth,requireCsrf,asyncRoute(async(req,res)=>{
-    res.status(201).json({data:await createProductForm(db,req.body,req.actor!,req.requestId)});
+    const capabilities=await cmsCapabilities(db,config);
+    res.status(201).json({data:await createProductForm(db,req.body,req.actor!,req.requestId,capabilities)});
   }));
   router.get('/admin/news/author-options', requireAuth, permit('news.create'), asyncRoute(async (req, res) => {
     const q = parse(z.strictObject({ source: z.enum(['user', 'team']), page: z.coerce.number().int().positive().default(1), limit: z.coerce.number().int().min(1).max(100).default(100) }), req.query);
@@ -107,12 +110,15 @@ export function adminContentRoutes(config: Config, db: Pool) {
     res.set('Cache-Control','no-store').json({ data:await content.get(db,String(req.params.resource),String(req.params.key)) });
   }));
   router.post('/admin/:resource', requireAuth, requireCsrf, asyncRoute(async (req,res) => {
+    if(req.params.resource==='social-links'&&config.SOCIAL_MEDIA_V2_ENABLED&&(await cmsCapabilities(db,config)).socialMediaV2.enabled)throw new HttpError(409,'LEGACY_ROUTE_DISABLED','Gunakan Manajemen Sosial Media untuk mengubah akun.');
     res.status(201).json({ data:await content.create(db,String(req.params.resource),req.body,req.actor!,req.requestId) });
   }));
   router.patch('/admin/:resource/:key', requireAuth, requireCsrf, asyncRoute(async (req,res) => {
+    if(req.params.resource==='social-links'&&config.SOCIAL_MEDIA_V2_ENABLED&&(await cmsCapabilities(db,config)).socialMediaV2.enabled)throw new HttpError(409,'LEGACY_ROUTE_DISABLED','Gunakan Manajemen Sosial Media untuk mengubah akun.');
     res.json({ data:await content.update(db,String(req.params.resource),String(req.params.key),req.body,req.actor!,req.requestId) });
   }));
   router.delete('/admin/:resource/:key', requireAuth, requireCsrf, asyncRoute(async (req,res) => {
+    if(req.params.resource==='social-links'&&config.SOCIAL_MEDIA_V2_ENABLED&&(await cmsCapabilities(db,config)).socialMediaV2.enabled)throw new HttpError(409,'LEGACY_ROUTE_DISABLED','Gunakan Manajemen Sosial Media untuk mengubah akun.');
     res.json({ data:await content.remove(db,String(req.params.resource),String(req.params.key),req.actor!,req.requestId) });
   }));
   return router;

@@ -80,7 +80,7 @@ components:
               price: { type: number, minimum: 0, maximum: 999999999999, description: 'Final price; stored as an adjustment relative to base_price' }
               stock_quantity: { type: [integer, 'null'], minimum: 0, maximum: 2147483647 }
               is_active: { type: boolean }
-              media_id: { type: 'null', description: 'Non-null variant photos are rejected until the deferred schema update' }
+              media_id: { type: [integer, 'null'], minimum: 1, description: 'Only accepted when PRODUCT_VARIANT_MEDIA_ENABLED=true and the required schema is present; otherwise non-null is rejected' }
         platforms:
           type: array
           maxItems: 5
@@ -90,7 +90,29 @@ components:
             required: [platform]
             properties:
               platform: { type: string, enum: [shopee, tokopedia, tiktok, shopify, whatsapp] }
-              url: { type: string, maxLength: 1000, description: 'Required HTTP(S) product URL except WhatsApp; WhatsApp resolves the global setting and rejects a supplied URL' }
+              url: { type: string, maxLength: 1000, description: 'Required HTTP(S) product URL for the four marketplaces; forbidden for WhatsApp' }
+              social_link_id: { type: integer, minimum: 1, description: 'Required for WhatsApp only when Social Media V2 is enabled and ready; forbidden otherwise' }
+    SocialAccountInput:
+      type: object
+      additionalProperties: false
+      required: [platform_code, label_suffix, url]
+      properties:
+        platform_code: { type: string, enum: [instagram, whatsapp, youtube, linkedin, tiktok, facebook, x, github, pinterest, threads, discord, telegram] }
+        label_suffix: { type: string, minLength: 1, maxLength: 100, description: 'Combined with the immutable platform prefix and " - "; full label max 100 characters' }
+        description: { type: [string, 'null'], maxLength: 1000 }
+        url: { type: string, format: uri, maxLength: 1000, description: 'Direct HTTPS account URL on the selected platform domain' }
+        is_active: { type: boolean, default: true }
+        sort_order: { type: integer, minimum: 0, maximum: 65535, default: 0 }
+    SocialAccountPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        label_suffix: { type: string, minLength: 1, maxLength: 100 }
+        description: { type: [string, 'null'], maxLength: 1000 }
+        url: { type: string, format: uri, maxLength: 1000 }
+        is_active: { type: boolean }
+        sort_order: { type: integer, minimum: 0, maximum: 65535 }
     Envelope:
       type: object
       required: [data]
@@ -536,10 +558,64 @@ paths:
       parameters: [{ $ref: '#/components/parameters/Csrf' }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/NewsCreateInput' } } } }
       responses: { '201': { description: Persisted article and gallery }, '400': { description: Invalid input or incomplete publication }, '403': { description: Missing permission } }
+  /admin/social-media/capabilities:
+    get:
+      summary: Check disabled-by-default Social Media V2 and product variant-media readiness
+      description: Requires a signed-in CMS session. With both flags disabled, this endpoint does not inspect the pending tables or columns. Readiness checks required columns and foreign keys only when a flag is enabled; Social Media V2 also requires all supported platform rows and no unmapped legacy account.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: 'data.socialMediaV2 and data.productVariantMedia each contain enabled and reason (FEATURE_DISABLED, DATABASE_MIGRATION_PENDING, or null)' }
+        '401': { description: Sign-in required }
+  /admin/social-media/platforms:
+    get:
+      summary: Read the curated platform registry after Social Media V2 activation
+      description: Requires settings.view and an enabled, schema-ready Social Media V2 capability.
+      security: [{ sessionCookie: [] }]
+      responses: { '200': { description: 'Ordered platform IDs, stable codes, names, icon keys, and order' }, '403': { description: Missing settings.view }, '503': { description: FEATURE_UNAVAILABLE } }
+  /admin/social-media/accounts:
+    get:
+      summary: List Social Media accounts grouped by canonical platform ID
+      description: Requires settings.view and Social Media V2 readiness. Inactive accounts remain visible.
+      security: [{ sessionCookie: [] }]
+      responses: { '200': { description: 'Ordered accounts including label, description, URL, active status, sort order, and canonical platform' }, '403': { description: Missing settings.view }, '503': { description: FEATURE_UNAVAILABLE } }
+    post:
+      summary: Create one account on a curated platform
+      description: Requires settings.update and CSRF. The parent platform row is locked before counting; the sixth account on a platform is rejected with ACCOUNT_LIMIT. The server creates an opaque, unique legacy platform_code and audits the mutation.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/SocialAccountInput' } } } }
+      responses: { '201': { description: Created account }, '400': { description: 'Invalid label, URL, or platform' }, '403': { description: Missing permission or CSRF }, '409': { description: ACCOUNT_LIMIT or ALREADY_EXISTS }, '503': { description: FEATURE_UNAVAILABLE } }
+  /admin/social-media/accounts/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    get:
+      summary: Read one Social Media account
+      description: Requires settings.view and Social Media V2 readiness.
+      security: [{ sessionCookie: [] }]
+      responses: { '200': { description: Account }, '403': { description: Missing permission }, '404': { description: Account not found }, '503': { description: FEATURE_UNAVAILABLE } }
+    patch:
+      summary: Change an account without reassigning its platform
+      description: Requires settings.update and CSRF. Referenced accounts cannot be deactivated. Published Product links follow the account's updated URL; the purchase link retains its last-saved URL for legacy compatibility.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/SocialAccountPatch' } } } }
+      responses: { '200': { description: Updated account }, '400': { description: Invalid input }, '403': { description: Missing permission or CSRF }, '409': { description: ACCOUNT_REFERENCED }, '503': { description: FEATURE_UNAVAILABLE } }
+    delete:
+      summary: Delete an unreferenced Social Media account
+      description: Requires settings.update and CSRF. Any Product purchase-link reference blocks deletion; no Product rows cascade.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      responses: { '200': { description: Removed account }, '403': { description: Missing permission or CSRF }, '409': { description: ACCOUNT_REFERENCED }, '503': { description: FEATURE_UNAVAILABLE } }
+  /admin/social-media/whatsapp-options:
+    get:
+      summary: Eligible WhatsApp account options for Product creation
+      description: Requires products.create or settings.view and Social Media V2 readiness. Returns only active WhatsApp account ID, label, and URL; no Social Media editing permission is granted.
+      security: [{ sessionCookie: [] }]
+      responses: { '200': { description: Up to five eligible account options }, '403': { description: Missing permission }, '503': { description: FEATURE_UNAVAILABLE } }
   /admin/products/compose:
     post:
       summary: Atomically create a product and its ordered child records
-      description: 'Requires products.create; publish also requires products.update, products.publish, and publication completeness. Variant photos are explicitly unsupported until the deferred schema update.'
+      description: 'Requires products.create; publish also requires products.update, products.publish, and publication completeness. WhatsApp uses the legacy global URL while Social Media V2 is disabled; when enabled, social_link_id is required and validated against an active saved WhatsApp account. Variant media_id is accepted only when its separate capability is enabled and ready. Both flags default to false.'
       security: [{ sessionCookie: [] }]
       parameters: [{ $ref: '#/components/parameters/Csrf' }]
       requestBody:
@@ -549,7 +625,7 @@ paths:
             schema: { $ref: '#/components/schemas/ProductCompose' }
       responses:
         '201': { description: 'Persisted product; status confirms draft or published' }
-        '400': { description: 'Validation, unsupported variant photo, missing global WhatsApp, or incomplete publication; no data is committed' }
+        '400': { description: 'Validation, unsupported variant photo, invalid selected WhatsApp account, missing global WhatsApp, or incomplete publication; no data is committed' }
         '403': { description: 'Missing permission or invalid CSRF token' }
   /admin/{resource}:
     get:

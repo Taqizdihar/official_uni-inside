@@ -8,6 +8,7 @@ import {MediaPage} from './pages/MediaPage';
 import {ServiceCreatePage} from './pages/ServiceCreatePage';
 import {ArticleCreatePage} from './pages/ArticleCreatePage';
 import {CategoryManagementPage} from './pages/CategoryManagementPage';
+import {SocialMediaPage} from './pages/SocialMediaPage';
 import {categoryResourceFor,categoryUrl} from './categories/model';
 import {UsersPage,RolesPage,AuditPage,ProfilePage} from './pages/AdministrationPages';
 import './admin.css';
@@ -29,6 +30,7 @@ export default function AdminApp(){return <div className="cms" lang="id"><AuthPr
     <Route path="analytics" element={<AnalyticsPage/>}/>
     <Route path="homepage/:resource" element={<ResourceLandingPage/>}/>
     <Route path="homepage/:resource/:key" element={<ResourceEditorPage/>}/>
+    <Route path="site/social-links" element={<SocialMediaPage/>}/>
     <Route path="site/:resource" element={<ResourceLandingPage/>}/>
     <Route path="site/:resource/new" element={<ResourceEditorPage create/>}/>
     <Route path="site/:resource/:key" element={<ResourceEditorPage/>}/>

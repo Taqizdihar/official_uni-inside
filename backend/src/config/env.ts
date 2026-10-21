@@ -21,6 +21,8 @@ const schema = z.object({
   DB_SSL_CA_BASE64: z.string().default(''),
   DB_SSL_REJECT_UNAUTHORIZED: z.enum(['true', 'false']).default('true').transform(v => v === 'true'),
   REQUIRE_LATEST_MIGRATION: z.enum(['true', 'false']).default('true').transform(v => v === 'true'),
+  SOCIAL_MEDIA_V2_ENABLED: bool,
+  PRODUCT_VARIANT_MEDIA_ENABLED: bool,
   SESSION_COOKIE_NAME: z.string().default('uniinside_session'),
   SESSION_COOKIE_SECURE: bool,
   SESSION_COOKIE_SAME_SITE: z.enum(['lax', 'strict', 'none']).default('lax'),

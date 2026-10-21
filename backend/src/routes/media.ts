@@ -8,6 +8,7 @@ import * as repo from '../repositories/media';
 import { audit } from '../repositories/audit';
 import { transaction } from '../database/pool';
 import { signedUpload, verifyUpload,safeMediaName,renameCloudinary,moveCloudinary,deleteCloudinary,type StoredMedia } from '../services/media';
+import { cmsCapabilities } from '../services/capabilities';
 
 const id = z.coerce.number().int().positive();
 const destination = { scope:z.enum(['site','users','team','partners','products','services','projects','news','achievements']), entity:z.string().max(190).optional() };
@@ -61,11 +62,12 @@ export function mediaRoutes(config: Config,db: Pool) {
   }));
   router.patch('/admin/media/:id/rename',requireAuth,requireCsrf,permit('media.update'),asyncRoute(async (req,res)=>{
     const mediaId=parse(id,req.params.id);const {name,slug}=safeMediaName(parse(z.strictObject({name:z.string()}),req.body).name);
+    const variantMediaReady=config.PRODUCT_VARIANT_MEDIA_ENABLED&&(await cmsCapabilities(db,config)).productVariantMedia.enabled;
     const rollback:{current?:{item:StoredMedia;oldId:string}}={};
     try {
       const changed=await transaction(db,async conn=>{
         const before=await repo.mediaRecord(conn,mediaId,true);if(!before||before.deleted_at)throw new HttpError(404,'NOT_FOUND','Image not found.');
-        if(await repo.mediaReferenceCount(conn,mediaId))throw new HttpError(409,'MEDIA_REFERENCED','Replace content references before renaming.');
+        if(await repo.mediaReferenceCount(conn,mediaId,variantMediaReady))throw new HttpError(409,'MEDIA_REFERENCED','Replace content references before renaming.');
         const targetId=`${before.public_id.slice(0,before.public_id.lastIndexOf('/'))}/${slug}`;
         if(targetId===before.public_id)throw new HttpError(400,'NO_CHANGE','Choose a different name.');
         if(await repo.publicIdExists(conn,targetId,mediaId))throw new HttpError(409,'ALREADY_EXISTS','The image name is already used.');
@@ -81,6 +83,7 @@ export function mediaRoutes(config: Config,db: Pool) {
   }));
   router.patch('/admin/media/:id/move',requireAuth,requireCsrf,permit('media.update'),asyncRoute(async (req,res)=>{
     const mediaId=parse(id,req.params.id);const {folder}=parse(z.strictObject({folder:z.string().max(255)}),req.body);
+    const variantMediaReady=config.PRODUCT_VARIANT_MEDIA_ENABLED&&(await cmsCapabilities(db,config)).productVariantMedia.enabled;
     const root=config.CLOUDINARY_ROOT_FOLDER;
     const base=['site','users','team','partners','achievements'].map(scope=>`${root}/${scope}`);
     const existing=(await repo.mediaFolders(db)).map(row=>String(row.folder_path));
@@ -91,7 +94,7 @@ export function mediaRoutes(config: Config,db: Pool) {
         const before=await repo.mediaRecord(conn,mediaId,true);if(!before||before.deleted_at)throw new HttpError(404,'NOT_FOUND','Image not found.');
         if(!before.folder_path||!before.folder_path.startsWith(`${root}/`))throw new HttpError(400,'INVALID_MEDIA_FOLDER','The current image folder is not available.');
         if(before.folder_path===folder)throw new HttpError(400,'NO_CHANGE','Choose a different folder.');
-        if(await repo.mediaReferenceCount(conn,mediaId))throw new HttpError(409,'MEDIA_REFERENCED','Replace content references before moving.');
+        if(await repo.mediaReferenceCount(conn,mediaId,variantMediaReady))throw new HttpError(409,'MEDIA_REFERENCED','Replace content references before moving.');
         await moveCloudinary(config,before as StoredMedia,folder);
         rollback.current={item:before as StoredMedia,oldFolder:before.folder_path};
         await repo.updateLocation(conn,mediaId,before.public_id,before.secure_url,before.original_filename,folder);
@@ -104,11 +107,12 @@ export function mediaRoutes(config: Config,db: Pool) {
   }));
   router.delete('/admin/media/:id',requireAuth,requireCsrf,permit('media.delete'),asyncRoute(async (req,res) => {
     const mediaId=parse(id,req.params.id);
+    const variantMediaReady=config.PRODUCT_VARIANT_MEDIA_ENABLED&&(await cmsCapabilities(db,config)).productVariantMedia.enabled;
     const state:{cloudinary?:'deleted'|'not_found'}={};
     try {
       const outcome=await transaction(db,async conn => {
         const before=await repo.mediaRecord(conn,mediaId,true); if (!before || before.deleted_at) throw new HttpError(404,'NOT_FOUND','Image not found.');
-        if (await repo.mediaReferenceCount(conn,mediaId)) throw new HttpError(409,'MEDIA_REFERENCED','Replace references before deleting this image.');
+        if (await repo.mediaReferenceCount(conn,mediaId,variantMediaReady)) throw new HttpError(409,'MEDIA_REFERENCED','Replace references before deleting this image.');
         state.cloudinary=await deleteCloudinary(config,before as StoredMedia);
         await repo.softDeleteMedia(conn,mediaId);
         await audit(conn,{actorId:req.actor!.id,action:'media.delete',entityType:'media_assets',entityId:mediaId,requestId:req.requestId,before:auditMedia(before)});

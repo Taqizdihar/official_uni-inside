@@ -94,7 +94,7 @@ export function publicNewsCategories(db: Executor) {
       AND (n.status='published' OR n.scheduled_at <= UTC_TIMESTAMP(3))
     ) ORDER BY c.sort_order,c.name,c.id`);
 }
-export async function publicDetail(db: Executor, spec: ResourceSpec, slug: string) {
+export async function publicDetail(db: Executor, spec: ResourceSpec, slug: string, socialMediaV2=false, variantMedia=false) {
   if (!spec.publicFields) throw new Error('Resource has no public projection');
   const data = (await rows<RowDataPacket>(db, `SELECT ${spec.publicFields.map(ident).join(',')} FROM ${ident(spec.table)} WHERE slug=? AND ${publicWhere(spec)} ${spec.softDelete ? 'AND deleted_at IS NULL' : ''} LIMIT 1`, [slug]))[0];
   if (!data) return null;
@@ -107,11 +107,21 @@ export async function publicDetail(db: Executor, spec: ResourceSpec, slug: strin
     children.images = await rows<RowDataPacket>(db, 'SELECT i.id,i.alt_text,i.is_cover,i.sort_order,m.secure_url,m.width_px,m.height_px FROM product_images i JOIN media_assets m ON m.id=i.media_id AND m.deleted_at IS NULL WHERE i.product_id=? ORDER BY i.sort_order,i.id LIMIT 100', [id]);
     children.features = await rows<RowDataPacket>(db, 'SELECT label,value_text,sort_order FROM product_features WHERE product_id=? ORDER BY sort_order,id LIMIT 100', [id]);
     children.colors = await rows<RowDataPacket>(db, 'SELECT name,hex_color,sort_order FROM product_color_options WHERE product_id=? AND is_active=1 ORDER BY sort_order,id LIMIT 100', [id]);
-    children.variants = await rows<RowDataPacket>(db, 'SELECT name,sku,price_adjustment,stock_quantity,sort_order FROM product_variants WHERE product_id=? AND is_active=1 ORDER BY sort_order,id LIMIT 100', [id]);
-    children.purchaseLinks = await rows<RowDataPacket>(db, 'SELECT id,store_name,button_label,url,is_primary,sort_order FROM product_purchase_links WHERE product_id=? AND is_active=1 ORDER BY is_primary DESC,sort_order,id LIMIT 100', [id]);
+    children.variants = variantMedia
+      ? await rows<RowDataPacket>(db, 'SELECT v.name,v.sku,v.price_adjustment,v.stock_quantity,v.sort_order,m.secure_url AS image_url,m.alt_text AS image_alt FROM product_variants v LEFT JOIN media_assets m ON m.id=v.media_id AND m.deleted_at IS NULL WHERE v.product_id=? AND v.is_active=1 ORDER BY v.sort_order,v.id LIMIT 100', [id])
+      : await rows<RowDataPacket>(db, 'SELECT name,sku,price_adjustment,stock_quantity,sort_order FROM product_variants WHERE product_id=? AND is_active=1 ORDER BY sort_order,id LIMIT 100', [id]);
+    children.purchaseLinks = socialMediaV2
+      ? await rows<RowDataPacket>(db, 'SELECT l.id,l.store_name,l.button_label,l.url,l.social_link_id,l.is_primary,l.sort_order,a.url AS account_url,a.is_active AS account_active FROM product_purchase_links l LEFT JOIN social_links a ON a.id=l.social_link_id WHERE l.product_id=? AND l.is_active=1 ORDER BY l.is_primary DESC,l.sort_order,l.id LIMIT 100', [id])
+      : await rows<RowDataPacket>(db, 'SELECT id,store_name,button_label,url,is_primary,sort_order FROM product_purchase_links WHERE product_id=? AND is_active=1 ORDER BY is_primary DESC,sort_order,id LIMIT 100', [id]);
     if(children.purchaseLinks.some(link=>String(link.store_name).toLowerCase().replace(/[^a-z]/g,'')==='whatsapp')){
-      const whatsapp=await globalWhatsApp(db);
-      children.purchaseLinks=children.purchaseLinks.flatMap(link=>String(link.store_name).toLowerCase().replace(/[^a-z]/g,'')==='whatsapp'?(whatsapp?[{...link,url:whatsapp} as RowDataPacket]:[]):[link]);
+      const hasLegacy=children.purchaseLinks.some(link=>String(link.store_name).toLowerCase().replace(/[^a-z]/g,'')==='whatsapp'&&!link.social_link_id);
+      const whatsapp=hasLegacy?await globalWhatsApp(db):null;
+      children.purchaseLinks=children.purchaseLinks.flatMap(link=>{
+        const {social_link_id,account_url,account_active,...publicLink}=link;
+        if(String(link.store_name).toLowerCase().replace(/[^a-z]/g,'')!=='whatsapp')return [publicLink as RowDataPacket];
+        if(social_link_id)return account_active&&account_url?[{...publicLink,url:account_url} as RowDataPacket]:[];
+        return whatsapp?[{...publicLink,url:whatsapp} as RowDataPacket]:[];
+      });
     }
   }
   if (spec.table === 'services') {

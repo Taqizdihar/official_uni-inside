@@ -23,7 +23,7 @@ export const softDeleteMedia = (db: Executor, id: number) => write(db, 'UPDATE m
 export const updateLocation = (db: Executor,id:number,publicId:string,url:string,filename:string,folder:string) => write(db,'UPDATE media_assets SET public_id=?,secure_url=?,original_filename=?,folder_path=? WHERE id=? AND deleted_at IS NULL',[publicId,url,filename,folder,id]);
 export const publicIdExists = async (db: Executor,publicId:string,id:number) => Boolean((await rows<RowDataPacket>(db,'SELECT id FROM media_assets WHERE provider=\'cloudinary\' AND public_id=? AND id<>? LIMIT 1',[publicId,id]))[0]);
 export const mediaFolders = async (db: Executor) => rows<RowDataPacket>(db,'SELECT DISTINCT folder_path FROM media_assets WHERE deleted_at IS NULL AND folder_path IS NOT NULL ORDER BY folder_path');
-export async function mediaReferenceCount(db: Executor, id: number) {
+export async function mediaReferenceCount(db: Executor, id: number, variantMedia=false) {
   const result = await rows<RowDataPacket>(db, `SELECT SUM(count) AS count FROM (
     SELECT COUNT(*) count FROM user_profiles WHERE avatar_media_id=? UNION ALL
     SELECT COUNT(*) count FROM site_settings WHERE default_og_media_id=? UNION ALL
@@ -41,5 +41,8 @@ export async function mediaReferenceCount(db: Executor, id: number) {
     SELECT COUNT(*) count FROM news_images WHERE media_id=? UNION ALL
     SELECT COUNT(*) count FROM achievements WHERE media_id=? AND deleted_at IS NULL
   ) refs`, Array(15).fill(id));
-  return Number(result[0]?.count ?? 0);
+  const legacy=Number(result[0]?.count ?? 0);
+  if(!variantMedia)return legacy;
+  const variants=await rows<RowDataPacket>(db,'SELECT COUNT(*) AS count FROM product_variants WHERE media_id=?',[id]);
+  return legacy+Number(variants[0]?.count??0);
 }
