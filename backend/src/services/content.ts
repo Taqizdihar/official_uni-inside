@@ -148,7 +148,9 @@ export async function remove(db: Pool, name: string, key: string, actor: Actor, 
       if (parent?.status === 'published' && await content.activePurchaseLinkCount(conn,Number(before.product_id)) <= 1) throw new HttpError(409,'PUBLISH_INCOMPLETE','Published products need a purchase/contact link.');
     }
     const categoryParents: Record<string,'products'|'services'|'news_articles'> = {'product-categories':'products','service-categories':'services','news-categories':'news_articles'};
-    if (categoryParents[name] && await content.publishedCategoryCount(conn,categoryParents[name],Number(resolvedKey))) throw new HttpError(409,'CATEGORY_IN_USE','A published record still uses this category.');
+    // The category row is locked above. Foreign-key inserts must wait for this
+    // transaction, so a new referencing record cannot slip past the check.
+    if (categoryParents[name] && await content.categoryReferenceCount(conn,categoryParents[name],Number(resolvedKey))) throw new HttpError(409,'CATEGORY_IN_USE','Kategori ini masih digunakan oleh beberapa konten. Pindahkan konten tersebut ke kategori lain sebelum menghapusnya.');
     await content.deleteRecord(conn, spec, resolvedKey);
     await revision(conn,{entityType:spec.table,entityId:Number(resolvedKey),snapshot:{...before,deleted:true},actorId:actor.id,summary:'Deleted'});
     await audit(conn, { actorId: actor.id, action: `${spec.table}.delete`, entityType: spec.table, entityId: Number(resolvedKey), requestId, before });

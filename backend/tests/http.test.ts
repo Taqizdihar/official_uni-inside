@@ -74,6 +74,18 @@ describe('HTTP behavior',()=>{
     const forbidden=await request(app).post('/api/v1/admin/products/compose').set('Origin','http://localhost:3000').set('Cookie',cookies).set('X-CSRF-Token',csrf).send({action:'draft',name:'Product'});
     expect(forbidden.status).toBe(403);expect(forbidden.body.error.code).toBe('FORBIDDEN');
   });
+  it('keeps category writes behind CSRF and their resource permission',async()=>{
+    const raw='session-token',csrf=csrfToken(config,raw),cookies=[`${config.SESSION_COOKIE_NAME}=${raw}`,`${config.CSRF_COOKIE_NAME}=${csrf}`];
+    for(const resource of ['product-categories','service-categories','news-categories']){
+      const path=`/api/v1/admin/${resource}`;
+      const noCsrf=await request(app).post(path).set('Origin','http://localhost:3000').set('Cookie',cookies).send({name:'Test'});
+      expect(noCsrf.status).toBe(403);expect(noCsrf.body.error.code).toBe('CSRF_INVALID');
+      const forbidden=await request(app).post(path).set('Origin','http://localhost:3000').set('X-CSRF-Token',csrf).set('Cookie',cookies).send({name:'Test'});
+      expect(forbidden.status).toBe(403);expect(forbidden.body.error.code).toBe('FORBIDDEN');
+      const deleteDenied=await request(app).delete(`${path}/1`).set('Origin','http://localhost:3000').set('X-CSRF-Token',csrf).set('Cookie',cookies);
+      expect(deleteDenied.status).toBe(403);expect(deleteDenied.body.error.code).toBe('FORBIDDEN');
+    }
+  });
   it('rejects invalid pagination and unsupported sort columns',async()=>{
     const cookie=`${config.SESSION_COOKIE_NAME}=session-token`;
     const limit=await request(app).get('/api/v1/admin/products?limit=101').set('Cookie',cookie);

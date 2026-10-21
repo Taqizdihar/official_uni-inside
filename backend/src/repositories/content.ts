@@ -162,8 +162,8 @@ export async function featuredServiceOwner(db: Executor, slot: number) {
 export async function mediaById(db: Executor, id: number) {
   return (await rows<RowDataPacket>(db, 'SELECT id FROM media_assets WHERE id=? AND deleted_at IS NULL', [id]))[0];
 }
-export async function publishedCategoryCount(db: Executor, table: 'products'|'services'|'news_articles', categoryId: number) {
-  return Number((await rows<RowDataPacket>(db,`SELECT COUNT(*) AS count FROM ${ident(table)} WHERE category_id=? AND status IN ('published','scheduled') AND deleted_at IS NULL`,[categoryId]))[0]?.count??0);
+export async function categoryReferenceCount(db: Executor, table: 'products'|'services'|'news_articles', categoryId: number) {
+  return Number((await rows<RowDataPacket>(db,`SELECT COUNT(*) AS count FROM ${ident(table)} WHERE category_id=? AND deleted_at IS NULL`,[categoryId]))[0]?.count??0);
 }
 export async function publicSite(db: Executor) {
   const site = (await rows<RowDataPacket>(db, 'SELECT site_name,tagline,public_email,public_phone,whatsapp_number,address_text,footer_description,default_meta_title,default_meta_description,default_og_media_id FROM site_settings WHERE id=1'))[0] ?? null;

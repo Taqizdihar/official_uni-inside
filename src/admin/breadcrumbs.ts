@@ -24,7 +24,7 @@ const fixedLabels:Record<string,string>={media_kit:'Media Kit',products:'Produk'
 const special:Record<string,string>={
   '/admin/dashboard':'Dashboard','/admin/analytics':'Analitik','/admin/media':'Manajemen Aset',
   '/admin/users':'Manajemen Pengguna','/admin/roles':'Role dan Akses',
-  '/admin/audit':'Riwayat Aktivitas','/admin/profile':'Profil Saya',
+  '/admin/audit':'Riwayat Aktivitas','/admin/profile':'Profil Saya','/admin/content/categories':'Manajemen Kategori',
 };
 
 export function resolveBreadcrumb(pathname:string):Crumb[]{
