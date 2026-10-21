@@ -42,7 +42,8 @@ const isActive=(path:string,pathname:string)=>pathname===path||pathname.startsWi
 export function CmsLayout(){
   const {user,has,logout}=useAuth();const location=useLocation();const navigate=useNavigate();
   const [collapsed,setCollapsed]=useState(()=>{try{return localStorage.getItem('cms-sidebar-collapsed')==='true';}catch{return false;}});
-  const [isMobile,setIsMobile]=useState(()=>window.matchMedia('(max-width: 800px)').matches);
+  const [,refreshViewport]=useState(0);
+  const isMobile=window.matchMedia('(max-width: 800px)').matches;
   const [mobileOpen,setMobileOpen]=useState(false);const [accountOpen,setAccountOpen]=useState(false);const [categoryOpen,setCategoryOpen]=useState(()=>location.pathname.includes('-categories'));
   const [logoutOpen,setLogoutOpen]=useState(false);const [busy,setBusy]=useState(false);
   const [avatarUrl,setAvatarUrl]=useState('');
@@ -50,7 +51,7 @@ export function CmsLayout(){
   const crumbs=resolveBreadcrumb(location.pathname);
   const blocker=useBlocker(({currentLocation,nextLocation})=>isEditorDirty()&&(currentLocation.pathname!==nextLocation.pathname||currentLocation.search!==nextLocation.search));
   useEffect(()=>{try{localStorage.setItem('cms-sidebar-collapsed',String(collapsed));}catch{/* Keep working when storage is unavailable. */}},[collapsed]);
-  useEffect(()=>{const query=window.matchMedia('(max-width: 800px)');const update=()=>setIsMobile(query.matches);query.addEventListener('change',update);return()=>query.removeEventListener('change',update);},[]);
+  useEffect(()=>{const query=window.matchMedia('(max-width: 800px)');const update=()=>refreshViewport(value=>value+1);query.addEventListener('change',update);window.addEventListener('resize',update);return()=>{query.removeEventListener('change',update);window.removeEventListener('resize',update);};},[]);
   const visible=useMemo(()=>sections.map(section=>({...section,items:section.items.map(item=>item.children?{...item,children:item.children.filter(child=>has(child.permission))}:item).filter(item=>item.children?item.children.length:has(item.permission))})).filter(section=>section.items.length),[has]);
   useEffect(()=>{if(!user){setAvatarUrl('');return;}let active=true;api<{profile:{avatar_media_id:number|null}}>('/auth/profile').then(result=>result.data.profile.avatar_media_id?api<Media>(`/admin/media/${result.data.profile.avatar_media_id}`):null).then(result=>{if(active)setAvatarUrl(result?mediaUrl(result.data.secure_url,96):'');}).catch(()=>{if(active)setAvatarUrl('');});return()=>{active=false;};},[user]);
   useEffect(()=>{setAccountOpen(false);setMobileOpen(false);},[location.pathname]);
