@@ -15,6 +15,7 @@ coverage/
 # Environment files (keep the documented template)
 .env*
 !.env.example
+!.env.production
 
 # Logs and temporary files
 *.log
