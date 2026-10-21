@@ -1,7 +1,5 @@
-import {useEffect,useId,useRef,type ReactNode} from 'react';
-import {X} from 'lucide-react';
+import type {ReactNode} from 'react';
+import {CmsModal} from '../components/Ui';
 export function ProductModal({title,onClose,children,className=''}:{title:string;onClose:()=>void;children:ReactNode;className?:string}){
-  const ref=useRef<HTMLDivElement>(null),titleId=useId(),close=useRef(onClose);close.current=onClose;
-  useEffect(()=>{const previous=document.activeElement as HTMLElement|null;ref.current?.focus();const key=(event:KeyboardEvent)=>{if(event.key==='Escape'){event.preventDefault();event.stopPropagation();close.current();}if(event.key==='Tab'){const controls=Array.from(ref.current?.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled),a[href]')??[]);const first=controls[0],last=controls.at(-1);if(event.shiftKey&&(document.activeElement===first||document.activeElement===ref.current)){event.preventDefault();last?.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus();}}};document.addEventListener('keydown',key);return()=>{document.removeEventListener('keydown',key);previous?.focus();};},[]);
-  return <div className="cms-modal-backdrop" onMouseDown={event=>{if(event.target===event.currentTarget)onClose();}}><div ref={ref} tabIndex={-1} className={`cms-modal cms-product-modal ${className}`} role="dialog" aria-modal="true" aria-labelledby={titleId}><div className="cms-product-modal-heading"><h2 id={titleId}>{title}</h2><button className="cms-icon-button" type="button" onClick={onClose} aria-label="Tutup dialog"><X size={20}/></button></div>{children}</div></div>;
+  return <CmsModal title={title} onClose={onClose} className={`cms-product-modal ${className}`}>{children}</CmsModal>;
 }

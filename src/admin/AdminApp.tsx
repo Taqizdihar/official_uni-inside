@@ -9,6 +9,7 @@ import {ServiceCreatePage} from './pages/ServiceCreatePage';
 import {ArticleCreatePage} from './pages/ArticleCreatePage';
 import {UsersPage,RolesPage,AuditPage,ProfilePage} from './pages/AdministrationPages';
 import './admin.css';
+import './cms-refresh.css';
 
 function Protected(){const {user,loading,offline}=useAuth();const location=useLocation();if(loading)return <div className="cms-auth-screen" role="status">Memeriksa sesi Anda…</div>;if(!user)return <Navigate to={`/admin/login?next=${encodeURIComponent(location.pathname+location.search)}`} replace state={{offline}}/>;return <CmsLayout/>;}
 function Guest({children}:{children:React.ReactNode}){const {user,loading}=useAuth();if(loading)return <div className="cms-auth-screen" role="status">Memeriksa sesi Anda…</div>;return user?<Navigate to="/admin/dashboard" replace/>:<>{children}</>;}

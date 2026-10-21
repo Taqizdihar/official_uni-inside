@@ -1,8 +1,8 @@
-import {useEffect,useId,useMemo,useRef,useState,type ReactNode} from 'react';
+import {useEffect,useMemo,useRef,useState,type ReactNode} from 'react';
 import {ArrowDown,ArrowUp,Eye,Folder,Grid2X2,ImagePlus,LayoutList,LoaderCircle,MoreHorizontal,Pencil,Search,Trash2,UploadCloud,X} from 'lucide-react';
 import {api,ApiError,query} from '../api/client';
 import {useAuth} from '../auth/AuthProvider';
-import {Empty,Loading,Notice,Pagination,useToast} from '../components/Ui';
+import {CmsModal,Empty,Loading,Notice,Pagination,useToast} from '../components/Ui';
 import {mediaUrl} from '../components/MediaPicker';
 import {uploadImage,validateImage,type Media} from '../media/upload';
 
@@ -21,9 +21,7 @@ const groupName=(folder:string|null)=>groups.find(group=>group.scopes.includes(s
 const mediaError=(error:unknown)=>error instanceof ApiError&&error.code==='INTEGRATION_NOT_CONFIGURED'?new Error('Cloudinary belum siap. Hubungi administrator untuk memeriksa konfigurasi penyimpanan.'):error;
 
 function Modal({title,children,onClose,busy=false}:{title:string;children:ReactNode;onClose:()=>void;busy?:boolean}){
-  const ref=useRef<HTMLDivElement>(null),close=useRef(onClose),busyRef=useRef(busy),titleId=useId();close.current=onClose;busyRef.current=busy;
-  useEffect(()=>{const previous=document.activeElement as HTMLElement|null;ref.current?.querySelector<HTMLElement>('input,select,button')?.focus();const handle=(event:KeyboardEvent)=>{if(event.key==='Escape'&&!busyRef.current){event.preventDefault();close.current();}if(event.key==='Tab'){const controls=[...(ref.current?.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),a[href]')??[])];const first=controls[0],last=controls.at(-1);if(!first||!last)return;if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}}};document.addEventListener('keydown',handle);return()=>{document.removeEventListener('keydown',handle);previous?.focus();};},[]);
-  return <div className="cms-modal-backdrop" onMouseDown={event=>{if(event.target===event.currentTarget&&!busy)onClose();}}><div ref={ref} className="cms-modal cms-asset-modal" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}><div className="cms-asset-modal-head"><h2 id={titleId}>{title}</h2><button type="button" className="cms-icon-button" aria-label="Tutup dialog" disabled={busy} onClick={onClose}><X size={19}/></button></div>{children}</div></div>;
+  return <CmsModal title={title} onClose={onClose} busy={busy} kind={title==='Hapus Gambar'?'confirmation':'information'} className="cms-asset-modal">{children}</CmsModal>;
 }
 
 function UploadModal({onClose,onDone}:{onClose:()=>void;onDone:(item:Media)=>void}){

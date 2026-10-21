@@ -1,6 +1,6 @@
 import { StrictMode, Suspense, createContext, lazy, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter, Route, Routes, useLocation, useNavigationType } from 'react-router-dom';
+import { RouterProvider, createBrowserRouter, Route, Routes, useLocation, useNavigationType } from 'react-router-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import App from './App.tsx';
 import './index.css';
@@ -188,10 +188,7 @@ const RootExperience = () => {
   return <PublicContentProvider><RouteTransitionProvider><AboutStoryProvider><RouteDocumentState /><PublicMetadata /><PublicAnalytics /><AnimatedRoutes /><GlobalScrollIndicator /></AboutStoryProvider></RouteTransitionProvider></PublicContentProvider>;
 };
 
+const router=createBrowserRouter([{path:'*',element:<RootExperience/>}]);
 createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <BrowserRouter>
-      <RootExperience />
-    </BrowserRouter>
-  </StrictMode>,
+  <StrictMode><RouterProvider router={router}/></StrictMode>,
 );
