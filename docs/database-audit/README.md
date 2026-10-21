@@ -1,0 +1,21 @@
+# Migration 001 full-schema audit
+
+This audit is **read-only for Aiven**. It compares a disposable MySQL 8.4 database initialized from the exact current `backend/migrations/001_initial_schema.sql` with production metadata. The supplied production checksum is `1af04aa15d82825ff80c3ecc5ba619e1e9f2956e7fa68fb30fedcbcee1119ea2`; the current file's independently verified SHA-256 is `cd4f1a594f7fe56f560d0854c389262d19b8014e2d40f0c22f11088a0bc22e99`. A schema match would support a reviewed compatibility decision; it cannot recover or prove historical SQL bytes.
+
+## Produce and compare exports
+
+1. Create an isolated empty MySQL 8.4 database with `utf8mb4_0900_ai_ci`; run the **unchanged** `001_initial_schema.sql` against it. Never aim this step at Aiven. In DBeaver, select this isolated database and run `export-schema-metadata.sql` and `export-seed-metadata.sql` as individual queries. Save each entire result grid, including the `MANIFEST` rows, as UTF-8 comma-separated CSV with header. Name them `reference-schema.csv` and `reference-seeds.csv`.
+2. In DBeaver, select the intended Aiven `defaultdb` and run those same two **SELECT-only** files. Save their entire result grids as `production-schema.csv` and `production-seeds.csv`. Also run `export-history.sql` and retain all three result grids as `production-identity.csv`, `production-history.csv`, and `production-history-counts.csv`. Export the table/column/index/FK/CHECK/object queries using an administrator account with metadata visibility; restricted grants could hide objects. Keep exports in a secure workspace, outside Git.
+3. Confirm the intended database identity, MySQL version, full stored checksum, unique version `001` row, and export timing from the history grids. Compute SHA-256 of the exact reference file. Then run:
+
+```bash
+node docs/database-audit/compare.mjs reference-schema.csv production-schema.csv reference-seeds.csv production-seeds.csv comparison.json comparison.md
+```
+
+Exit `0` means all **exported** metadata and stable-seed projections match, `1` means at least one difference, and `2` means missing or invalid evidence. The JSON report includes exact differing attributes; Markdown lists classifications. Do not commit production exports or generated comparison JSON. Review every `REQUIRES REVIEW` row manually; it is a stop condition, not automatic compatibility. The reference export must have all 52 tables and both files must contain every category marker. Run `node --test docs/database-audit/compare.test.mjs` to test the comparator.
+
+The schema query covers table type, engine, collation; ordered columns and type/precision/default/generation metadata; individual ordered index parts and uniqueness/visibility; ordered FK mappings and actions; CHECK expressions/enforcement; and views, triggers, routines, and events. Its object keys include names. `INFORMATION_SCHEMA` does not compare physical table contents or prove stored SQL bytes. Auto-increment **current counters**, row estimates, create/update timestamps, and index cardinality are intentionally excluded because they are runtime state. No other differing attribute is normalized away; cosmetic expression formatting is reported for review. Compare on the same MySQL 8.4 patch version when practical.
+
+The seed query compares structural role codes and `is_system`, permission codes, role-permission mappings, and stable configuration/section keys. It intentionally excludes mutable names, labels, homepage copy, URLs, and other editorial content. An added production role, permission, or configuration key is `REQUIRES REVIEW`; a missing baseline record is `INCOMPATIBLE`. These projections cannot prove every original seed value or that mutable content has never changed. If an export query fails because a referenced table is absent, record that as `INCOMPATIBLE` and stop; do not substitute a partial export. If views/routines/triggers/events appear only in production, review them; do not delete them.
+
+The comparison script never connects to a database. Do not send passwords, tokens, raw customer rows, or production connection strings with exports. The administrator should retain the raw CSVs and reviewed report in the secure change record. The checksum reconciliation decision remains blocked until the actual production exports have been compared and reviewed.

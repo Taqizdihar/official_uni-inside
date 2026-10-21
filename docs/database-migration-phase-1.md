@@ -1,6 +1,6 @@
 # Phase 1 database migration preparation
 
-**Status: PENDING DATABASE ADMINISTRATOR VERIFICATION.** This repository does not contain the stored Aiven `schema_migrations` checksum, a production schema export, or proof of which SQL bytes were run there. None of the prepared migrations is approved for production execution yet. The current frontend and backend continue to use the legacy columns.
+**Status: PENDING DATABASE ADMINISTRATOR VERIFICATION.** The administrator has supplied the stored Aiven `schema_migrations` checksum, but the actual production metadata exports and the original SQL dump are unavailable in this workspace. See the [Phase 1B full-schema audit](database-audit/README.md) and [current reconciliation decision](database-audit/reconciliation-decision.md). None of the prepared migrations is approved for production execution yet. The current frontend and backend continue to use the legacy columns.
 
 ## What was investigated
 
@@ -10,7 +10,7 @@ The sole committed version of `backend/migrations/001_initial_schema.sql` was in
 cd4f1a594f7fe56f560d0854c389262d19b8014e2d40f0c22f11088a0bc22e99  001_initial_schema.sql
 ```
 
-The historical checksum candidate at that commit is the **same** hash. There are no known historical content, seed-data, formatting, or line-ending differences in Git to compare. An uncommitted or manually edited SQL copy may have been used on Aiven; Git cannot establish that. Do not invent a second candidate from normalized line endings or guessed edits.
+The historical checksum candidate at that commit is the **same** hash. The administrator reports Aiven stored `1af04aa15d82825ff80c3ecc5ba619e1e9f2956e7fa68fb30fedcbcee1119ea2`, which does not match. There are no known historical content, seed-data, formatting, or line-ending differences in Git to compare. An uncommitted or manually edited SQL copy may have been used on Aiven; Git cannot establish that. Do not invent a second candidate from normalized line endings or guessed edits.
 
 The migrator reads top-level `backend/migrations/NNN_*.sql` files and hashes every UTF-8 byte. An applied row with a non-null, different checksum stops `runMigrations`. Migration `001` itself inserts a `schema_migrations` row with a null checksum; the existing runner can adopt that null after checking table existence and a few seed counts. Those checks do **not** prove full schema or historical SQL equivalence. Do not run this adoption path against production until an administrator has resolved the evidence gap. `npm run db:status` reports a mismatch but does not fail the process; `npm run db:check` checks whether `001` is applied and basic table/seed readiness, not checksum equality. Compare the actual stored checksum explicitly.
 

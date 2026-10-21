@@ -1,0 +1,14 @@
+# Checksum reconciliation decision
+
+**Selected case D: evidence incomplete; reconciliation blocked.** The only exact Git migration 001 artifact hashes to `cd4f1a...22e99`, whereas the administrator reports `1af04a...119ea2` in Aiven. The latter does not match any verified historical migration 001 Git file. Table and seed counts do not demonstrate equivalent constraints, defaults, index behavior, seed mappings, or original SQL bytes. No compatibility exception is implemented or activated.
+
+The decision tree for a later reviewed change is:
+
+1. **A — Exact historical file found.** Verify exact bytes hash to the stored Aiven checksum and perform the full schema audit. A narrowly scoped migration-001 legacy recognition could preserve the stored checksum, but it must verify the exact pair of historical/current hashes and database identity, and explicitly record that the file versions differ. Normal checks continue for every other migration.
+2. **B — No original file, full compatibility established.** Require complete production exports, zero unexplained critical differences, an independently reviewed audit report and stable fingerprint, exact database identity, and explicit administrator approval. A proposed opt-in runtime mechanism would recognize only version `001` with stored `1af04a...119ea2` and current `cd4f1a...22e99`, require an approved audit artifact tied to that database and fingerprint, and fail closed if verification changes. It would retain the historical row and label the outcome **attested schema compatibility**, never historical byte identity. The implementation must check both migrator and `/ready`, remain disabled by default, and be separately reviewed and rehearsed before activation.
+3. **C — Material schema difference.** Prepare a forward-only corrective migration after reviewing data effects; rehearse it on a restored database. Keep 001 unchanged and history authentic.
+4. **D — Missing or ambiguous evidence.** Preserve the checksum mismatch and stop. This is the current case.
+
+There is no global bypass, checksum update, NULL substitution, table reset, or automatic approval based on matching counts. When 002–004 are later promoted, each still needs its own exact-file SHA-256; altered applied files, missing rows, and duplicate versions must fail. The current runner uses a unique version key but also has `INSERT IGNORE` for new rows; any future compatibility patch should explicitly check row cardinality and reject duplicates rather than masking them. Prepared files remain in `backend/migrations/prepared/` and require a separate production execution approval, backup, rehearsal, and coordinated deployment.
+
+Next administrator action: retain and compare the five read-only production CSV grids listed in [README.md](README.md); review the generated difference report and the stored checksum with a second reviewer. Do not modify `schema_migrations` or execute 002–004 while this decision is D.
