@@ -25,3 +25,16 @@ export function resolveApiBase(environment: ApiBaseEnvironment, production: bool
   }
   return candidate;
 }
+
+/**
+ * Temporary official-hosting contingency.
+ * Kroombox Fullstack may inject VITE_API_BASE_URL=/api/v1 at build time.
+ * Keep production browser requests on the established Render API instead of
+ * routing through the Kroombox same-origin gateway.
+ * Remove this override when the official backend is ready to replace Render.
+ */
+export const PRODUCTION_RENDER_API_BASE = 'https://uni-inside-studio-landing-page.onrender.com/api/v1';
+
+export function resolveFrontendApiBase(environment: ApiBaseEnvironment, production: boolean): string {
+  return production ? PRODUCTION_RENDER_API_BASE : resolveApiBase(environment, false);
+}

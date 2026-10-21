@@ -21,7 +21,14 @@ jobs:
       - run: npm run test:config
       - run: npm run build
         env:
-          VITE_API_BASE_URL: https://cms-api.example.invalid/api/v1
+          # Simulate the Kroombox Fullstack gateway variable overriding .env.production.
+          VITE_API_BASE_URL: /api/v1
+      - name: Verify production bundle targets Render
+        run: |
+          if ! grep -R -q -F 'https://uni-inside-studio-landing-page.onrender.com/api/v1' dist/assets; then
+            echo 'Production frontend bundle is missing the Render API override' >&2
+            exit 1
+          fi
 
   backend:
     runs-on: ubuntu-latest
