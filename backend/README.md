@@ -6,7 +6,9 @@ This independent Node 20+ package serves the `/admin` CMS and public content API
 
 `src/app.ts` assembles HTTP middleware and routes; `src/routes` stays thin; `src/services` owns business rules and transactions; `src/repositories` owns parameterized MySQL queries; `src/schemas` lists explicit editable fields; `src/database` owns pool and migrations. `scripts` contains operational commands, `tests` contains unit/API checks, and `docs/openapi.yaml` documents routes.
 
-The schema source of truth is `migrations/001_initial_schema.sql`, copied byte for byte from the approved MySQL 8 migration. It creates 52 tables and seeds five roles and 51 permissions. Later database changes belong in forward-only files named `002_*.sql`, `003_*.sql`, and so on. Do not edit an applied migration; checksum mismatches stop execution. The runner can adopt the checksum of a manually applied migration 001 after verifying the expected tables and seeds.
+The schema source of truth is `migrations/001_initial_schema.sql`, copied byte for byte from the approved MySQL 8 migration. It creates 52 tables and seeds five roles and 51 permissions. Later database changes belong in forward-only files named `002_*.sql`, `003_*.sql`, and so on. Do not edit an applied migration; checksum mismatches stop execution. The existing runner can adopt a null checksum for a manually applied migration 001 after checking expected tables and selected seeds, but those checks alone do not establish which SQL file was executed.
+
+Phase 1 proposals for Social Media accounts and Product references are staged in `migrations/prepared/` and are not discovered by the migration runner. Do not promote or execute them on production until the migration 001 checksum and production schema have been independently verified. Follow the [Phase 1 administrator guide](../docs/database-migration-phase-1.md) before using either the runner or DBeaver on Aiven.
 
 ## Local setup with Laragon/phpMyAdmin
 
@@ -49,6 +51,6 @@ Render can use `backend` as Root Directory, build command `npm ci --include=dev 
 
 The unofficial architecture uses Cloudflare Pages for React, Render for this API, Aiven MySQL, and Cloudinary for images. No services are provisioned by this repository. Kroombox's runtime and database behavior must be verified before configuring the official environment.
 
-Phase 2 adds no migration after `001_initial_schema.sql`; the approved schema already covers the CMS interface. No Phase 3 services have been deployed by this change. SMTP can remain unset for local testing, and Cloudinary remains real external storage while using local MySQL.
+The earlier CMS interface work added no migration after `001_initial_schema.sql`. The proposed Social Media and Product references are prepared separately and remain inactive pending administrator verification. SMTP can remain unset for local testing, and Cloudinary remains real external storage while using local MySQL.
 
 If TLS fails, verify the Aiven CA and base64 encoding rather than disabling certificate checks. If browsers cannot authenticate, check the exact CORS Origin, HTTPS, Secure/SameSite cookie settings, and `X-CSRF-Token`. If a migration checksum differs, compare the applied schema with the migration file and add a new forward migration instead of changing migration 001.
