@@ -32,7 +32,7 @@ export function friendlyMessage(code?:string,message?:string,status?:number){
     UNAUTHENTICATED:'Silakan masuk untuk melanjutkan.',INVALID_CREDENTIALS:'Email atau kata sandi tidak cocok.',
     TOKEN_INVALID:'Tautan tidak valid atau sudah kedaluwarsa. Minta tautan baru.',WEAK_PASSWORD:'Gunakan kata sandi yang lebih kuat.',
     INVITATION_CONFLICT:'Undangan ini sudah digunakan atau tidak berlaku.',USER_EXISTS:'Email ini sudah terdaftar.',
-    LAST_SUPER_ADMIN:'Super Administrator aktif terakhir tidak dapat dinonaktifkan.',INVALID_ROLE:'Role tidak valid.',
+    LAST_SUPER_ADMIN:'Super Administrator aktif terakhir tidak dapat dinonaktifkan.',SELF_ADMIN_CHANGE_FORBIDDEN:'Role dan status akun Super Administrator Anda tidak dapat diubah melalui Manajemen Pengguna.',RESET_TARGET_FORBIDDEN:'Akun ini tidak memenuhi syarat untuk reset password oleh Super Administrator.',INVALID_ROLE:'Role tidak valid.',
     MEDIA_REFERENCED:'Gambar ini masih digunakan. Ganti gambar pada konten terkait terlebih dahulu.',
     INVALID_MEDIA:'Gambar tidak valid atau tidak ditemukan.',INVALID_MEDIA_FOLDER:'Folder gambar tidak valid.',INVALID_MEDIA_NAME:'Nama gambar tidak valid. Gunakan huruf, angka, spasi, tanda hubung, atau garis bawah.',
     FEATURE_UNAVAILABLE:'Fitur penyimpanan Sosial Media sedang disiapkan dan belum tersedia.',ACCOUNT_LIMIT:'Batas maksimal lima akun untuk platform ini telah tercapai.',ACCOUNT_REFERENCED:'Akun ini masih digunakan pada produk. Ganti akun pada produk terkait sebelum menghapusnya.',INVALID_ACCOUNT_URL:'URL akun tidak valid. Periksa kembali alamat yang dimasukkan.',INVALID_WHATSAPP_ACCOUNT:'Pilih akun WhatsApp aktif yang tersedia.',LEGACY_ROUTE_DISABLED:'Gunakan Manajemen Sosial Media untuk mengubah akun.',

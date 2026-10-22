@@ -3,7 +3,7 @@ import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import type { Pool } from 'mysql2/promise';
 import type { Config } from '../config/env';
-import { auth, csrf, permit } from '../middleware/auth';
+import { allowRoles, auth, csrf, permit } from '../middleware/auth';
 import { asyncRoute, HttpError, parse } from '../utils/http';
 import * as repo from '../repositories/analytics';
 import * as content from '../services/content';
@@ -19,7 +19,7 @@ export function analyticsRoutes(config: Config,db: Pool) {
   }));
   router.get('/admin/dashboard',requireAuth,permit('dashboard.view'),asyncRoute(async (_req,res)=>{res.set('Cache-Control','no-store').json({data:await repo.dashboard(db)});}));
   router.get('/admin/analytics',requireAuth,permit('analytics.view'),asyncRoute(async (_req,res)=>{res.set('Cache-Control','no-store').json({data:await repo.analyticsSummary(db)});}));
-  router.get('/admin/audit',requireAuth,permit('audit.view'),asyncRoute(async (req,res)=>{
+  router.get('/admin/audit',requireAuth,allowRoles('super_admin','administrator','editor','author','viewer'),asyncRoute(async (req,res)=>{
     const q=parse(z.strictObject({page:z.coerce.number().int().positive().default(1),limit:z.coerce.number().int().min(1).max(100).default(20)}),req.query);
     const [data,total]=await Promise.all([repo.auditList(db,q.limit,(q.page-1)*q.limit),repo.auditCount(db)]);
     res.set('Cache-Control','no-store').json({data,meta:{...q,total,totalPages:Math.ceil(total/q.limit)}});

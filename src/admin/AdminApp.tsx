@@ -11,12 +11,14 @@ import {CategoryManagementPage} from './pages/CategoryManagementPage';
 import {SocialMediaPage} from './pages/SocialMediaPage';
 import {FooterSettingsPage} from './pages/FooterSettingsPage';
 import {categoryResourceFor,categoryUrl} from './categories/model';
-import {UsersPage,RolesPage,AuditPage,ProfilePage} from './pages/AdministrationPages';
+import {RolesPage,ProfilePage} from './pages/AdministrationPages';
+import {UsersPage,AuditPage} from './pages/AdministrationAccessPages';
 import './admin.css';
 import './cms-refresh.css';
 
 function Protected(){const {user,loading,offline}=useAuth();const location=useLocation();if(loading)return <div className="cms-auth-screen" role="status">Memeriksa sesi Anda…</div>;if(!user)return <Navigate to={`/admin/login?next=${encodeURIComponent(location.pathname+location.search)}`} replace state={{offline}}/>;return <CmsLayout/>;}
 function Guest({children}:{children:React.ReactNode}){const {user,loading}=useAuth();if(loading)return <div className="cms-auth-screen" role="status">Memeriksa sesi Anda…</div>;return user?<Navigate to="/admin/dashboard" replace/>:<>{children}</>;}
+function UserManagementRoute(){const {user,has}=useAuth();return user&&['super_admin','administrator'].includes(user.role_code)&&has('users.view')?<UsersPage/>:<div className="cms-notice cms-notice-error" role="alert">Anda tidak memiliki akses ke Manajemen Pengguna.</div>;}
 function LegacyCategoryRedirect({action,resource:fixedResource}:{action?:'create'|'edit';resource?:string}){const {resource,key}=useParams();const tab=categoryResourceFor(fixedResource??resource??'');const id=key?Number(key):undefined;return tab?<Navigate to={categoryUrl(tab,action,id!==undefined&&Number.isSafeInteger(id)&&id>0?id:undefined)} replace/>:<Navigate to="/admin/content/categories" replace/>;}
 function CategoryOrResourceLanding(){const {resource}=useParams();return categoryResourceFor(resource??'')?<LegacyCategoryRedirect/>:<ResourceLandingPage/>;}
 export default function AdminApp(){return <div className="cms" lang="id"><AuthProvider><Routes>
@@ -51,7 +53,7 @@ export default function AdminApp(){return <div className="cms" lang="id"><AuthPr
     <Route path="content/:resource/new" element={<ResourceEditorPage create/>}/>
     <Route path="content/:resource/:key" element={<ResourceEditorPage/>}/>
     <Route path="media" element={<MediaPage/>}/>
-    <Route path="users" element={<UsersPage/>}/>
+    <Route path="users" element={<UserManagementRoute/>}/>
     <Route path="roles" element={<RolesPage/>}/>
     <Route path="audit" element={<AuditPage/>}/>
     <Route path="profile" element={<ProfilePage/>}/>

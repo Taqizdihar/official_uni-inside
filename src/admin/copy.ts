@@ -12,7 +12,7 @@ export const roleDescriptions: Record<string, string> = {
 
 export const statusLabels: Record<string, string> = {
   draft: 'Draft', scheduled: 'Terjadwal', published: 'Terbit', archived: 'Diarsipkan',
-  active: 'Aktif', suspended: 'Ditangguhkan', disabled: 'Nonaktif', pending: 'Menunggu',
+  active: 'Aktif', suspended: 'Ditangguhkan', disabled: 'Nonaktif', invited: 'Diundang', pending: 'Menunggu',
 };
 
 export const actionLabels: Record<string, string> = {
@@ -31,6 +31,15 @@ export const formatDate = (value: string | number | Date) => new Intl.DateTimeFo
   dateStyle: 'medium', timeStyle: 'short',
 }).format(new Date(value));
 
+// MySQL dateStrings are UTC without a suffix; browser-local parsing would shift them inconsistently.
+export function formatCmsUtc(value: string) {
+  const normalized = /[zZ]|[+-]\d\d:\d\d$/.test(value) ? value : `${value.replace(' ', 'T')}Z`;
+  const date = new Date(normalized);
+  return Number.isNaN(date.getTime()) ? 'Waktu tidak tersedia' : new Intl.DateTimeFormat('id-ID', {
+    day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Jakarta',
+  }).format(date);
+}
+
 export function friendlyPermission(code: string) {
   const [domain, action] = code.split('.');
   return `${actionLabels[action] ?? action} ${domainLabels[domain] ?? domain}`;
@@ -41,10 +50,39 @@ export function auditActionLabel(code: string) {
     'auth.bootstrap':'Akun Super Administrator dibuat',
     'auth.login':'Masuk ke CMS',
     'auth.logout':'Keluar dari CMS',
-    'auth.password_change':'Kata sandi diubah',
-    'auth.invite':'Undangan dibuat',
+    'auth.logout.all':'Keluar dari semua perangkat',
+    'auth.password.change':'Mengubah password',
+    'auth.reset.request':'Meminta reset password',
+    'auth.reset.complete':'Menyelesaikan reset password',
+    'auth.invitation.accept':'Menerima undangan',
+    'users.password.admin_reset':'Reset password anggota',
+    'users.invite':'Mengundang anggota',
+    'users.invitation.resend':'Mengirim ulang undangan',
+    'users.invitation.revoke':'Membatalkan undangan',
+    'users.update':'Memperbarui pengguna',
+    'users.profile.update':'Memperbarui profil',
+    'roles.permissions.update':'Mengubah hak akses role',
+    'products.publish':'Menerbitkan produk',
+    'media.create':'Mengunggah aset',
   };
-  return named[code] ?? friendlyPermission(code);
+  if (named[code]) return named[code];
+  const match = /^([a-z_]+)\.(create|update|delete|publish|archive|rename|move)$/.exec(code);
+  if (match) {
+    const verbs:Record<string,string>={create:'Membuat',update:'Memperbarui',delete:'Menghapus',publish:'Menerbitkan',archive:'Mengarsipkan',rename:'Mengganti nama',move:'Memindahkan'};
+    const category=auditEntityLabel(match[1]);
+    return `${verbs[match[2]]} ${category.toLowerCase()}`;
+  }
+  return 'Aktivitas lainnya';
+}
+
+export function auditEntityLabel(type: string | null) {
+  const labels:Record<string,string>={users:'Pengguna',invitations:'Undangan',roles:'Role dan Akses',products:'Produk',services:'Layanan',news_articles:'Artikel',media_assets:'Aset Media',hero_settings:'Hero',site_settings:'Pengaturan Website',social_links:'Sosial Media',homepage_section_settings:'Pengaturan Homepage',partners:'Mitra',team_members:'Anggota Tim',projects:'Proyek',achievements:'Pencapaian'};
+  if (!type) return 'CMS';
+  return labels[type.split(':')[0]]??'Konten CMS';
+}
+
+export function auditActorLabel(actorId: number | null, name: string | null) {
+  return name?.trim() || (actorId === null ? 'Aksi sistem' : 'Pengguna tidak tersedia');
 }
 
 export function initials(name?: string) {

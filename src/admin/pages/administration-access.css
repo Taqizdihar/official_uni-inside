@@ -1,0 +1,41 @@
+.cms-administration-page{max-width:1280px}
+.cms-administration-page .cms-page-head{margin-bottom:24px}
+.cms-administration-page .cms-card{margin-bottom:20px}
+.cms-invite-card{padding:clamp(20px,3vw,32px)}
+.cms-invite-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px 24px}
+.cms-invite-grid .cms-field{min-width:0}
+.cms-invite-grid .cms-field input,.cms-invite-grid .cms-field select{min-height:46px}
+.cms-invite-role{grid-column:1/-1;max-width:calc(50% - 12px)}
+.cms-invite-role small{margin-top:10px;line-height:1.5}
+.cms-invite-actions{margin-top:30px;display:flex;justify-content:flex-start}
+.cms-administration-table{padding:24px}
+.cms-administration-table .cms-table-wrap{width:100%;overflow-x:auto}
+.cms-administration-table table{min-width:900px}
+.cms-administration-table th,.cms-administration-table td{padding:16px 14px;white-space:nowrap;vertical-align:middle}
+.cms-administration-table td{font-size:13px}
+.cms-administration-table .cms-user-cell{gap:12px}
+.cms-administration-table .cms-user-cell .cms-avatar{width:38px;height:38px}
+.cms-administration-table .cms-user-cell strong{font-size:13px}
+.cms-administration-table .cms-badge{font-size:11px;padding:6px 10px}
+.cms-administration-table .cms-actions{flex-wrap:nowrap}
+.cms-edit-identity{display:flex;flex-direction:column;gap:3px;padding:14px 16px;margin:14px 0 18px;border:1px solid var(--line);border-radius:10px;background:#fafaf7;overflow-wrap:anywhere}
+.cms-edit-identity strong{font-size:15px}
+.cms-edit-identity span{color:var(--muted);font-size:13px}
+.cms-administration-page .cms-modal .cms-field{margin:16px 0}
+.cms-edit-help{display:flex;align-items:flex-start;gap:8px;color:var(--muted);font-size:12px;line-height:1.5}
+.cms-reset-entry{border-top:1px solid var(--line);padding-top:18px;margin-top:18px}
+.cms-reset-entry strong{font-size:13px}
+.cms-reset-entry p{margin:6px 0 14px;color:var(--muted);font-size:12px}
+.cms-reset-form small{display:block;color:var(--muted);font-size:12px;line-height:1.5}
+.cms-reset-form .cms-field-error{font-size:12px}
+.cms-audit-page .cms-administration-table table{min-width:1050px}
+.cms-audit-page .cms-administration-table th:nth-child(1){min-width:190px}
+.cms-audit-page .cms-administration-table th:nth-child(2){min-width:155px}
+.cms-audit-page .cms-administration-table th:nth-child(3){min-width:210px}
+.cms-audit-page .cms-administration-table th:nth-child(4){min-width:170px}
+.cms-audit-page .cms-administration-table th:nth-child(5){min-width:235px}
+.cms-audit-page td{max-width:320px;overflow:hidden;text-overflow:ellipsis}
+.cms-request-id{display:flex;align-items:center;gap:8px;min-width:0}
+.cms-request-id code{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cms-request-id button{flex:none}
+@media(max-width:700px){.cms-invite-grid{grid-template-columns:1fr;gap:16px}.cms-invite-role{grid-column:auto;max-width:none}.cms-administration-table{padding:16px}.cms-invite-actions{margin-top:24px}}

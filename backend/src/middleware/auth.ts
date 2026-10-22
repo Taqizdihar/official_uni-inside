@@ -33,6 +33,13 @@ export function permit(permission: string) {
     next();
   };
 }
+export function allowRoles(...roles: string[]) {
+  return (req: Request, _res: Response, next: NextFunction) => {
+    if (!req.actor) return next(new HttpError(401, 'UNAUTHENTICATED', 'Please sign in.'));
+    if (!roles.includes(req.actor.roleCode)) return next(new HttpError(403, 'FORBIDDEN', 'You do not have permission for this action.'));
+    next();
+  };
+}
 export function csrf(config: Config) {
   return (req: Request, _res: Response, next: NextFunction) => {
     if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();

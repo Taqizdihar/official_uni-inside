@@ -7,7 +7,7 @@ import { sendLink } from './mail';
 import { hashPassword, hashToken, newToken, validatePassword, verifyPassword } from '../utils/security';
 import { HttpError } from '../utils/http';
 
-type Context = { actorId?: number; requestId: string; ip?: string; userAgent?: string; permissions?: Set<string> };
+type Context = { actorId?: number; actorRole?: string; requestId: string; ip?: string; userAgent?: string; permissions?: Set<string> };
 const badAuth = () => new HttpError(401, 'INVALID_CREDENTIALS', 'Invalid email or password.');
 const validPassword = (value: string, config: Config) => { try { validatePassword(value, config.PASSWORD_MIN_LENGTH); } catch { throw new HttpError(400, 'WEAK_PASSWORD', `Choose a password between ${config.PASSWORD_MIN_LENGTH} and 1024 characters that is not easily guessed.`); } };
 const expires = (value: unknown) => new Date(`${String(value).replace(' ', 'T')}Z`).getTime() > Date.now();
@@ -20,6 +20,8 @@ export async function login(db: Pool, config: Config, email: string, password: s
   if (!(await verifyPassword(String(user.password_hash), password))) throw badAuth();
   const token = newToken();
   await transaction(db, async conn => {
+    const current = await repo.lockUser(conn, Number(user.id));
+    if (!current || current.status !== 'active' || current.password_hash !== user.password_hash) throw badAuth();
     await repo.createSession(conn, Number(user.id), hashToken(token, config.AUTH_TOKEN_PEPPER), ctx.ip ? hashToken(ctx.ip, config.ANALYTICS_HASH_PEPPER) : null, ctx.userAgent?.slice(0, 500) ?? null, config.SESSION_TTL_HOURS);
     await repo.markLogin(conn, Number(user.id));
     await audit(conn, { actorId: Number(user.id), action: 'auth.login', entityType: 'users', entityId: Number(user.id), requestId: ctx.requestId });
@@ -93,7 +95,13 @@ export async function completeReset(db: Pool, config: Config, token: string, pas
   validPassword(password, config);
   const hash = await hashPassword(password);
   return transaction(db, async conn => {
-    const reset = await repo.findReset(conn, hashToken(token, config.AUTH_TOKEN_PEPPER));
+    const tokenHash = hashToken(token, config.AUTH_TOKEN_PEPPER);
+    const candidate = await repo.findResetCandidate(conn, tokenHash);
+    if (!candidate) throw new HttpError(400, 'TOKEN_INVALID', 'This reset link is invalid or expired.');
+    // Both reset flows lock the user first, then tokens, so an administrator reset
+    // cannot race a self-service link into overwriting the newer password.
+    if (!(await repo.lockUser(conn, Number(candidate.user_id)))) throw new HttpError(400, 'TOKEN_INVALID', 'This reset link is invalid or expired.');
+    const reset = await repo.findReset(conn, tokenHash);
     if (!reset || reset.used_at || !expires(reset.expires_at)) throw new HttpError(400, 'TOKEN_INVALID', 'This reset link is invalid or expired.');
     await repo.setPassword(conn, Number(reset.user_id), hash);
     await repo.consumeReset(conn, Number(reset.id));
@@ -121,11 +129,29 @@ export async function updateUser(db: Pool, id: number, roleCode: string, status:
     const user = await repo.lockUser(conn, id);
     const role = await repo.findRole(conn, roleCode);
     if (!user || !role) throw new HttpError(404, 'NOT_FOUND', 'User or role not found.');
+    if (ctx.actorId === id && ctx.actorRole === 'super_admin' && (roleCode !== user.role_code || status !== user.status)) throw new HttpError(403, 'SELF_ADMIN_CHANGE_FORBIDDEN', 'Your super administrator role and status cannot be changed here.');
+    if (ctx.actorRole !== 'super_admin' && (user.role_code === 'super_admin' || roleCode === 'super_admin')) throw new HttpError(403, 'FORBIDDEN', 'Only a super administrator can change this account.');
     if ((user.role_code === 'super_admin' || roleCode === 'super_admin') && !ctx.permissions?.has('roles.manage')) throw new HttpError(403,'FORBIDDEN','Only role managers can change super administrator accounts.');
     if (user.role_code === 'super_admin' && (roleCode !== 'super_admin' || status !== 'active') && await repo.countActiveSuperAdmins(conn) <= 1) throw new HttpError(409, 'LAST_SUPER_ADMIN', 'The last active super administrator cannot be removed.');
     await repo.updateUser(conn, id, Number(role.id), status);
     if (status !== 'active') await repo.revokeUserSessions(conn, id);
     await audit(conn, { actorId: ctx.actorId, action: 'users.update', entityType: 'users', entityId: id, requestId: ctx.requestId, before: { role: user.role_code, status: user.status }, after: { role: roleCode, status } });
     return { id, role: roleCode, status };
+  });
+}
+export async function adminResetPassword(db: Pool, config: Config, id: number, next: string, ctx: Context) {
+  if (ctx.actorRole !== 'super_admin') throw new HttpError(403, 'FORBIDDEN', 'Only a super administrator can reset a member password.');
+  if (ctx.actorId === id) throw new HttpError(403, 'SELF_ADMIN_CHANGE_FORBIDDEN', 'Use your own profile to change your password.');
+  validPassword(next, config);
+  const hash = await hashPassword(next);
+  return transaction(db, async conn => {
+    const user = await repo.lockUser(conn, id);
+    if (!user) throw new HttpError(404, 'NOT_FOUND', 'User not found.');
+    if (user.role_code === 'super_admin' || user.status === 'invited' || !user.password_hash) throw new HttpError(403, 'RESET_TARGET_FORBIDDEN', 'This account is not eligible for administrative reset.');
+    await repo.setPassword(conn, id, hash);
+    await repo.revokeUserSessions(conn, id);
+    await repo.invalidateUserResets(conn, id);
+    await audit(conn, { actorId: ctx.actorId, action: 'users.password.admin_reset', entityType: 'users', entityId: id, requestId: ctx.requestId });
+    return { reset: true };
   });
 }

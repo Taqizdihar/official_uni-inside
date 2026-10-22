@@ -319,6 +319,7 @@ paths:
   /auth/me:
     get:
       summary: Current user, fresh permissions, and CSRF token
+      description: Also returns the configured passwordMinLength so authenticated password forms can match server policy.
       security: [{ sessionCookie: [] }]
       responses: { '200': { description: Current user }, '401': { description: No active session } }
   /auth/profile:
@@ -377,45 +378,70 @@ paths:
       responses: { '200': { description: Metrics } }
   /admin/audit:
     get:
-      summary: Authorized audit log, omitting sensitive snapshots
+      summary: Paginated safe Activity History for all five authenticated CMS roles
+      description: Newest first. Returns actor_name and target_name where a user record exists, plus technical action/entity codes for client-side Indonesian labels. Raw snapshots, IP hashes, and user agents are omitted. The established roles may read this safe list without audit.view; other audit-related endpoints retain their own authorization.
       security: [{ sessionCookie: [] }]
       parameters: [{ $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/Limit' }]
-      responses: { '200': { description: Audit entries } }
+      responses: { '200': { description: Audit entries with nullable actor_name and target_name }, '401': { description: Authentication required }, '403': { description: CMS role not allowed } }
   /admin/users:
     get:
       summary: List CMS users
+      description: Requires super_admin or administrator role and users.view permission.
       security: [{ sessionCookie: [] }]
-      responses: { '200': { description: Users } }
+      responses: { '200': { description: Users }, '403': { description: Role or permission denied } }
   /admin/users/{id}:
     parameters: [{ name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }]
     get:
       summary: View CMS user
+      description: Requires super_admin or administrator role and users.view permission.
       security: [{ sessionCookie: [] }]
-      responses: { '200': { description: User } }
+      responses: { '200': { description: User }, '403': { description: Role or permission denied } }
     patch:
       summary: Update role or status, preserving last active super administrator
+      description: Requires super_admin or administrator role, users.update permission, and CSRF. A super administrator cannot change their own role/status here. Administrators cannot modify super administrators or assign that role, even if granted roles.manage.
       security: [{ sessionCookie: [] }]
       parameters: [{ $ref: '#/components/parameters/Csrf' }]
-      responses: { '200': { description: User updated } }
+      responses: { '200': { description: User updated }, '403': { description: FORBIDDEN or SELF_ADMIN_CHANGE_FORBIDDEN }, '409': { description: LAST_SUPER_ADMIN } }
+  /admin/users/{id}/reset-password:
+    post:
+      summary: Super Administrator sets an eligible member's new password
+      description: Requires an active super_admin session, users.update, CSRF, and a per-actor limit of five attempts per hour. No current password or SMTP is needed. Rejects self, other super administrators, unaccepted invitations, and deleted/missing accounts. Preserves target role/status. Argon2id password update, target session revocation, outstanding reset-token invalidation, and a secret-free users.password.admin_reset audit event commit atomically. No credential is returned. The member must sign in again; a forced next-login change is not implemented.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }, { $ref: '#/components/parameters/Csrf' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [newPassword]
+              properties:
+                newPassword: { type: string, minLength: 12, maxLength: 1024, description: Uses the configured password minimum and existing weak-password validation }
+      responses: { '200': { description: '{ data: { reset: true } }' }, '400': { description: Invalid or weak password }, '401': { description: Authentication required }, '403': { description: 'CSRF, role, permission, self, or target policy denied' }, '404': { description: User not found }, '429': { description: Rate limit exceeded } }
   /admin/invitations:
     get:
       summary: List invitations
+      description: Requires super_admin or administrator role and users.view permission.
       security: [{ sessionCookie: [] }]
       responses: { '200': { description: Invitations } }
     post:
       summary: Invite a user
+      description: Requires super_admin or administrator role, users.invite, and CSRF. Production without SMTP returns 503 instead of claiming email delivery.
       security: [{ sessionCookie: [] }]
       parameters: [{ $ref: '#/components/parameters/Csrf' }]
       responses: { '201': { description: Invitation created } }
   /admin/invitations/{id}/resend:
     post:
       summary: Revoke old token and resend pending invitation
+      description: Requires super_admin or administrator role, users.invite, and CSRF. Production without SMTP returns 503.
       security: [{ sessionCookie: [] }]
       parameters: [{ name: id, in: path, required: true, schema: { type: integer } }, { $ref: '#/components/parameters/Csrf' }]
       responses: { '200': { description: Resent } }
   /admin/invitations/{id}/revoke:
     post:
       summary: Revoke pending invitation
+      description: Requires super_admin or administrator role, users.invite, and CSRF.
       security: [{ sessionCookie: [] }]
       parameters: [{ name: id, in: path, required: true, schema: { type: integer } }, { $ref: '#/components/parameters/Csrf' }]
       responses: { '200': { description: Revoked } }

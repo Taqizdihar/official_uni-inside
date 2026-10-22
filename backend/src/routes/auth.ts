@@ -3,7 +3,7 @@ import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import type { Pool } from 'mysql2/promise';
 import type { Config } from '../config/env';
-import { auth, csrf, csrfToken, permit } from '../middleware/auth';
+import { allowRoles, auth, csrf, csrfToken, permit } from '../middleware/auth';
 import { asyncRoute, HttpError, parse } from '../utils/http';
 import { clearCsrfCookieOptions, clearSessionCookieOptions, csrfCookieOptions, sessionCookieOptions } from '../utils/security';
 import * as service from '../services/auth';
@@ -23,6 +23,9 @@ export function authRoutes(config: Config, db: Pool) {
   const requireAuth = auth(config, db);
   const requireCsrf = csrf(config);
   const strict = rateLimit({ windowMs: config.LOGIN_RATE_LIMIT_WINDOW_MINUTES * 60_000, limit: config.LOGIN_RATE_LIMIT_MAX, standardHeaders: 'draft-8', legacyHeaders: false });
+  const adminRoles = allowRoles('super_admin', 'administrator');
+  const superAdmin = allowRoles('super_admin');
+  const resetLimit = rateLimit({ windowMs: 60 * 60_000, limit: 5, standardHeaders: 'draft-8', legacyHeaders: false, keyGenerator: req => String(req.actor!.id) });
   router.post('/auth/login', strict, asyncRoute(async (req, res) => {
     const input = parse(z.strictObject({ email, password }), req.body);
     const result = await service.login(db, config, input.email, input.password, { requestId: req.requestId, ip: req.ip, userAgent: req.get('user-agent') });
@@ -45,7 +48,7 @@ export function authRoutes(config: Config, db: Pool) {
   }));
   router.get('/auth/me', requireAuth, asyncRoute(async (req, res) => {
     const user = await repo.findUserById(db, req.actor!.id);
-    res.set('Cache-Control', 'no-store').json({ data: { user, permissions: [...req.actor!.permissions], csrfToken: csrfToken(config, req.sessionToken!) } });
+    res.set('Cache-Control', 'no-store').json({ data: { user, permissions: [...req.actor!.permissions], csrfToken: csrfToken(config, req.sessionToken!), passwordMinLength: config.PASSWORD_MIN_LENGTH } });
   }));
   router.get('/auth/profile',requireAuth,asyncRoute(async (req,res)=>{
     res.set('Cache-Control','no-store').json({data:{user:await repo.findUserById(db,req.actor!.id),profile:await repo.findProfile(db,req.actor!.id)}});
@@ -84,32 +87,36 @@ export function authRoutes(config: Config, db: Pool) {
     res.json({ data:{changed:true,csrfToken:csrfValue} });
   }));
 
-  router.get('/admin/users', requireAuth, permit('users.view'), asyncRoute(async (req, res) => {
+  router.get('/admin/users', requireAuth, adminRoles, permit('users.view'), asyncRoute(async (req, res) => {
     const q = parse(page, req.query);
     const [data,total]=await Promise.all([repo.listUsers(db,q.limit,(q.page-1)*q.limit),repo.countUsers(db)]);
     res.json({ data, meta: {...q,total,totalPages:Math.ceil(total/q.limit)} });
   }));
-  router.get('/admin/users/:id', requireAuth, permit('users.view'), asyncRoute(async (req, res) => {
+  router.get('/admin/users/:id', requireAuth, adminRoles, permit('users.view'), asyncRoute(async (req, res) => {
     const user = await repo.findUserById(db, parse(id, req.params.id));
     if (!user) throw new HttpError(404, 'NOT_FOUND', 'User not found.');
     res.json({ data: user });
   }));
-  router.patch('/admin/users/:id', requireAuth, requireCsrf, permit('users.update'), asyncRoute(async (req, res) => {
+  router.patch('/admin/users/:id', requireAuth, requireCsrf, adminRoles, permit('users.update'), asyncRoute(async (req, res) => {
     const input = parse(z.strictObject({ role: z.enum(['super_admin','administrator','editor','author','viewer']), status: z.enum(['active','suspended','disabled']) }), req.body);
     if (input.role === 'super_admin' && !req.actor!.permissions.has('roles.manage')) throw new HttpError(403, 'FORBIDDEN', 'Only role managers can assign super administrator.');
-    res.json({ data: await service.updateUser(db, parse(id, req.params.id), input.role, input.status, { actorId: req.actor!.id, requestId: req.requestId, permissions:req.actor!.permissions }) });
+    res.json({ data: await service.updateUser(db, parse(id, req.params.id), input.role, input.status, { actorId: req.actor!.id, actorRole: req.actor!.roleCode, requestId: req.requestId, permissions:req.actor!.permissions }) });
   }));
-  router.get('/admin/invitations', requireAuth, permit('users.view'), asyncRoute(async (req, res) => {
+  router.post('/admin/users/:id/reset-password', requireAuth, requireCsrf, superAdmin, permit('users.update'), resetLimit, asyncRoute(async (req, res) => {
+    const input = parse(z.strictObject({ newPassword: password }), req.body);
+    res.json({ data: await service.adminResetPassword(db, config, parse(id, req.params.id), input.newPassword, { actorId: req.actor!.id, actorRole: req.actor!.roleCode, requestId: req.requestId }) });
+  }));
+  router.get('/admin/invitations', requireAuth, adminRoles, permit('users.view'), asyncRoute(async (req, res) => {
     const q = parse(page, req.query); const [data,total]=await Promise.all([repo.listInvitations(db,q.limit,(q.page-1)*q.limit),repo.countInvitations(db)]);res.json({ data, meta: {...q,total,totalPages:Math.ceil(total/q.limit)} });
   }));
-  router.post('/admin/invitations', requireAuth, requireCsrf, permit('users.invite'), strict, asyncRoute(async (req, res) => {
+  router.post('/admin/invitations', requireAuth, requireCsrf, adminRoles, permit('users.invite'), strict, asyncRoute(async (req, res) => {
     const input = parse(z.strictObject({ email, displayName: z.string().min(1).max(150), role: z.enum(['administrator','editor','author','viewer']) }), req.body);
     res.status(201).json({ data: await service.invite(db, config, input, { actorId: req.actor!.id, requestId: req.requestId }) });
   }));
-  router.post('/admin/invitations/:id/resend', requireAuth, requireCsrf, permit('users.invite'), strict, asyncRoute(async (req, res) => {
+  router.post('/admin/invitations/:id/resend', requireAuth, requireCsrf, adminRoles, permit('users.invite'), strict, asyncRoute(async (req, res) => {
     res.json({ data: await service.resendInvite(db, config, parse(id, req.params.id), { actorId: req.actor!.id, requestId: req.requestId }) });
   }));
-  router.post('/admin/invitations/:id/revoke', requireAuth, requireCsrf, permit('users.invite'), asyncRoute(async (req, res) => {
+  router.post('/admin/invitations/:id/revoke', requireAuth, requireCsrf, adminRoles, permit('users.invite'), asyncRoute(async (req, res) => {
     const invitationId = parse(id, req.params.id);
     await transaction(db, async conn => {
       const changed = await repo.revokeInvitation(conn, invitationId);
@@ -121,7 +128,7 @@ export function authRoutes(config: Config, db: Pool) {
   router.get('/admin/roles', requireAuth, permit('roles.view'), asyncRoute(async (_req, res) => { res.json({ data: await repo.listRoles(db) }); }));
   router.get('/admin/permissions', requireAuth, permit('roles.view'), asyncRoute(async (_req, res) => { res.json({ data: await repo.listPermissions(db) }); }));
   router.get('/admin/roles/:id/permissions', requireAuth, permit('roles.view'), asyncRoute(async (req,res) => { res.json({data:{permissionIds:await repo.rolePermissionIds(db,parse(id,req.params.id))}}); }));
-  router.put('/admin/roles/:id/permissions', requireAuth, requireCsrf, permit('roles.manage'), asyncRoute(async (req, res) => {
+  router.put('/admin/roles/:id/permissions', requireAuth, requireCsrf, superAdmin, permit('roles.manage'), asyncRoute(async (req, res) => {
     const roleId = parse(id, req.params.id);
     const input = parse(z.strictObject({ permissionIds: z.array(id).max(51) }), req.body);
     const roles = await repo.listRoles(db);
