@@ -96,6 +96,7 @@ export function fixedRecordKey(def:ResourceDef,record:Record<string,unknown>){
   return String(value);
 }
 export function fixedLandingPath(def:ResourceDef,records:Record<string,unknown>[]){
+  if(['hero-settings','hero-trust-signals','hero-workspaces','hero-hotspots'].includes(def.name))return '/admin/homepage/hero-settings';
   return def.kind==='fixed'&&records.length?`${pathFor(def)}/${encodeURIComponent(fixedRecordKey(def,records[0]))}`:null;
 }
 export function pathFor(def:ResourceDef){return `/admin/${def.group==='Homepage'?'homepage':def.group==='Site'?'site':'content'}/${def.name}`;}

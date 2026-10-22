@@ -66,6 +66,8 @@ describe('HTTP behavior',()=>{
     const denied=await request(app).get('/api/v1/admin/hero-settings/1').set('Cookie',`${config.SESSION_COOKIE_NAME}=session-token`);
     expect(denied.status).toBe(403);
     expect(denied.body.error.code).toBe('FORBIDDEN');
+    const unified=await request(app).get('/api/v1/admin/homepage/hero').set('Cookie',`${config.SESSION_COOKIE_NAME}=session-token`);
+    expect(unified.status).toBe(403);expect(unified.body.error.code).toBe('FORBIDDEN');
   });
   it('protects the composed product endpoint with CSRF and create permission',async()=>{
     const raw='session-token',csrf=csrfToken(config,raw),cookies=[`${config.SESSION_COOKIE_NAME}=${raw}`,`${config.CSRF_COOKIE_NAME}=${csrf}`];
@@ -129,7 +131,11 @@ describe('HTTP behavior',()=>{
     const users=await request(app).get('/api/v1/admin/users').set('Cookie',cookies);
     expect(users.status).toBe(403);expect(users.body.error.code).toBe('FORBIDDEN');
     const content=await request(app).patch('/api/v1/admin/hero-trust-signals/1').set('Origin','http://localhost:3000').set('X-CSRF-Token',csrf).set('Cookie',cookies).send({meshPosition:[0,1,2]});
-    expect(content.status).toBe(400);expect(content.body.error.code).toBe('VALIDATION_ERROR');
+    expect(content.status).toBe(409);expect(content.body.error.code).toBe('LEGACY_ROUTE_DISABLED');
+    const restricted=await request(app).patch('/api/v1/admin/homepage/hero').set('Origin','http://localhost:3000').set('X-CSRF-Token',csrf).set('Cookie',cookies).send({intro_enabled:0});
+    expect(restricted.status).toBe(400);expect(restricted.body.error.code).toBe('VALIDATION_ERROR');
+    const restored=await request(app).post('/api/v1/admin/revisions/hero-settings/1/restore/1').set('Origin','http://localhost:3000').set('X-CSRF-Token',csrf).set('Cookie',cookies);
+    expect(restored.status).toBe(409);expect(restored.body.error.code).toBe('LEGACY_ROUTE_DISABLED');
   });
   it('enforces the request-body size limit',async()=>{
     const result=await request(app).post('/api/v1/auth/login').set('Origin','http://localhost:3000').send({email:'a@example.com',password:'x'.repeat(70_000)});

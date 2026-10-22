@@ -14,6 +14,10 @@ import { smoothStep } from './heroMotion';
 import styles from './Hero.module.css';
 
 const LOGOS = { studioLogo, craftLogo };
+function HeroCta({to,className,children}:{to:string;className:string;children:React.ReactNode}) {
+  if (/^https:\/\//i.test(to)) return <a className={className} href={to} rel="noopener noreferrer">{children}</a>;
+  return <Link className={className} to={to}>{children}</Link>;
+}
 const BulbI = () => (<svg className={styles.bulbIcon} viewBox="0 0 48 72" aria-hidden="true" focusable="false"><path className={styles.bulbFill} d="M24 4c-10 0-17 7-17 17 0 7 4 12 9 17v10h16V38c5-5 9-10 9-17C41 11 34 4 24 4Z" /><path d="M24 4c-10 0-17 7-17 17 0 7 4 12 9 17v10h16V38c5-5 9-10 9-17C41 11 34 4 24 4ZM17 54h14M19 60h10M22 66h4" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg>);
 const DESCRIPTION_BREAK = HERO_COPY.description.indexOf('every idea');
 const DESCRIPTION_LINES = [HERO_COPY.description.slice(0, DESCRIPTION_BREAK).trimEnd(), HERO_COPY.description.slice(DESCRIPTION_BREAK)];
@@ -89,14 +93,14 @@ function anchorOverlap(points: readonly ProjectedHotspot[], x: number, y: number
 export function IsometricHero() {
   const { homepage } = usePublicContent();
   const heroCopy = homepage?.hero;
-  const trustSignals = homepage?.heroTrustSignals?.length === 3 ? homepage.heroTrustSignals.map((item, index) => ({value:String(item.numeric_value ?? TRUST_SIGNALS[index].value),plus:String(item.suffix ?? '').includes('+'),label:String(item.label ?? TRUST_SIGNALS[index].label)})) : TRUST_SIGNALS;
+  const trustSignals = homepage?.heroTrustSignals?.length === 3 ? homepage.heroTrustSignals.map((item, index) => ({value:String(item.numeric_value ?? TRUST_SIGNALS[index].value),plus:String(item.suffix ?? '').includes('+'),suffix:String(item.suffix ?? ''),label:String(item.label ?? TRUST_SIGNALS[index].label)})) : TRUST_SIGNALS;
   const displayHotspots = HOTSPOTS.map(hotspot => {
     const key = `${hotspot.workspace}_${hotspot.id === 'editing' || hotspot.id === 'design' ? 'monitor' : hotspot.id}`;
     const record = homepage?.heroHotspots?.find(item => item.hotspot_key === key && item.is_enabled !== 0);
     return {...hotspot,label:record ? `${record.numeric_value ?? ''}${record.numeric_suffix ?? ''}${record.numeric_value != null ? ' ' : ''}${record.label}`.trim() : hotspot.label};
   });
   const displayWorkspace = (key:Workspace) => homepage?.heroWorkspaces?.find(item=>item.workspace_key===key && item.is_enabled!==0);
-  const heroDescription = heroCopy ? [heroCopy.description_line_1 || DESCRIPTION_LINES[0],heroCopy.description_line_2 || DESCRIPTION_LINES[1]] : DESCRIPTION_LINES;
+  const heroDescription = heroCopy ? [heroCopy.description_line_1 ?? '',heroCopy.description_line_2 ?? ''] : DESCRIPTION_LINES;
   const [reducedMotion, setReducedMotion] = useState(() =>
     typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   const [workspace, setWorkspace] = useState<Workspace>('studio');
@@ -609,6 +613,7 @@ export function IsometricHero() {
       className={styles.hero}
       aria-labelledby="isometric-hero-title"
       data-hero=""
+      data-three-line={Boolean(heroCopy?.heading_line_3)}
       data-workspace={workspace}
       data-stage={canInteract ? 'interactive' : contentVisible ? 'settled' : 'intro'}
       data-content-visible={contentVisible}
@@ -620,8 +625,8 @@ export function IsometricHero() {
       data-bulb-lit={replayPhase === 'bulb-lit'}
     >
       <div ref={copyRef} className={styles.headingCopy}>
-        <h1 id="isometric-hero-title" className={styles.title} aria-label={heroCopy ? `${heroCopy.heading_line_1} ${heroCopy.heading_line_2}` : HERO_COPY.title}>
-          {heroCopy ? <><span className={styles.titleLine}>{String(heroCopy.heading_line_1).startsWith('I')?<span className={styles.accent}><BulbI />{String(heroCopy.heading_line_1).slice(1)}</span>:heroCopy.heading_line_1}</span>{' '}<span className={styles.titleLine}>{heroCopy.heading_line_2}</span></> : <><span className={styles.titleLine}><span className={styles.accent}><BulbI />deas</span>{' '}captured</span>{' '}<span className={styles.titleLine}>and made</span>{' '}<span className={styles.titleLine}>tangible</span></>}
+        <h1 id="isometric-hero-title" className={styles.title} aria-label={heroCopy ? `${heroCopy.heading_line_3 ? 'Ideas' : heroCopy.heading_line_1} ${heroCopy.heading_line_2}${heroCopy.heading_line_3 ? ` ${heroCopy.heading_line_3}` : ''}` : HERO_COPY.title}>
+          {heroCopy ? heroCopy.heading_line_3 ? <><span className={styles.titleLine}><span className={styles.accent}><BulbI />deas</span></span>{' '}<span className={styles.titleLine}>{heroCopy.heading_line_2}</span>{' '}<span className={styles.titleLine}>{heroCopy.heading_line_3}</span></> : <><span className={styles.titleLine}>{String(heroCopy.heading_line_1).startsWith('I')?<span className={styles.accent}><BulbI />{String(heroCopy.heading_line_1).slice(1)}</span>:heroCopy.heading_line_1}</span>{' '}<span className={styles.titleLine}>{heroCopy.heading_line_2}</span></> : <><span className={styles.titleLine}><span className={styles.accent}><BulbI />deas</span>{' '}captured</span>{' '}<span className={styles.titleLine}>and made</span>{' '}<span className={styles.titleLine}>tangible</span></>}
         </h1>
         <p className={styles.description}>
           <span className={styles.descriptionLine}>{heroDescription[0]}</span>{' '}
@@ -790,13 +795,13 @@ export function IsometricHero() {
           >
             {ctaWorkspace === 'studio' ? (
               <>
-                <Link className={styles.primaryCta} to={cmsCta?.primary_cta_url||'/#contact-us'}>{cmsCta?.primary_cta_label||cta.primary}</Link>
-                <Link className={styles.secondaryCta} to={cmsCta?.secondary_cta_url||'/services'}>{cmsCta?.secondary_cta_label||cta.secondary}</Link>
+                <HeroCta className={styles.primaryCta} to={cmsCta?.primary_cta_url||'/#contact-us'}>{cmsCta?.primary_cta_label||cta.primary}</HeroCta>
+                <HeroCta className={styles.secondaryCta} to={cmsCta?.secondary_cta_url||'/services'}>{cmsCta?.secondary_cta_label||cta.secondary}</HeroCta>
               </>
             ) : (
               <>
-                <Link className={styles.primaryCta} to={cmsCta?.primary_cta_url||'/products'}>{cmsCta?.primary_cta_label||cta.primary}</Link>
-                <Link className={styles.secondaryCta} to={cmsCta?.secondary_cta_url||'/#contact-us'}>{cmsCta?.secondary_cta_label||cta.secondary}</Link>
+                <HeroCta className={styles.primaryCta} to={cmsCta?.primary_cta_url||'/products'}>{cmsCta?.primary_cta_label||cta.primary}</HeroCta>
+                <HeroCta className={styles.secondaryCta} to={cmsCta?.secondary_cta_url||'/#contact-us'}>{cmsCta?.secondary_cta_label||cta.secondary}</HeroCta>
               </>
             )}
           </div>

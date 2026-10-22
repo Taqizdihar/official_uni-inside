@@ -13,6 +13,9 @@ import { createProductForm } from '../services/productCreate';
 import { articleAuthorOptions, createNewsArticle } from '../services/newsCreation';
 import { asyncRoute, HttpError, parse } from '../utils/http';
 import { cmsCapabilities } from '../services/capabilities';
+import { getHero, heroThreeLineReady, saveHero } from '../services/hero';
+
+const heroResources = new Set(['hero-settings','hero-trust-signals','hero-workspaces','hero-hotspots']);
 
 const pagination = z.strictObject({ page: z.coerce.number().int().positive().default(1), limit: z.coerce.number().int().min(1).max(100).default(20), categoryId: z.coerce.number().int().positive().optional() });
 const publicNames = ['team-members','partners','products','services','projects','news','achievements'] as const;
@@ -24,7 +27,7 @@ export function publicContentRoutes(db: Pool, config?: Config) {
   }));
   router.get('/site', asyncRoute(async (_req,res) => { res.set('Cache-Control','public, max-age=60').json({ data: await repo.publicSite(db) }); }));
   router.get('/homepage', asyncRoute(async (_req,res) => {
-    const settings = await repo.publicHomepageSettings(db);
+    const settings = await repo.publicHomepageSettings(db,config?await heroThreeLineReady(db,config):false);
     const featured = Object.fromEntries(await Promise.all(publicNames.map(async name => [name, await repo.publicList(db,resources[name]!,name === 'products' || name === 'news' ? 6 : 12,0)])));
     res.set('Cache-Control','public, max-age=60').json({ data: { ...settings, featured } });
   }));
@@ -47,6 +50,12 @@ export function publicContentRoutes(db: Pool, config?: Config) {
 export function adminContentRoutes(config: Config, db: Pool) {
   const router = Router();
   const requireAuth = auth(config,db); const requireCsrf = csrf(config);
+  router.get('/admin/homepage/hero',requireAuth,permit('homepage.view'),asyncRoute(async(_req,res)=>{
+    res.set('Cache-Control','no-store').json({data:await getHero(db,config)});
+  }));
+  router.patch('/admin/homepage/hero',requireAuth,requireCsrf,permit('homepage.update'),asyncRoute(async(req,res)=>{
+    res.set('Cache-Control','no-store').json({data:await saveHero(db,config,req.body,req.actor!.id,req.requestId)});
+  }));
   router.post('/admin/products/compose',requireAuth,requireCsrf,asyncRoute(async(req,res)=>{
     const capabilities=await cmsCapabilities(db,config);
     res.status(201).json({data:await createProductForm(db,req.body,req.actor!,req.requestId,capabilities,config.CLOUDINARY_ROOT_FOLDER)});
@@ -112,14 +121,17 @@ export function adminContentRoutes(config: Config, db: Pool) {
     res.set('Cache-Control','no-store').json({ data:await content.get(db,String(req.params.resource),String(req.params.key)) });
   }));
   router.post('/admin/:resource', requireAuth, requireCsrf, asyncRoute(async (req,res) => {
+    if(heroResources.has(String(req.params.resource)))throw new HttpError(405,'METHOD_NOT_ALLOWED','Gunakan editor Hero untuk mengubah konten Hero.');
     if(req.params.resource==='social-links'&&config.SOCIAL_MEDIA_V2_ENABLED&&(await cmsCapabilities(db,config)).socialMediaV2.enabled)throw new HttpError(409,'LEGACY_ROUTE_DISABLED','Gunakan Manajemen Sosial Media untuk mengubah akun.');
     res.status(201).json({ data:await content.create(db,String(req.params.resource),req.body,req.actor!,req.requestId,config.CLOUDINARY_ROOT_FOLDER) });
   }));
   router.patch('/admin/:resource/:key', requireAuth, requireCsrf, asyncRoute(async (req,res) => {
+    if(heroResources.has(String(req.params.resource)))throw new HttpError(409,'LEGACY_ROUTE_DISABLED','Gunakan editor Hero untuk mengubah konten Hero.');
     if(req.params.resource==='social-links'&&config.SOCIAL_MEDIA_V2_ENABLED&&(await cmsCapabilities(db,config)).socialMediaV2.enabled)throw new HttpError(409,'LEGACY_ROUTE_DISABLED','Gunakan Manajemen Sosial Media untuk mengubah akun.');
     res.json({ data:await content.update(db,String(req.params.resource),String(req.params.key),req.body,req.actor!,req.requestId,config.CLOUDINARY_ROOT_FOLDER) });
   }));
   router.delete('/admin/:resource/:key', requireAuth, requireCsrf, asyncRoute(async (req,res) => {
+    if(heroResources.has(String(req.params.resource)))throw new HttpError(405,'METHOD_NOT_ALLOWED','Gunakan editor Hero untuk mengubah konten Hero.');
     if(req.params.resource==='social-links'&&config.SOCIAL_MEDIA_V2_ENABLED&&(await cmsCapabilities(db,config)).socialMediaV2.enabled)throw new HttpError(409,'LEGACY_ROUTE_DISABLED','Gunakan Manajemen Sosial Media untuk mengubah akun.');
     res.json({ data:await content.remove(db,String(req.params.resource),String(req.params.key),req.actor!,req.requestId) });
   }));

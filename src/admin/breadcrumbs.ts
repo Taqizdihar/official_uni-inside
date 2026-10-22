@@ -27,6 +27,7 @@ const special:Record<string,string>={
   '/admin/audit':'Riwayat Aktivitas','/admin/profile':'Profil Saya','/admin/content/categories':'Manajemen Kategori',
   '/admin/site/social-links':'Manajemen Sosial Media',
   '/admin/site/footer':'Pengaturan Footer',
+  '/admin/homepage/hero-settings':'Hero',
 };
 
 export function resolveBreadcrumb(pathname:string):Crumb[]{

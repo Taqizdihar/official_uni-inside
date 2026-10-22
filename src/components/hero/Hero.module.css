@@ -53,6 +53,7 @@
   display: block;
   font-family: inherit;
 }
+.hero[data-three-line='true'] .titleLine { display: block; overflow-wrap: anywhere; }
 
 .accent {
   color: var(--hero-yellow);

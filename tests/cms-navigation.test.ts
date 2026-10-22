@@ -12,10 +12,10 @@ test('frontend and backend checks use separate TypeScript and Vitest projects',(
   assert.match(scripts.test,/--config vitest\.config\.ts/);
 });
 
-test('fixed Homepage entry opens an existing editor with its stable key',()=>{
+test('Hero entries open the unified editor',()=>{
   const hero=catalog['hero-settings'];
-  assert.equal(fixedLandingPath(hero,[{id:1,heading_line_1:'Ideas'}]),'/admin/homepage/hero-settings/1');
-  assert.equal(fixedLandingPath(hero,[]),null);
+  assert.equal(fixedLandingPath(hero,[{id:1,heading_line_1:'Ideas'}]),'/admin/homepage/hero-settings');
+  assert.equal(fixedLandingPath(hero,[]),'/admin/homepage/hero-settings');
   assert.equal(fixedRecordKey(catalog['hero-trust-signals'],{slot:2,label:'Products'}),'2');
   assert.equal(fixedRecordKey(catalog['hero-workspaces'],{workspace_key:'craft'}),'craft');
   assert.equal(fixedRecordKey(catalog['hero-hotspots'],{hotspot_key:'studio_camera'}),'studio_camera');
@@ -26,7 +26,7 @@ test('fixed Homepage entry opens an existing editor with its stable key',()=>{
 
 test('multi-slot fixed resources select an existing editor while dynamic collections retain listings',()=>{
   const callouts=catalog['hero-hotspots'];
-  assert.equal(fixedLandingPath(callouts,[{hotspot_key:'studio_camera',label:'Camera'},{hotspot_key:'craft_printer',label:'Printer'}]),'/admin/homepage/hero-hotspots/studio_camera');
+  assert.equal(fixedLandingPath(callouts,[{hotspot_key:'studio_camera',label:'Camera'},{hotspot_key:'craft_printer',label:'Printer'}]),'/admin/homepage/hero-settings');
   assert.equal(fixedLandingPath(catalog.products,[{id:1,name:'Product'}]),null);
   assert.equal(pathFor(catalog.products),'/admin/content/products');
   assert.equal(catalog.products.kind,'dynamic');

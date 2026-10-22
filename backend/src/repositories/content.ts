@@ -181,9 +181,9 @@ export async function publicSite(db: Executor) {
   const pages = await rows<RowDataPacket>(db, 'SELECT page_key,eyebrow,heading,description,primary_cta_label,primary_cta_url,meta_title,meta_description,og_media_id FROM page_settings ORDER BY page_key');
   return { site, socialLinks, pages };
 }
-export async function publicHomepageSettings(db: Executor) {
+export async function publicHomepageSettings(db: Executor, threeLineHero=false) {
   const sections = await rows<RowDataPacket>(db, 'SELECT section_key,eyebrow,heading,description,primary_cta_label,primary_cta_url,is_visible FROM homepage_section_settings ORDER BY section_key');
-  const hero = (await rows<RowDataPacket>(db, 'SELECT eyebrow,heading_line_1,heading_line_2,description_line_1,description_line_2,intro_enabled,default_workspace FROM hero_settings WHERE id=1'))[0] ?? null;
+  const hero = (await rows<RowDataPacket>(db, `SELECT eyebrow,heading_line_1,heading_line_2,${threeLineHero?'heading_line_3,':''}description_line_1,description_line_2,intro_enabled,default_workspace FROM hero_settings WHERE id=1`))[0] ?? null;
   const heroTrustSignals = await rows<RowDataPacket>(db, 'SELECT slot,numeric_value,suffix,label,is_visible FROM hero_trust_signals ORDER BY slot');
   const heroWorkspaces = await rows<RowDataPacket>(db, 'SELECT workspace_key,display_name,primary_cta_label,primary_cta_url,secondary_cta_label,secondary_cta_url,is_enabled FROM hero_workspace_content ORDER BY workspace_key');
   const heroHotspots = await rows<RowDataPacket>(db, 'SELECT hotspot_key,workspace_key,label,numeric_value,numeric_suffix,sort_order,is_enabled FROM hero_hotspot_content ORDER BY workspace_key,sort_order');

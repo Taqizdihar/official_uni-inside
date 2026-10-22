@@ -10,6 +10,7 @@ import {ArticleCreatePage} from './pages/ArticleCreatePage';
 import {CategoryManagementPage} from './pages/CategoryManagementPage';
 import {SocialMediaPage} from './pages/SocialMediaPage';
 import {FooterSettingsPage} from './pages/FooterSettingsPage';
+import {HeroSettingsPage} from './pages/HeroSettingsPage';
 import {categoryResourceFor,categoryUrl} from './categories/model';
 import {RolesPage,ProfilePage} from './pages/AdministrationPages';
 import {UsersPage,AuditPage} from './pages/AdministrationAccessPages';
@@ -21,6 +22,8 @@ function Guest({children}:{children:React.ReactNode}){const {user,loading}=useAu
 function UserManagementRoute(){const {user,has}=useAuth();return user&&['super_admin','administrator'].includes(user.role_code)&&has('users.view')?<UsersPage/>:<div className="cms-notice cms-notice-error" role="alert">Anda tidak memiliki akses ke Manajemen Pengguna.</div>;}
 function LegacyCategoryRedirect({action,resource:fixedResource}:{action?:'create'|'edit';resource?:string}){const {resource,key}=useParams();const tab=categoryResourceFor(fixedResource??resource??'');const id=key?Number(key):undefined;return tab?<Navigate to={categoryUrl(tab,action,id!==undefined&&Number.isSafeInteger(id)&&id>0?id:undefined)} replace/>:<Navigate to="/admin/content/categories" replace/>;}
 function CategoryOrResourceLanding(){const {resource}=useParams();return categoryResourceFor(resource??'')?<LegacyCategoryRedirect/>:<ResourceLandingPage/>;}
+function HeroOrResourceLanding(){const {resource}=useParams();return ['hero-settings','hero-trust-signals','hero-workspaces','hero-hotspots'].includes(resource??'')?<Navigate to="/admin/homepage/hero-settings" replace/>:<ResourceLandingPage/>;}
+function HeroOrResourceEditor(){const {resource}=useParams();return ['hero-settings','hero-trust-signals','hero-workspaces','hero-hotspots'].includes(resource??'')?<Navigate to="/admin/homepage/hero-settings" replace/>:<ResourceEditorPage/>;}
 export default function AdminApp(){return <div className="cms" lang="id"><AuthProvider><Routes>
   <Route path="/admin">
   <Route path="login" element={<Guest><LoginPage/></Guest>}/>
@@ -31,8 +34,9 @@ export default function AdminApp(){return <div className="cms" lang="id"><AuthPr
     <Route index element={<Navigate to="dashboard" replace/>}/>
     <Route path="dashboard" element={<DashboardPage/>}/>
     <Route path="analytics" element={<AnalyticsPage/>}/>
-    <Route path="homepage/:resource" element={<ResourceLandingPage/>}/>
-    <Route path="homepage/:resource/:key" element={<ResourceEditorPage/>}/>
+    <Route path="homepage/hero-settings" element={<HeroSettingsPage/>}/>
+    <Route path="homepage/:resource" element={<HeroOrResourceLanding/>}/>
+    <Route path="homepage/:resource/:key" element={<HeroOrResourceEditor/>}/>
     <Route path="site/social-links" element={<SocialMediaPage/>}/>
     <Route path="site/footer" element={<FooterSettingsPage/>}/>
     <Route path="site/site-settings" element={<Navigate to="/admin/site/footer" replace/>}/>

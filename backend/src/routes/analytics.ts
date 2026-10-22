@@ -34,6 +34,7 @@ export function analyticsRoutes(config: Config,db: Pool) {
   }));
   router.post('/admin/revisions/:resource/:key/restore/:id',requireAuth,requireCsrf,asyncRoute(async (req,res)=>{
     const name=String(req.params.resource);const spec=content.getResource(name);
+    if(['hero-settings','hero-trust-signals','hero-workspaces','hero-hotspots'].includes(name))throw new HttpError(409,'LEGACY_ROUTE_DISABLED','Gunakan editor Hero untuk mengubah konten Hero.');
     if (!req.actor!.permissions.has(content.permissionFor(spec,'update'))) throw new HttpError(403,'FORBIDDEN','You do not have permission for this action.');
     const key=String(req.params.key);const row=await content.get(db,name,key);
     const entityType=spec.kind==='fixed'?`${spec.table}:${key}`:spec.table;

@@ -6,12 +6,13 @@ interface RollingCountersProps {
   start: boolean;
   reducedMotion: boolean;
   onComplete: () => void;
-  signals?: readonly { value: string; plus: boolean; label: string }[];
+  signals?: readonly { value: string; plus: boolean; suffix?: string; label: string }[];
 }
 
-function RollingNumber({ value, plus, label, index, start, reducedMotion, onStop }: {
+function RollingNumber({ value, plus, suffix, label, index, start, reducedMotion, onStop }: {
   value: string;
   plus: boolean;
+  suffix?: string;
   label: string;
   index: number;
   start: boolean;
@@ -31,7 +32,7 @@ function RollingNumber({ value, plus, label, index, start, reducedMotion, onStop
 
   return (
     <div className={styles.trustSignal} data-hero-counter={label} data-rolling={start && !stopped && !reducedMotion}>
-      <span className={styles.srOnly}>{value}{plus ? '+' : ''} {label.toLowerCase()}</span>
+      <span className={styles.srOnly}>{value}{suffix ?? (plus ? '+' : '')} {label.toLowerCase()}</span>
       <div className={styles.counterValue} aria-hidden="true" data-counter={value} data-stopped={stopped || reducedMotion}>
         <span className={styles.counterDigits}>
           {digits.map((digit, position) => {
@@ -57,7 +58,7 @@ function RollingNumber({ value, plus, label, index, start, reducedMotion, onStop
             );
           })}
         </span>
-        {plus && <span data-hero-plus="" className={`${styles.plus} ${stopped || reducedMotion ? styles.plusVisible : ''}`}>+</span>}
+        {(suffix||plus) && <span data-hero-plus="" className={`${styles.plus} ${stopped || reducedMotion ? styles.plusVisible : ''}`}>{suffix ?? '+'}</span>}
       </div>
       <span className={styles.counterLabel} aria-hidden="true">{label}</span>
     </div>
