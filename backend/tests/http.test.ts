@@ -103,6 +103,27 @@ describe('HTTP behavior',()=>{
     const badScope=await request(app).get('/api/v1/admin/media?scope=other').set('Cookie',cookie);
     expect(badScope.status).toBe(400);
   });
+  it('lists products, services, and articles by their database-managed update time',async()=>{
+    const sql:string[]=[];
+    const listingDb={execute:async(options:{sql:string})=>{
+      sql.push(options.sql);
+      if(options.sql.includes('FROM auth_sessions'))return [[{session_id:2,user_id:1,role_id:1,role_code:'super_admin',last_activity_at:new Date().toISOString().replace('T',' ').replace('Z','')}],[]];
+      if(options.sql.includes('FROM role_permissions'))return [[{code:'products.view'},{code:'services.view'},{code:'news.view'}],[]];
+      if(options.sql.startsWith('SELECT COUNT(*) AS count'))return [[{count:0}],[]];
+      return [[],[]];
+    }} as unknown as Pool;
+    const listingApp=createApp(config,listingDb);
+    for(const resource of ['products','services','news']){
+      const response=await request(listingApp).get(`/api/v1/admin/${resource}?page=1&limit=20&direction=desc`).set('Cookie',`${config.SESSION_COOKIE_NAME}=session-token`);
+      expect(response.status).toBe(200);
+      expect(response.body.data).toEqual([]);
+    }
+    expect(sql.filter(statement=>statement.includes('ORDER BY `updated_at` DESC, `id` DESC'))).toHaveLength(3);
+    const unsafe=await request(listingApp).get('/api/v1/admin/products?sort=password_hash').set('Cookie',`${config.SESSION_COOKIE_NAME}=session-token`);
+    expect(unsafe.status).toBe(400);
+    const categorySort=await request(listingApp).get('/api/v1/admin/product-categories?sort=updated_at').set('Cookie',`${config.SESSION_COOKIE_NAME}=session-token`);
+    expect(categorySort.status).toBe(400);
+  });
   it('applies permission and strict content-field checks',async()=>{
     const raw='session-token';const csrf=csrfToken(config,raw);const cookies=[`${config.SESSION_COOKIE_NAME}=${raw}`,`${config.CSRF_COOKIE_NAME}=${csrf}`];
     const users=await request(app).get('/api/v1/admin/users').set('Cookie',cookies);
