@@ -195,13 +195,16 @@ const RopeSimulation = ({ startRef, endRef, altEndRef, useAltEnd, isActive }: { 
 };
 
 export const ContactSection = () => {
-  const { homepage, site } = usePublicContent();
+  const { homepage } = usePublicContent();
   const contact = homepage?.contact;
   const messages = useMemo(()=>homepage?.chatMessages?.length ? homepage.chatMessages.map(item=>String(item.message_text)) : chatMessages,[homepage?.chatMessages]);
-  const displaySocials = socials.map(item=>{const cms=site?.socialLinks?.find(link=>link.platform_code===item.id);return {...item,url:cms?.url||item.url,name:cms?.label||item.name};});
+  // Contact placements have no persistent schema yet. Keep the published row
+  // stable instead of silently substituting accounts from the global registry.
+  const displaySocials = socials;
   const contactRootRef = useRef<HTMLDivElement>(null);
   const { isVisible: isContactNear, isPageVisible } = useElementVisibility(contactRootRef, '700px 0px');
   const [hoveredSocial, setHoveredSocial] = useState<string | null>(null);
+  const [focusedSocial, setFocusedSocial] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [hideSmallNote, setHideSmallNote] = useState(false);
   
@@ -622,9 +625,6 @@ export const ContactSection = () => {
     };
   }, []);
 
-  // Default to whatsapp if nothing is hovered
-  const activeSocial = hoveredSocial || 'whatsapp';
-
   return (
     <div ref={contactRootRef} className="w-full flex-grow flex flex-col items-center justify-between px-8 lg:px-24">
       <div className="text-center z-20 flex flex-col items-center mt-auto mb-auto">
@@ -652,10 +652,10 @@ export const ContactSection = () => {
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6, delay: 0.2 }}
-          className="flex flex-wrap items-center justify-center gap-3 mt-10 h-14"
+          className="flex w-full max-w-full flex-nowrap items-center justify-start lg:justify-center gap-3 mt-10 min-h-14 overflow-x-auto px-1 pb-2"
         >
           {displaySocials.map((social) => {
-            const isExpanded = activeSocial === social.id;
+            const isExpanded = social.id === 'whatsapp' || hoveredSocial === social.id || focusedSocial === social.id;
             
             return (
               <motion.a
@@ -665,6 +665,8 @@ export const ContactSection = () => {
                 rel="noreferrer"
                 onMouseEnter={() => setHoveredSocial(social.id)}
                 onMouseLeave={() => setHoveredSocial(null)}
+                onFocus={() => setFocusedSocial(social.id)}
+                onBlur={() => setFocusedSocial(null)}
                 layout
                 initial={false}
                 animate={{

@@ -1,95 +1,28 @@
-import React, { forwardRef } from 'react';
-import { motion } from 'motion/react';
-import { Award, Star, Trophy, Medal } from 'lucide-react';
+import {forwardRef,useEffect,useRef,useState} from 'react';
+import {createPortal} from 'react-dom';
+import {motion} from 'motion/react';
+import {Award,Star,Trophy,Medal,ArrowLeft,ArrowRight,X} from 'lucide-react';
 import {usePublicContent} from '../public/client';
+import './AchievementsSection.css';
 
-const staticAchievements = [
-  {
-    id: 1,
-    year: '2025',
-    title: 'Best Creative Agency',
-    organization: 'Awwwards',
-    description: 'Recognized for outstanding digital experiences and immersive web designs.',
-    icon: Trophy
-  },
-  {
-    id: 2,
-    year: '2024',
-    title: 'Innovation in AI',
-    organization: 'TechCrunch Disrupt',
-    description: 'Awarded for pioneering AI-driven interfaces in web applications.',
-    icon: Star
-  },
-  {
-    id: 3,
-    year: '2023',
-    title: 'Excellence in Design',
-    organization: 'Red Dot Design Award',
-    description: 'Honored for clean, accessible, and user-centric UI/UX paradigms.',
-    icon: Award
-  },
-  {
-    id: 4,
-    year: '2022',
-    title: 'Top Developer Studio',
-    organization: 'Google Play Awards',
-    description: 'Voted top studio for high-performance and beautifully crafted apps.',
-    icon: Medal
-  }
+type Achievement={id:number;year:string;title:string;organization:string;description:string;externalUrl?:string;image?:string;icon:typeof Trophy};
+const icons={trophy:Trophy,star:Star,award:Award,medal:Medal};
+function referenceUrl(raw:unknown){if(typeof raw!=='string')return undefined;try{const url=new URL(raw);return ['http:','https:'].includes(url.protocol)&&!url.username&&!url.password?raw:undefined;}catch{return undefined;}}
+const staticAchievements:Achievement[]=[
+  {id:1,year:'2025',title:'Best Creative Agency',organization:'Awwwards',description:'Recognized for outstanding digital experiences and immersive web designs.',icon:Trophy},
+  {id:2,year:'2024',title:'Innovation in AI',organization:'TechCrunch Disrupt',description:'Awarded for pioneering AI-driven interfaces in web applications.',icon:Star},
+  {id:3,year:'2023',title:'Excellence in Design',organization:'Red Dot Design Award',description:'Honored for clean, accessible, and user-centric UI/UX paradigms.',icon:Award},
+  {id:4,year:'2022',title:'Top Developer Studio',organization:'Google Play Awards',description:'Voted top studio for high-performance and beautifully crafted apps.',icon:Medal},
 ];
-
-export const AchievementsSection = forwardRef<HTMLDivElement, {}>((props, ref) => {
+function AchievementDialog({item,onClose}:{item:Achievement;onClose:()=>void}){
+  const box=useRef<HTMLDivElement>(null),close=useRef<HTMLButtonElement>(null),callback=useRef(onClose);callback.current=onClose;
+  useEffect(()=>{const previous=document.activeElement as HTMLElement|null,overflow=document.body.style.overflow;document.body.style.overflow='hidden';close.current?.focus();const key=(event:KeyboardEvent)=>{if(event.key==='Escape'){event.preventDefault();callback.current();}if(event.key==='Tab'){const controls=[...box.current?.querySelectorAll<HTMLElement>('button,a[href]')??[]];const first=controls[0],last=controls.at(-1);if(!first||!last)return;if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}}};document.addEventListener('keydown',key);return()=>{document.body.style.overflow=overflow;document.removeEventListener('keydown',key);previous?.focus();};},[]);
+  return createPortal(<div className="achievement-modal-backdrop" onMouseDown={event=>{if(event.target===event.currentTarget)onClose();}}><div ref={box} role="dialog" aria-modal="true" aria-labelledby="achievement-modal-title" className="achievement-modal"><button ref={close} className="achievement-modal-close" type="button" onClick={onClose} aria-label="Close Achievement details"><X size={22}/></button>{item.image&&<img className="achievement-modal-image" src={item.image} alt=""/>}<div className="achievement-modal-copy"><span>{item.year}</span><h2 id="achievement-modal-title">{item.title}</h2>{item.organization&&<p className="achievement-modal-issuer">{item.organization}</p>}<p>{item.description}</p>{item.externalUrl&&<a href={item.externalUrl} target="_blank" rel="noopener noreferrer">View supporting reference <ArrowRight size={16}/></a>}</div></div></div>,document.body);
+}
+export const AchievementsSection=forwardRef<HTMLDivElement,{}>((_props,ref)=>{
   const {achievements:cmsAchievements,homepage}=usePublicContent();
-  const achievements=cmsAchievements===null?staticAchievements:cmsAchievements.map((item,index)=>({id:Number(item.id),year:String(item.year_label||item.achievement_date?.slice(0,4)||''),title:String(item.title),organization:String(item.issuer_name||''),description:String(item.description||''),icon:[Trophy,Star,Award,Medal][index%4]}));
-  return (
-    <div className="w-full flex flex-col items-center px-8 lg:px-24">
-      <div className="mb-16 text-center z-20">
-        <h2 className="text-[60px] sm:text-[90px] lg:text-[130px] font-black uppercase text-white leading-none tracking-tight drop-shadow-xl">
-          {homepage?.achievements?.heading||'ACHIEVEMENTS'}
-        </h2>
-        <p className="text-[20px] sm:text-[30px] text-[#f9d02d] font-medium mt-4">
-          {homepage?.achievements?.description||'Celebrating our milestones and recognitions'}
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-6xl z-20">
-        {achievements.map((achievement, idx) => {
-          const Icon = achievement.icon;
-          return (
-            <motion.div
-              key={achievement.id}
-              initial={{ opacity: 0, y: 50 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-100px" }}
-              transition={{ duration: 0.6, delay: idx * 0.15 }}
-              className="group relative bg-[#2a2b2b] p-8 rounded-3xl overflow-hidden border border-white/5 hover:border-[#f9d02d]/30 transition-colors"
-            >
-              {/* Background Glow */}
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-[#f9d02d] rounded-full blur-[80px] opacity-0 group-hover:opacity-20 transition-opacity duration-500 pointer-events-none" />
-
-              <div className="flex items-start justify-between">
-                <div className="flex flex-col">
-                  <span className="text-[#f9d02d] font-bold text-xl mb-2">{achievement.year}</span>
-                  <h3 className="text-2xl sm:text-3xl font-black text-white leading-tight mb-2">
-                    {achievement.title}
-                  </h3>
-                  <p className="text-gray-400 font-medium mb-4">{achievement.organization}</p>
-                </div>
-                <div className="p-4 bg-white/5 rounded-2xl text-white group-hover:text-[#f9d02d] group-hover:scale-110 transition-all duration-300">
-                  <Icon size={32} strokeWidth={2} />
-                </div>
-              </div>
-              
-              <p className="text-gray-300 leading-relaxed">
-                {achievement.description}
-              </p>
-            </motion.div>
-          );
-        })}
-      </div>
-      {cmsAchievements?.length===0&&<p className="mt-8 text-white/70">No achievements published yet.</p>}
-    </div>
-  );
+  const items:Achievement[]=cmsAchievements===null?staticAchievements:cmsAchievements.map((item,index)=>({id:Number(item.id),year:String(item.year_label||item.achievement_date?.slice(0,4)||''),title:String(item.title),organization:String(item.issuer_name||''),description:String(item.description||''),externalUrl:referenceUrl(item.external_url),image:typeof item.image?.secure_url==='string'?item.image.secure_url:undefined,icon:icons[item.icon_key as keyof typeof icons]??[Trophy,Star,Award,Medal][index%4]}));
+  const [selected,setSelected]=useState<Achievement|null>(null),track=useRef<HTMLDivElement>(null),pointer=useRef<{x:number;y:number}|null>(null);
+  return <div ref={ref} className="achievement-section"><div className="achievement-section-head"><h2>{homepage?.achievements?.heading||'ACHIEVEMENTS'}</h2><p>{homepage?.achievements?.description||'Celebrating our milestones and recognitions'}</p></div><div className="achievement-controls"><button type="button" aria-label="Scroll Achievements left" onClick={()=>track.current?.scrollBy({left:-440,behavior:'smooth'})}><ArrowLeft size={20}/></button><button type="button" aria-label="Scroll Achievements right" onClick={()=>track.current?.scrollBy({left:440,behavior:'smooth'})}><ArrowRight size={20}/></button></div><div ref={track} className="achievement-track" aria-label="Achievements" onPointerDown={event=>{pointer.current={x:event.clientX,y:event.clientY};}}>{items.map((item,index)=>{const Icon=item.icon;return <motion.button key={item.id} type="button" className="achievement-card" initial={{opacity:0,y:40}} whileInView={{opacity:1,y:0}} viewport={{once:true,margin:'-40px'}} transition={{duration:.5,delay:Math.min(index,4)*.08}} onClick={event=>{if(pointer.current&&Math.hypot(event.clientX-pointer.current.x,event.clientY-pointer.current.y)>8)return;setSelected(item);}}><span className="achievement-card-top"><span><small>{item.year}</small><strong>{item.title}</strong><em>{item.organization}</em></span><Icon size={32} aria-hidden="true"/></span><span className="achievement-card-description">{item.description}</span><span className="achievement-card-open">View details <ArrowRight size={16}/></span></motion.button>;})}</div>{cmsAchievements?.length===0&&<p className="achievement-empty">No achievements published yet.</p>}{selected&&<AchievementDialog item={selected} onClose={()=>setSelected(null)}/>}</div>;
 });
-
-AchievementsSection.displayName = 'AchievementsSection';
+AchievementsSection.displayName='AchievementsSection';

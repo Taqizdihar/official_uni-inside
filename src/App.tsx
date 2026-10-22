@@ -295,21 +295,14 @@ export default function App() {
   useEffect(() => {
     const targetId = location.hash.slice(1);
     if (!targetId) return;
-
-    const frame = window.requestAnimationFrame(() => {
-      if (targetId === 'products') {
-        scrollStoryRef.current?.scrollToScene('PRODUCTS', 'auto');
-        return;
-      }
-
-      if (targetId === 'services') {
-        scrollStoryRef.current?.scrollToScene('SERVICES', 'auto');
-        return;
-      }
-
-      document.getElementById(targetId)?.scrollIntoView({ behavior: 'auto' });
-    });
-
+    let frame=0,attempts=0;
+    const scene=targetId==='products'?'PRODUCTS':targetId==='services'?'SERVICES':targetId==='news'?'EVENTS':null;
+    const scroll=()=>{
+      if(scene){if(scrollStoryRef.current?.isReady()){scrollStoryRef.current.scrollToScene(scene,'auto');return;}}
+      else {const element=document.getElementById(targetId);if(element){element.scrollIntoView({behavior:'auto'});return;}}
+      if(++attempts<120)frame=window.requestAnimationFrame(scroll);
+    };
+    frame=window.requestAnimationFrame(scroll);
     return () => window.cancelAnimationFrame(frame);
   }, [location.hash]);
 

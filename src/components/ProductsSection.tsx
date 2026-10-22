@@ -1,8 +1,8 @@
 import React, { forwardRef } from 'react';
 import { motion } from 'motion/react';
-import { Link } from 'react-router-dom';
+import {PublicCtaLink} from './PublicCtaLink';
 import craftsLogo from '../assets/global/Uni-Inside Crafts.svg';
-import { usePublicContent, trackEvent } from '../public/client';
+import { usePublicContent } from '../public/client';
 
 export const OurProductsSection = forwardRef<HTMLDivElement, {}>((props, ref) => {
   const {homepage}=usePublicContent();
@@ -16,13 +16,12 @@ export const OurProductsSection = forwardRef<HTMLDivElement, {}>((props, ref) =>
         transition={{ duration: 0.8 }}
         className="text-[40px] sm:text-[70px] lg:text-[110px] font-black uppercase text-[#202121] leading-none text-center tracking-tight flex items-center justify-center flex-wrap gap-x-2 sm:gap-x-4"
       >
-        <span>{section?.heading && section.heading!=='OUR PRODUCTS'?section.heading:'OUR'}</span>
-        {(!section?.heading || section.heading==='OUR PRODUCTS')&&
+        <span>OUR</span>
         <div className="flex items-center">
           <span>PRODU</span>
           <img src={craftsLogo} alt="C" className="h-[0.75em] w-auto object-contain mx-[0.02em]" />
           <span>TS</span>
-        </div>}
+        </div>
       </motion.h2>
       <motion.p 
         initial={{ opacity: 0, y: 30 }}
@@ -40,13 +39,12 @@ export const OurProductsSection = forwardRef<HTMLDivElement, {}>((props, ref) =>
         transition={{ duration: 0.8, delay: 0.4 }}
         className="mt-12"
       >
-        <Link
+        <PublicCtaLink
           to={section?.primary_cta_url||'/products'}
-          onClick={()=>trackEvent('cta_click',{linkDestination:section?.primary_cta_url||'/products'})}
           className="inline-flex rounded-full bg-[#f9d02d] px-10 py-4 text-lg font-extrabold text-[#202121] shadow-lg transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#202121] focus-visible:ring-offset-2 sm:text-xl"
         >
           {section?.primary_cta_label||'Check our catalogue'}
-        </Link>
+        </PublicCtaLink>
       </motion.div>
     </div>
   );

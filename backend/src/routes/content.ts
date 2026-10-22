@@ -14,6 +14,9 @@ import { articleAuthorOptions, createNewsArticle } from '../services/newsCreatio
 import { asyncRoute, HttpError, parse } from '../utils/http';
 import { cmsCapabilities } from '../services/capabilities';
 import { getHero, heroThreeLineReady, saveHero } from '../services/hero';
+import {getSection,saveSection,sectionNames} from '../services/homepageSections';
+import {linkDestinations} from '../services/linkDestinations';
+import {reorderAchievements} from '../services/achievementOrder';
 
 const heroResources = new Set(['hero-settings','hero-trust-signals','hero-workspaces','hero-hotspots']);
 
@@ -55,6 +58,21 @@ export function adminContentRoutes(config: Config, db: Pool) {
   }));
   router.patch('/admin/homepage/hero',requireAuth,requireCsrf,permit('homepage.update'),asyncRoute(async(req,res)=>{
     res.set('Cache-Control','no-store').json({data:await saveHero(db,config,req.body,req.actor!.id,req.requestId)});
+  }));
+  router.get('/admin/link-destinations',requireAuth,(_req,res)=>{
+    res.set('Cache-Control','no-store').json({data:linkDestinations});
+  });
+  for(const name of sectionNames){
+    router.get(`/admin/homepage/${name}`,requireAuth,permit('homepage.view'),asyncRoute(async(_req,res)=>{
+      res.set('Cache-Control','no-store').json({data:await getSection(db,name)});
+    }));
+    router.patch(`/admin/homepage/${name}`,requireAuth,requireCsrf,permit('homepage.update'),asyncRoute(async(req,res)=>{
+      res.set('Cache-Control','no-store').json({data:await saveSection(db,name,req.body,req.actor!.id,req.requestId)});
+    }));
+  }
+  router.put('/admin/achievements/order',requireAuth,requireCsrf,permit('achievements.update'),asyncRoute(async(req,res)=>{
+    const input=parse(z.strictObject({ids:z.array(z.number().int().positive()).max(65536),expectedIds:z.array(z.number().int().positive()).max(65536)}),req.body);
+    res.set('Cache-Control','no-store').json({data:await reorderAchievements(db,input.ids,input.expectedIds,req.actor!.id,req.requestId,req.actor!.permissions.has('achievements.publish'))});
   }));
   router.post('/admin/products/compose',requireAuth,requireCsrf,asyncRoute(async(req,res)=>{
     const capabilities=await cmsCapabilities(db,config);
@@ -107,7 +125,7 @@ export function adminContentRoutes(config: Config, db: Pool) {
     const postListing=['products','services','news_articles'].includes(spec.table);
     const sort = q.sort ?? (postListing ? 'updated_at' : spec.fields.sort_order ? 'sort_order' : spec.key);
     // updated_at is a database-managed listing column, not an editable field.
-    if (sort !== spec.key && !Object.hasOwn(spec.fields,sort) && !(postListing && sort === 'updated_at')) throw new HttpError(400,'VALIDATION_ERROR','This sort field is not supported.');
+    if (sort !== spec.key && !Object.hasOwn(spec.fields,sort) && !(postListing && sort === 'updated_at') && !(spec.table==='news_articles'&&sort==='published_at')) throw new HttpError(400,'VALIDATION_ERROR','This sort field is not supported.');
     const searchable=['name','title','full_name','label','slug','message_text'].some(field=>Object.hasOwn(spec.fields,field));
     if((q.search&&!searchable)||(q.status&&!spec.fields.status)||(q.categoryId&&!spec.fields.category_id)||(q.productType&&spec.table!=='products')||(q.contentType&&spec.table!=='news_articles')||(q.parentId&&!spec.childOf)||(q.isActive&&!spec.fields.is_active))throw new HttpError(400,'VALIDATION_ERROR','This filter is not supported for the selected content.');
     const filters={search:q.search,status:q.status,categoryId:q.categoryId,productType:q.productType,contentType:q.contentType,parentId:q.parentId,isActive:q.isActive===undefined?undefined:q.isActive==='true'};
@@ -127,6 +145,7 @@ export function adminContentRoutes(config: Config, db: Pool) {
   }));
   router.patch('/admin/:resource/:key', requireAuth, requireCsrf, asyncRoute(async (req,res) => {
     if(heroResources.has(String(req.params.resource)))throw new HttpError(409,'LEGACY_ROUTE_DISABLED','Gunakan editor Hero untuk mengubah konten Hero.');
+    if(req.params.resource==='contact-section-settings'||req.params.resource==='achievement-section-settings'||req.params.resource==='homepage-sections'&&['products','services','news'].includes(String(req.params.key)))throw new HttpError(409,'LEGACY_ROUTE_DISABLED','Gunakan editor bagian Homepage untuk mengubah konten.');
     if(req.params.resource==='social-links'&&config.SOCIAL_MEDIA_V2_ENABLED&&(await cmsCapabilities(db,config)).socialMediaV2.enabled)throw new HttpError(409,'LEGACY_ROUTE_DISABLED','Gunakan Manajemen Sosial Media untuk mengubah akun.');
     res.json({ data:await content.update(db,String(req.params.resource),String(req.params.key),req.body,req.actor!,req.requestId,config.CLOUDINARY_ROOT_FOLDER) });
   }));

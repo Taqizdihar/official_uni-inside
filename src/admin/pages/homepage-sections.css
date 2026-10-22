@@ -1,0 +1,40 @@
+.cms-homepage-page { max-width: 1230px; }
+.cms-homepage-page .cms-hero-form { margin-bottom: 28px; }
+.cms-homepage-page .cms-hero-field select { width: 100%; min-height: 50px; padding: 11px 14px; border: 2px solid var(--line-strong,#cfd0ca); border-radius: 12px; background: #fff; font: inherit; }
+.cms-homepage-manual { margin-top: 12px; }
+.cms-homepage-manual label { font-size: 13px; }
+.cms-homepage-manual small { display: block; margin-top: 6px; color: var(--muted,#62655f); }
+.cms-homepage-limit { font-weight: 500; color: var(--muted,#62655f); }
+.cms-homepage-locked { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 12px 16px; margin-bottom: 22px; border: 2px solid #d6d8d2; border-radius: 12px; background: #f0f1ee; color: #61655f; font-weight: 800; }
+.cms-homepage-locked small { margin-left: auto; font-weight: 400; }
+.cms-homepage-copy-note { margin: 18px 0 0; color: var(--muted,#62655f); }
+.cms-homepage-extra { margin-top: 24px; }
+.cms-homepage-extra h2 { margin: 0 0 8px; }
+.cms-homepage-extra p { margin: 0 0 18px; color: var(--muted,#62655f); }
+.cms-homepage-pending { padding: 14px 18px; margin: 20px 0; border: 1px solid #c2a341; border-radius: 12px; background: #fff9df; color: #584613; }
+.cms-homepage-extra fieldset { display: flex; flex-wrap: wrap; gap: 16px; border: 0; padding: 0; margin: 16px 0; }
+.cms-homepage-extra fieldset label { display: inline-flex; align-items: center; gap: 6px; }
+.cms-homepage-extra > .cms-hero-field { margin-top: 20px; }
+.cms-homepage-search { display:flex; align-items:center; gap:8px; max-width:420px; padding:8px 12px; border:1px solid #cfd0ca; border-radius:12px; }
+.cms-homepage-search input { width:100%; border:0; outline:0; font:inherit; }
+.cms-homepage-filters { display:flex; gap:12px; flex-wrap:wrap; }
+.cms-homepage-filters select { min-height:42px; padding:8px; border:1px solid #cfd0ca; border-radius:10px; }
+.cms-homepage-options { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:9px; margin:17px 0; max-height:290px; overflow:auto; }
+.cms-homepage-options button { display:flex; align-items:center; gap:9px; min-width:0; min-height:52px; padding:9px 12px; border:1px solid #dfe1db; border-radius:10px; background:#fff; text-align:left; cursor:pointer; }
+.cms-homepage-options button.chosen { border-color:#b88b00; background:#fff9dc; }
+.cms-homepage-options button:disabled { opacity:.5; cursor:not-allowed; }
+.cms-homepage-options button span { min-width:0; overflow:hidden; text-overflow:ellipsis; }
+.cms-homepage-options button small { display:block; color:#62655f; }
+.cms-homepage-options button > small:last-child { margin-left:auto; }
+.cms-homepage-options img { width:42px; height:42px; object-fit:cover; border-radius:7px; }
+.cms-homepage-craft { display:flex; align-items:center; gap:8px; margin-top:9px; }
+.cms-homepage-craft img { width:30px; height:30px; }
+.cms-achievement-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.cms-achievement-list { display: grid; gap: 12px; margin-top: 18px; }
+.cms-achievement-item { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px; border: 1px solid #dfe1db; border-radius: 13px; background: #fcfcfa; }
+.cms-achievement-item h3 { margin: 0 0 4px; }
+.cms-achievement-item p { margin: 0; color: var(--muted,#62655f); }
+.cms-achievement-editor .cms-hero-grid { margin-top: 16px; }
+.cms .cms-achievement-editor { width:min(780px,100%); }
+.cms-achievement-editor textarea { width: 100%; min-height: 96px; padding: 12px; border: 2px solid #cfd0ca; border-radius: 12px; font: inherit; }
+@media (max-width: 680px) { .cms-homepage-locked { flex-wrap: wrap; } .cms-homepage-locked small { margin-left: 0; } .cms-achievement-item { align-items: flex-start; flex-direction: column; } }

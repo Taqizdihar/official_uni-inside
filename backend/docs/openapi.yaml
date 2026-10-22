@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: Uni-Inside CMS API
   version: 1.0.0
-  description: Backend-only Phase 1. Content changes are reflected by the future CMS; the current website still uses static content.
+  description: Authenticated CMS and public content API for Uni-Inside.
 servers:
   - url: http://localhost:4000/api/v1
 components:
@@ -737,6 +737,72 @@ paths:
       parameters: [{ $ref: '#/components/parameters/Csrf' }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/HeroEditInput' } } } }
       responses: { '200': { description: Actual persisted Hero values and capability state }, '400': { description: Invalid content or unavailable third heading line }, '403': { description: Missing permission or CSRF token }, '503': { description: Fixed Hero data incomplete } }
+  /admin/link-destinations:
+    get:
+      summary: List verified public page and Homepage anchor destinations
+      description: Authenticated read-only manifest. Dynamic detail templates and CMS routes are excluded.
+      security: [{ sessionCookie: [] }]
+      responses: { '200': { description: Ordered Indonesian labels and site-relative URLs }, '401': { description: Sign-in required } }
+  /admin/homepage/contact:
+    get:
+      summary: Read Contact heading and subtitle
+      security: [{ sessionCookie: [] }]
+      responses: { '200': { description: Persisted fields and disabled placement capabilities } }
+    patch:
+      summary: Save only Contact heading (10) and subtitle (50)
+      description: Requires homepage.update and CSRF. Account placement and Craft URL cannot be persisted here.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      responses: { '200': { description: Saved copy }, '400': { description: Invalid or unknown field } }
+  /admin/homepage/achievements:
+    get:
+      summary: Read Achievement section heading and subtitle
+      security: [{ sessionCookie: [] }]
+      responses: { '200': { description: Persisted fields } }
+    patch:
+      summary: Save only Achievement heading (12) and subtitle (65)
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      responses: { '200': { description: Saved copy }, '400': { description: Invalid or unknown field } }
+  /admin/homepage/news:
+    get:
+      summary: Read News section copy and CTA
+      security: [{ sessionCookie: [] }]
+      responses: { '200': { description: Persisted fields; News placement capability disabled } }
+    patch:
+      summary: Save News heading (15), subtitle (50), CTA label (15), and destination
+      description: Only existing columns are updated. Manual and popular selection cannot be saved here.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      responses: { '200': { description: Saved copy }, '400': { description: Invalid or unknown field } }
+  /admin/homepage/services:
+    get:
+      summary: Read Services section heading and CTA
+      security: [{ sessionCookie: [] }]
+      responses: { '200': { description: Persisted fields } }
+    patch:
+      summary: Save Services heading (12), CTA label (20), and destination
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      responses: { '200': { description: Saved copy }, '400': { description: Invalid or unknown field } }
+  /admin/homepage/products:
+    get:
+      summary: Read Products subtitle and CTA
+      security: [{ sessionCookie: [] }]
+      responses: { '200': { description: Persisted fields; branded heading excluded } }
+    patch:
+      summary: Save Products subtitle (50), CTA label (20), and destination
+      description: Restricted branded heading is not writable.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      responses: { '200': { description: Saved copy }, '400': { description: Invalid or unknown field } }
+  /admin/achievements/order:
+    put:
+      summary: Persist the complete Achievement order transactionally
+      description: Requires achievements.update, CSRF, and achievements.publish when published records are present. IDs must be unique and complete; expectedIds detects stale concurrent edits.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      responses: { '200': { description: Saved ID order }, '400': { description: Duplicate or malformed IDs }, '403': { description: Missing permission }, '409': { description: Stale or incomplete order } }
   /admin/social-media/capabilities:
     get:
       summary: Check disabled-by-default Social Media V2 and product variant-media readiness

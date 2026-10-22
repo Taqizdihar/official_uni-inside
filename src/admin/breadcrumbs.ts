@@ -28,6 +28,8 @@ const special:Record<string,string>={
   '/admin/site/social-links':'Manajemen Sosial Media',
   '/admin/site/footer':'Pengaturan Footer',
   '/admin/homepage/hero-settings':'Hero',
+  '/admin/homepage/contact':'Contact Us','/admin/homepage/achievements':'Achievements',
+  '/admin/homepage/news':'News','/admin/homepage/services':'Services','/admin/homepage/products':'Products',
 };
 
 export function resolveBreadcrumb(pathname:string):Crumb[]{

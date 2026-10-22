@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { LayoutGroup, motion } from 'motion/react';
-import { Link } from 'react-router-dom';
+import {PublicCtaLink} from '../PublicCtaLink';
 import studioLogo from '../../assets/global/Logo - Light Theme.png';
 import craftLogo from '../../assets/global/Uni-Inside Crafts.png';
 import studioIntroLogo from '../../assets/global/Uni-Inside Studio White.avif';
@@ -15,8 +15,7 @@ import styles from './Hero.module.css';
 
 const LOGOS = { studioLogo, craftLogo };
 function HeroCta({to,className,children}:{to:string;className:string;children:React.ReactNode}) {
-  if (/^https:\/\//i.test(to)) return <a className={className} href={to} rel="noopener noreferrer">{children}</a>;
-  return <Link className={className} to={to}>{children}</Link>;
+  return <PublicCtaLink to={to} className={className}>{children}</PublicCtaLink>;
 }
 const BulbI = () => (<svg className={styles.bulbIcon} viewBox="0 0 48 72" aria-hidden="true" focusable="false"><path className={styles.bulbFill} d="M24 4c-10 0-17 7-17 17 0 7 4 12 9 17v10h16V38c5-5 9-10 9-17C41 11 34 4 24 4Z" /><path d="M24 4c-10 0-17 7-17 17 0 7 4 12 9 17v10h16V38c5-5 9-10 9-17C41 11 34 4 24 4ZM17 54h14M19 60h10M22 66h4" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg>);
 const DESCRIPTION_BREAK = HERO_COPY.description.indexOf('every idea');

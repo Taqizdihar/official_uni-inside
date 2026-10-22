@@ -2,6 +2,7 @@ import React, { forwardRef } from 'react';
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { usePublicContent } from '../public/client';
+import {PublicCtaLink} from './PublicCtaLink';
 import styles from './EventsSection.module.css';
 
 const mockEvents = [
@@ -31,7 +32,7 @@ const mockEvents = [
 export const EventsSection = forwardRef<HTMLDivElement, {}>((props, ref) => {
   const {homepage,news}=usePublicContent();
   const section=homepage?.sections?.find(item=>item.section_key==='news'&&item.is_visible!==0);
-  const events=news===null?mockEvents:news.slice(0,3).map(item=>({id:item.id,slug:item.slug,date:item.published_at?new Date(item.published_at).toLocaleDateString():'',title:String(item.title),description:String(item.excerpt||''),image:String(item.image?.secure_url||mockEvents[0].image)}));
+  const events=news===null?mockEvents:news.slice(0,4).map(item=>({id:item.id,slug:item.slug,date:item.published_at?new Date(item.published_at).toLocaleDateString():'',title:String(item.title),description:String(item.excerpt||''),image:String(item.image?.secure_url||mockEvents[0].image)}));
 
   return (
     <div className="w-full flex flex-col px-8 lg:px-24">
@@ -42,10 +43,10 @@ export const EventsSection = forwardRef<HTMLDivElement, {}>((props, ref) => {
               {section?.heading||'NEWS'}
             </h2>
             <span className={styles.slot}>
-              <Link to="/news" aria-label="See all news" className={styles.seeAll}>
-                <span className={styles.label} aria-hidden="true">SEE ALL</span>
+              <PublicCtaLink to={section?.primary_cta_url||'/news'} ariaLabel="See all news" className={styles.seeAll}>
+                <span className={styles.label} aria-hidden="true">{section?.primary_cta_label||'SEE ALL'}</span>
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14m0 0-7-7m7 7-7 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-              </Link>
+              </PublicCtaLink>
             </span>
           </div>
           <p className="text-[18px] sm:text-[24px] text-gray-600 font-medium mt-2 sm:mt-3">
@@ -54,7 +55,7 @@ export const EventsSection = forwardRef<HTMLDivElement, {}>((props, ref) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 xl:gap-5">
         {events.map((evt, idx) => (
           <motion.div 
             key={evt.id}

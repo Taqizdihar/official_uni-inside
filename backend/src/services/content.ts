@@ -82,6 +82,10 @@ export async function create(db: Pool, name: string, raw: unknown, actor: Actor,
   if (spec.kind !== 'dynamic') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Fixed content cannot be created.');
   checkPermission(actor, permissionFor(spec,'create'));
   const data = { ...spec.defaults, ...parseBody(spec, raw) };
+  if(name==='achievements'){
+    if(Object.hasOwn(data,'sort_order'))throw new HttpError(400,'VALIDATION_ERROR','Gunakan pengurutan Achievement khusus.');
+    if(!String(data.description??'').trim()||!data.year_label&&!data.achievement_date)throw new HttpError(400,'VALIDATION_ERROR','Isi deskripsi dan tahun atau tanggal Achievement.');
+  }
   const autoSlug = Boolean(spec.fields.slug && spec.titleField && !data.slug);
   if (name === 'services') validateServiceCtaPair(data);
   for (const field of spec.required ?? []) if (!data[field]) throw new HttpError(400, 'VALIDATION_ERROR', `Please provide ${field}.`);
@@ -106,6 +110,7 @@ export async function update(db: Pool, name: string, key: string, raw: unknown, 
   const spec = getResource(name);
   checkPermission(actor, permissionFor(spec,'update'));
   const data = parseBody(spec, raw);
+  if(name==='achievements'&&Object.hasOwn(data,'sort_order'))throw new HttpError(400,'VALIDATION_ERROR','Gunakan pengurutan Achievement khusus.');
   const resolvedKey = recordKey(name, spec, key);
   return transaction(db, async conn => {
     const section=mediaSectionForPermission(spec.permission);
@@ -128,6 +133,7 @@ export async function update(db: Pool, name: string, key: string, raw: unknown, 
       if (owner && Number(owner.id) !== Number(resolvedKey)) throw new HttpError(409, 'FEATURED_SLOT_TAKEN', 'This featured service slot is already assigned.');
     }
     const proposed = { ...before, ...data } as Record<string, unknown>;
+    if(name==='achievements'&&(!String(proposed.description??'').trim()||!proposed.year_label&&!proposed.achievement_date))throw new HttpError(400,'VALIDATION_ERROR','Isi deskripsi dan tahun atau tanggal Achievement.');
     if (name === 'services' && (data.primary_cta_label !== undefined || data.primary_cta_url !== undefined)) validateServiceCtaPair(proposed);
     if (proposed.status === 'published' || proposed.status === 'scheduled') await validatePublish(conn, name, proposed, Number(resolvedKey));
     if (data.status === 'published' && before.status !== 'published') data.published_at = new Date().toISOString().slice(0,23).replace('T',' ');

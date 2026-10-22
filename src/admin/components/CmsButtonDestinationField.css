@@ -1,0 +1,6 @@
+.cms-destination select { display:block; width:100%; min-height:50px; padding:11px 14px; border:2px solid var(--line-strong,#cfd0ca); border-radius:12px; background:#fff; color:var(--ink,#202121); font:inherit; }
+.cms-destination select[aria-invalid='true'] { border-color:var(--danger,#a5322d); }
+.cms-destination .cms-homepage-manual { margin-top:12px; }
+.cms-destination .cms-homepage-manual label { font-size:13px; }
+.cms-destination .cms-homepage-manual small { display:block; margin-top:6px; color:var(--muted,#62655f); }
+.cms-destination > small { display:block; margin-top:6px; }

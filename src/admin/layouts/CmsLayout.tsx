@@ -22,10 +22,10 @@ const sections:Section[]=[
   {label:'POSTINGAN',items:[resource('products','Produk',Package),resource('services','Jasa/Layanan',BriefcaseBusiness),resource('news','Artikel',Newspaper),destination('Manajemen Kategori','category.view',Tags,'/admin/content/categories')]},
   {label:'HALAMAN UTAMA',items:[
     resource('hero-settings','Hero',Sparkles),resource('about-settings','About Us',BookOpen),resource('team-section-settings','Our Team',Users),
-    destination('Products','homepage.view',Package,'/admin/homepage/homepage-sections/products'),
-    destination('Services','homepage.view',BriefcaseBusiness,'/admin/homepage/homepage-sections/services'),
-    destination('News','homepage.view',Newspaper,'/admin/homepage/homepage-sections/news'),
-    resource('achievement-section-settings','Achievements',Trophy),resource('contact-section-settings','Contact Us',Contact),
+    destination('Products','homepage.view',Package,'/admin/homepage/products'),
+    destination('Services','homepage.view',BriefcaseBusiness,'/admin/homepage/services'),
+    destination('News','homepage.view',Newspaper,'/admin/homepage/news'),
+    destination('Achievements','homepage.view',Trophy,'/admin/homepage/achievements'),destination('Contact Us','homepage.view',Contact,'/admin/homepage/contact'),
   ]},
   {label:'HALAMAN LANJUTAN',items:[
     destination('Media Kit','settings.view',FileText,'/admin/site/page-settings/media_kit'),resource('projects','Projects',FolderKanban),

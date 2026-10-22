@@ -34,7 +34,7 @@ export function analyticsRoutes(config: Config,db: Pool) {
   }));
   router.post('/admin/revisions/:resource/:key/restore/:id',requireAuth,requireCsrf,asyncRoute(async (req,res)=>{
     const name=String(req.params.resource);const spec=content.getResource(name);
-    if(['hero-settings','hero-trust-signals','hero-workspaces','hero-hotspots'].includes(name))throw new HttpError(409,'LEGACY_ROUTE_DISABLED','Gunakan editor Hero untuk mengubah konten Hero.');
+    if(['hero-settings','hero-trust-signals','hero-workspaces','hero-hotspots','contact-section-settings','achievement-section-settings'].includes(name)||name==='homepage-sections'&&['products','services','news'].includes(String(req.params.key)))throw new HttpError(409,'LEGACY_ROUTE_DISABLED','Gunakan editor khusus untuk mengubah bagian Homepage.');
     if (!req.actor!.permissions.has(content.permissionFor(spec,'update'))) throw new HttpError(403,'FORBIDDEN','You do not have permission for this action.');
     const key=String(req.params.key);const row=await content.get(db,name,key);
     const entityType=spec.kind==='fixed'?`${spec.table}:${key}`:spec.table;
@@ -42,7 +42,7 @@ export function analyticsRoutes(config: Config,db: Pool) {
     const record=await repo.revisionRecord(db,parse(z.coerce.number().int().positive(),req.params.id),entityType,entityId);
     if (!record) throw new HttpError(404,'NOT_FOUND','Revision not found.');
     const snapshot=typeof record.snapshot_json==='string'?JSON.parse(record.snapshot_json):record.snapshot_json;
-    const editable=Object.fromEntries(Object.keys(spec.fields).filter(field=>snapshot[field]!==undefined).map(field=>[field,typeof snapshot[field]==='number' && ['is_active','is_visible','is_enabled','is_featured','is_cover','is_primary','intro_enabled'].includes(field)?Boolean(snapshot[field]):snapshot[field]]));
+    const editable=Object.fromEntries(Object.keys(spec.fields).filter(field=>snapshot[field]!==undefined&&!(name==='achievements'&&field==='sort_order')).map(field=>[field,typeof snapshot[field]==='number' && ['is_active','is_visible','is_enabled','is_featured','is_cover','is_primary','intro_enabled'].includes(field)?Boolean(snapshot[field]):snapshot[field]]));
     if (!Object.keys(editable).length) throw new HttpError(409,'INVALID_REVISION','This revision has no restorable fields.');
     res.json({data:await content.update(db,name,key,editable,req.actor!,req.requestId)});
   }));

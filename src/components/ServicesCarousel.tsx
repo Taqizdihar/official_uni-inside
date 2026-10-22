@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useElementVisibility } from '../hooks/useElementVisibility';
 import { servicesData } from '../data/services';
-import { Link } from 'react-router-dom';
-import { trackEvent, usePublicContent } from '../public/client';
+import { usePublicContent } from '../public/client';
+import {PublicCtaLink} from './PublicCtaLink';
 
 const getSlotProps = (slot: number, isMobile: boolean) => {
   switch (slot) {
@@ -158,13 +158,12 @@ export const ServicesCarousel = () => {
           </span>
         </div>
 
-        <Link
+        <PublicCtaLink
           to={section?.primary_cta_url||'/services'}
-          onClick={()=>trackEvent('cta_click',{linkDestination:section?.primary_cta_url||'/services'})}
           className="relative z-50 mt-6 inline-flex rounded-full bg-[#f9d02d] px-8 py-3.5 text-base font-extrabold text-[#202121] shadow-lg transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#202121] sm:text-lg pointer-events-auto"
         >
           {section?.primary_cta_label||'Check Our Services'}
-        </Link>
+        </PublicCtaLink>
       </div>
 
       {/* Grounded Images Area with Viewport Overflow Clipping */}

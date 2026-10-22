@@ -72,13 +72,13 @@ export async function updateRecord(db: Executor, spec: ResourceSpec, key: string
 export async function deleteRecord(db: Executor, spec: ResourceSpec, key: string | number) {
   return write(db, spec.softDelete ? `UPDATE ${ident(spec.table)} SET deleted_at=UTC_TIMESTAMP(3) WHERE ${ident(spec.key)}=? AND deleted_at IS NULL` : `DELETE FROM ${ident(spec.table)} WHERE ${ident(spec.key)}=?`, [key]);
 }
-const publicWhere = (spec: ResourceSpec) => spec.fields.status ? (spec.fields.scheduled_at ? "status IN ('published','scheduled') AND (status='published' OR scheduled_at <= UTC_TIMESTAMP(3))" : "status='published'") : spec.fields.is_active ? 'is_active=1' : '1=1';
+const publicWhere = (spec: ResourceSpec) => spec.fields.status ? (spec.table==='news_articles'?"status='published' AND (published_at IS NULL OR published_at<=UTC_TIMESTAMP(3))":spec.fields.scheduled_at ? "status IN ('published','scheduled') AND (status='published' OR scheduled_at <= UTC_TIMESTAMP(3))" : "status='published'") : spec.fields.is_active ? 'is_active=1' : '1=1';
 export async function publicList(db: Executor, spec: ResourceSpec, limit: number, offset: number, categoryId?: number) {
   if (!spec.publicFields) throw new Error('Resource has no public projection');
   const detailOnly = new Set(['description','body','challenge_text','solution_text','outcome_text']);
   const fields = ['products','services','projects','news_articles'].includes(spec.table) ? spec.publicFields.filter(field=>!detailOnly.has(field)) : spec.publicFields;
   const predicate = publicWhere(spec) + (spec.softDelete ? ' AND deleted_at IS NULL' : '') + (categoryId && spec.fields.category_id ? ' AND category_id=?' : '');
-  const sort = spec.fields.sort_order ? 'sort_order ASC,id DESC' : spec.table === 'news_articles' ? 'published_at DESC,id DESC' : 'id DESC';
+  const sort = spec.table==='achievements' ? 'sort_order ASC,id ASC' : spec.fields.sort_order ? 'sort_order ASC,id DESC' : spec.table === 'news_articles' ? 'published_at DESC,id DESC' : 'id DESC';
   const items = await rows<RowDataPacket>(db, `SELECT ${fields.map(ident).join(',')} FROM ${ident(spec.table)} WHERE ${predicate} ORDER BY ${sort} LIMIT ? OFFSET ?`, [...(categoryId && spec.fields.category_id ? [categoryId] : []),limit,offset]);
   const ids = [...new Set(items.map(item => Number(item.cover_media_id ?? item.photo_media_id ?? item.logo_media_id ?? item.media_id ?? 0)).filter(Boolean))];
   if (!ids.length) return items;
