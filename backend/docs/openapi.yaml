@@ -44,9 +44,9 @@ components:
       type: object
       additionalProperties: false
       required: [headingLine1, headingLine2, descriptionLine1, descriptionLine2, trustSignals, workspaces, callouts]
-      description: 'One fixed Hero form. headingLine1 must start with Ideas and is at most nine Unicode code points including spaces. headingLine3 is accepted only when HERO_THREE_LINE_ENABLED, the column exists, and the reviewed prefix/third-line backfill is present. Unchanged legacy text may exceed a new visual limit.'
+      description: 'One fixed Hero form. headingLine1 has the fixed Ideas prefix plus at most nine editable Unicode code points, including spaces. headingLine3 is accepted only when HERO_THREE_LINE_ENABLED, the column exists, and the reviewed prefix/third-line backfill is present. Unchanged legacy text may exceed a new visual limit.'
       properties:
-        headingLine1: { type: string, maxLength: 9, pattern: '^Ideas' }
+        headingLine1: { type: string, maxLength: 14, pattern: '^Ideas' }
         headingLine2: { type: string, maxLength: 18 }
         headingLine3: { type: string, maxLength: 18 }
         descriptionLine1: { type: string, maxLength: 50 }

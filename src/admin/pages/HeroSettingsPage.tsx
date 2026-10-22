@@ -1,5 +1,6 @@
 import {useEffect,useRef,useState,type FormEvent} from 'react';
 import {useBeforeUnload} from 'react-router-dom';
+import {LockKeyhole} from 'lucide-react';
 import {api,ApiError} from '../api/client';
 import {useAuth} from '../auth/AuthProvider';
 import {ConfirmDialog,Loading,Notice,useToast} from '../components/Ui';
@@ -11,6 +12,20 @@ import './hero-settings.css';
 
 type FieldProps={id:string;label:string;value:string;onChange:(value:string)=>void;disabled:boolean;max?:number;error?:string;required?:boolean;hint?:string;type?:string};
 function Field({id,label,value,onChange,disabled,max,error,required,hint,type='text'}:FieldProps){const over=max!=null&&characters(value)>max;return <div className="cms-hero-field"><label htmlFor={id}>{label}</label><input id={id} type={type} value={value} onChange={event=>onChange(event.target.value)} disabled={disabled} required={required} aria-invalid={Boolean(error||over)} aria-describedby={`${id}-help`}/><div className="cms-hero-help" id={`${id}-help`}>{hint&&<small>{hint}</small>}{max!=null&&<small>{characters(value)}/{max} karakter</small>}</div>{error&&<small className="cms-field-error" role="alert">{error}</small>}</div>;}
+const HEADING_PREFIX='Ideas';
+function FirstHeadingField({value,onChange,disabled,error,editableLimit}:{value:string;onChange:(value:string)=>void;disabled:boolean;error?:string;editableLimit:number}){
+  const suffix=value.startsWith(HEADING_PREFIX)?value.slice(HEADING_PREFIX.length):value;
+  const invalid=Boolean(error)||characters(suffix)>editableLimit;
+  return <div className="cms-hero-field cms-hero-first-heading">
+    <label htmlFor="hero-heading-1">Judul Baris 1 <em>(maks. 9 huruf)</em></label>
+    <div className={`cms-hero-prefix-control${invalid?' invalid':''}`}>
+      <span className="cms-hero-prefix"><LockKeyhole size={18} strokeWidth={2.3} aria-hidden="true"/><strong>{HEADING_PREFIX}</strong></span>
+      <input id="hero-heading-1" type="text" value={suffix} onChange={event=>{const next=event.target.value;if(characters(next)<=editableLimit||characters(next)<characters(suffix))onChange(`${HEADING_PREFIX}${next}`);}} disabled={disabled} aria-invalid={invalid} aria-describedby="hero-heading-1-help" aria-label="Teks setelah Ideas pada Judul Baris 1"/>
+    </div>
+    <div className="cms-hero-help" id="hero-heading-1-help"><small>Ideas tetap; spasi pada lanjutan ikut dihitung.</small><small>{characters(suffix)}/{editableLimit} karakter</small></div>
+    {error&&<small className="cms-field-error" role="alert">{error}</small>}
+  </div>;
+}
 export function HeroSettingsPage(){
   const {has}=useAuth(),canView=has('homepage.view'),canEdit=has('homepage.update');
   const [saved,setSaved]=useState<HeroResponse|null>(null),[draft,setDraft]=useState<HeroEdit|null>(null);
@@ -38,7 +53,7 @@ export function HeroSettingsPage(){
     {error&&<div className="cms-hero-load-error"><Notice error={error}/><button className="cms-button secondary" type="button" onClick={()=>setRetry(value=>value+1)}>Coba lagi</button></div>}
     {loading?<Loading/>:saved&&draft&&!error&&<form noValidate onSubmit={event=>void save(event)} className="cms-hero-form">
       <section className="cms-card cms-hero-section"><div className="cms-section-heading"><h2>Konten Utama</h2><p>Judul, deskripsi, dan angka pencapaian yang tampil di Hero.</p></div>
-        <div className="cms-hero-grid three"><Field id="hero-heading-1" label="Judul Baris 1 (maks. 9 karakter)" value={draft.headingLine1} onChange={value=>update('headingLine1',value)} disabled={!editable} required hint="Awali dengan Ideas; spasi ikut dihitung." max={9} error={fieldErrors.headingLine1}/><Field id="hero-heading-2" label="Judul Baris 2 (maks. 18 karakter)" value={draft.headingLine2} onChange={value=>update('headingLine2',value)} disabled={!editable} max={18} required error={fieldErrors.headingLine2}/><Field id="hero-heading-3" label="Judul Baris 3 (maks. 18 karakter)" value={draft.headingLine3??''} onChange={value=>update('headingLine3',value)} disabled={!editable||!saved.headingLine3Enabled} max={18} required={saved.headingLine3Enabled} error={fieldErrors.headingLine3} hint={!saved.headingLine3Enabled?'Belum tersedia: kolom database baris 3 harus ditambahkan dan diaktifkan.':undefined}/></div>
+        <div className="cms-hero-grid three"><FirstHeadingField value={draft.headingLine1} onChange={value=>update('headingLine1',value)} disabled={!editable} editableLimit={9} error={fieldErrors.headingLine1}/><Field id="hero-heading-2" label="Judul Baris 2 (maks. 18 karakter)" value={draft.headingLine2} onChange={value=>update('headingLine2',value)} disabled={!editable} max={18} required error={fieldErrors.headingLine2}/><Field id="hero-heading-3" label="Judul Baris 3 (maks. 18 karakter)" value={draft.headingLine3??''} onChange={value=>update('headingLine3',value)} disabled={!editable||!saved.headingLine3Enabled} max={18} required={saved.headingLine3Enabled} error={fieldErrors.headingLine3} hint={!saved.headingLine3Enabled?'Belum tersedia: kolom database baris 3 harus ditambahkan dan diaktifkan.':undefined}/></div>
         {!saved.headingLine3Enabled&&<div className="cms-hero-pending" role="status">Baris judul 3 belum dapat diedit atau disimpan. Konten Hero lain tetap dapat disimpan; judul dua baris yang saat ini terbit tetap tampil.</div>}
         <div className="cms-hero-grid two cms-hero-main-copy"><Field id="hero-description-1" label="Deskripsi Baris 1 (maks. 50 karakter)" value={draft.descriptionLine1} onChange={value=>update('descriptionLine1',value)} disabled={!editable} max={50} required error={fieldErrors.descriptionLine1}/><Field id="hero-description-2" label="Deskripsi Baris 2 (maks. 50 karakter)" value={draft.descriptionLine2??''} onChange={value=>update('descriptionLine2',value||null)} disabled={!editable} max={50} error={fieldErrors.descriptionLine2}/></div>
         <div className="cms-hero-grid three cms-hero-trust">{draft.trustSignals.map((item,index)=><div className="cms-hero-subcard" key={item.slot}><h3>Trust Signal {item.slot}</h3><div className="cms-hero-grid two"><Field id={`hero-trust-${item.slot}-number`} label="Angka" type="number" value={item.numericValue===null?'':String(item.numericValue)} onChange={value=>update('trustSignals',draft.trustSignals.map((row,i)=>i===index?{...row,numericValue:value===''?null:Number(value)}:row))} disabled={!editable} required error={fieldErrors[`trustSignals.${index}.numericValue`]}/><Field id={`hero-trust-${item.slot}-suffix`} label="Sufiks" value={item.suffix??''} onChange={value=>update('trustSignals',draft.trustSignals.map((row,i)=>i===index?{...row,suffix:value||null}:row))} disabled={!editable} max={16} error={fieldErrors[`trustSignals.${index}.suffix`]}/></div><Field id={`hero-trust-${item.slot}-label`} label="Label (<15 huruf)" value={item.label} onChange={value=>update('trustSignals',draft.trustSignals.map((row,i)=>i===index?{...row,label:value}:row))} disabled={!editable} max={14} required error={fieldErrors[`trustSignals.${index}.label`]}/></div>)}</div>

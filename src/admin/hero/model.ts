@@ -23,8 +23,9 @@ export function validateHero(next:HeroEdit,old:HeroEdit,ready:boolean){
     else if(value!=null&&characters(value)>max)errors[path]=`Maksimal ${max} karakter.`;
     else if(value!=null&&/[<>\r\n]/u.test(value))errors[path]='Gunakan teks biasa tanpa markup atau baris baru.';
   };
-  check('headingLine1',next.headingLine1,old.headingLine1,9,true);
-  if(next.headingLine1&&!next.headingLine1.startsWith('Ideas'))errors.headingLine1='Judul baris 1 harus diawali dengan Ideas.';
+  if(!next.headingLine1.startsWith('Ideas'))errors.headingLine1='Judul baris 1 harus diawali dengan Ideas.';
+  else if(next.headingLine1!==old.headingLine1&&characters(next.headingLine1.slice(5))>9)errors.headingLine1='Maksimal 9 karakter setelah Ideas.';
+  else if(next.headingLine1!==old.headingLine1&&/[<>\r\n]/u.test(next.headingLine1))errors.headingLine1='Gunakan teks biasa tanpa markup atau baris baru.';
   check('headingLine2',next.headingLine2,old.headingLine2,18,true);
   if(ready)check('headingLine3',next.headingLine3??'',old.headingLine3??'',18,true);
   check('descriptionLine1',next.descriptionLine1,old.descriptionLine1,50,true);

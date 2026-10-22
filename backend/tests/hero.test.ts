@@ -15,7 +15,7 @@ describe('Hero editor contract',()=>{
   });
   it('checks all text limits while preserving unchanged legacy values',()=>{
     const cases:[(edit:HeroEdit)=>void,string][]=[
-      [v=>{v.headingLine1='Ideas Long';},'headingLine1'],
+      [v=>{v.headingLine1='Ideas1234567890';},'headingLine1'],
       [v=>{v.headingLine2='x'.repeat(19);},'headingLine2'],
       [v=>{v.descriptionLine1='x'.repeat(51);},'descriptionLine1'],
       [v=>{v.descriptionLine2='x'.repeat(51);},'descriptionLine2'],
@@ -27,7 +27,9 @@ describe('Hero editor contract',()=>{
     expect(validateHeroEdit({...legacy,descriptionLine2:'Updated'},legacy,false)).toEqual([]);
   });
   it('keeps Ideas at the start of an editable first line',()=>{
-    const next=copy();next.headingLine1='Ideas 3D';expect(validate(next)).toEqual([]);
+    const next=copy();next.headingLine1='Ideas123456789';expect(validate(next)).toEqual([]);
+    next.headingLine1='Ideas 12345678';expect(validate(next)).toEqual([]);
+    next.headingLine1='Ideas 123456789';expect(validate(next)).toContainEqual(expect.objectContaining({path:'headingLine1',message:'Maksimal 9 karakter setelah Ideas.'}));
     next.headingLine1='Our Ideas';expect(validate(next)).toContainEqual(expect.objectContaining({path:'headingLine1'}));
     const legacy=copy();legacy.headingLine1='Ideas Captured.';
     expect(validateHeroEdit({...legacy,descriptionLine2:'Updated'},legacy,false)).toEqual([]);

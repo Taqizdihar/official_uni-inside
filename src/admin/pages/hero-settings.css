@@ -36,6 +36,42 @@
 }
 .cms-hero-field input:disabled { background: #f3f3f0; }
 .cms-hero-field input[aria-invalid='true']:not(:disabled) { border-color: var(--danger, #a5322d); }
+.cms-hero-first-heading label em { color: #ae1828; font-weight: 500; }
+.cms-hero-prefix-control {
+  display: flex;
+  min-width: 0;
+  min-height: 50px;
+  overflow: hidden;
+  border: 2px solid var(--line-strong, #cfd0ca);
+  border-radius: 12px;
+  background: #fff;
+}
+.cms-hero-prefix-control:focus-within { outline: 2px solid #ae7f00; outline-offset: 3px; }
+.cms-hero-prefix-control.invalid { border-color: var(--danger, #a5322d); }
+.cms-hero-prefix {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 9px;
+  padding: 0 15px;
+  border-right: 2px solid var(--line-strong, #cfd0ca);
+  background: #f0f1ee;
+  color: #777b76;
+  font-size: 16px;
+  white-space: nowrap;
+}
+.cms-hero-prefix svg { flex: none; }
+.cms-hero-field .cms-hero-prefix-control input {
+  flex: 1;
+  width: 0;
+  min-height: 46px;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 0;
+  background: #fff;
+}
+.cms-hero-field .cms-hero-prefix-control input:disabled { background: #f3f3f0; }
+.cms-hero-field .cms-hero-prefix-control input:focus-visible { outline: 0; }
 .cms-hero-help { display: flex; justify-content: space-between; gap: 12px; min-height: 20px; margin-top: 6px; }
 .cms-hero-help small { color: var(--muted, #62655f); font-size: 12px; line-height: 1.45; }
 .cms-hero-help small:last-child { margin-left: auto; white-space: nowrap; }

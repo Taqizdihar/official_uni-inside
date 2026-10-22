@@ -43,7 +43,7 @@ export async function heroThreeLineReady(db:Executor, config:Config):Promise<boo
   const record=(await rows<RowDataPacket>(db,"SELECT COUNT(*) AS total FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='hero_settings' AND column_name='heading_line_3'"))[0];
   if(Number(record?.total)!==1)return false;
   const heading=(await rows<RowDataPacket>(db,'SELECT heading_line_1,heading_line_3 FROM hero_settings WHERE id=1'))[0];
-  return typeof heading?.heading_line_1==='string' && heading.heading_line_1.startsWith('Ideas') && length(heading.heading_line_1)<=9 && typeof heading.heading_line_3==='string' && heading.heading_line_3.trim().length>0;
+  return typeof heading?.heading_line_1==='string' && heading.heading_line_1.startsWith('Ideas') && length(heading.heading_line_1.slice(5))<=9 && typeof heading.heading_line_3==='string' && heading.heading_line_3.trim().length>0;
 }
 async function readHero(db:Executor, ready:boolean, lock=false):Promise<HeroData> {
   const suffix=lock?' FOR UPDATE':'';
@@ -68,8 +68,9 @@ export function validateHeroEdit(next:HeroEdit,current:HeroEdit,ready:boolean) {
     else if(value!=null&&length(value)>max)errors.push(issue(path,`Maksimal ${max} karakter.`));
     else if(value!=null&&/[<>\r\n]/u.test(value))errors.push(issue(path,'Gunakan teks biasa tanpa markup atau baris baru.'));
   };
-  check('headingLine1',next.headingLine1,current.headingLine1,9,true);
-  if(next.headingLine1&&!next.headingLine1.startsWith('Ideas'))errors.push(issue('headingLine1','Judul baris 1 harus diawali dengan Ideas.'));
+  if(!next.headingLine1.startsWith('Ideas'))errors.push(issue('headingLine1','Judul baris 1 harus diawali dengan Ideas.'));
+  else if(next.headingLine1!==current.headingLine1&&length(next.headingLine1.slice(5))>9)errors.push(issue('headingLine1','Maksimal 9 karakter setelah Ideas.'));
+  else if(next.headingLine1!==current.headingLine1&&/[<>\r\n]/u.test(next.headingLine1))errors.push(issue('headingLine1','Gunakan teks biasa tanpa markup atau baris baru.'));
   check('headingLine2',next.headingLine2,current.headingLine2,18,true);
   if(ready)check('headingLine3',next.headingLine3??'',current.headingLine3??'',18,true);
   else if(next.headingLine3!==undefined)errors.push(issue('headingLine3','Baris 3 belum dapat disimpan sampai kolom database tersedia.'));
