@@ -43,9 +43,10 @@ components:
     HeroEditInput:
       type: object
       additionalProperties: false
-      required: [headingLine2, descriptionLine1, descriptionLine2, trustSignals, workspaces, callouts]
-      description: 'One fixed Hero form. headingLine3 is accepted only when HERO_THREE_LINE_ENABLED, the column exists, and the reviewed Ideas/third-line backfill is present. Character limits are Unicode code points; unchanged legacy text may exceed the new visual limit.'
+      required: [headingLine1, headingLine2, descriptionLine1, descriptionLine2, trustSignals, workspaces, callouts]
+      description: 'One fixed Hero form. headingLine1 must start with Ideas and is at most nine Unicode code points including spaces. headingLine3 is accepted only when HERO_THREE_LINE_ENABLED, the column exists, and the reviewed prefix/third-line backfill is present. Unchanged legacy text may exceed a new visual limit.'
       properties:
+        headingLine1: { type: string, maxLength: 9, pattern: '^Ideas' }
         headingLine2: { type: string, maxLength: 18 }
         headingLine3: { type: string, maxLength: 18 }
         descriptionLine1: { type: string, maxLength: 50 }
@@ -83,7 +84,7 @@ components:
           type: array
           minItems: 10
           maxItems: 10
-          description: 'The ten predefined hotspot keys, in the editor display order. Only labels can change.'
+          description: 'The ten predefined hotspot keys, in display order. Each label is the complete visible line, including a numeric prefix such as 50+ when present; edits are mapped to the existing numeric and label columns.'
           items:
             type: object
             additionalProperties: false
@@ -728,7 +729,7 @@ paths:
       summary: Read the unified Hero editor and third-heading capability
       description: Requires homepage.view. When the third-line gate is off, the missing column is never queried and headingLine3 is absent from data.edit.
       security: [{ sessionCookie: [] }]
-      responses: { '200': { description: 'data.edit, data.headingLine3Enabled, and read-only data.calloutPrefixes' }, '403': { description: Missing homepage.view permission } }
+      responses: { '200': { description: 'data.edit and data.headingLine3Enabled; callout labels contain complete visible text' }, '403': { description: Missing homepage.view permission } }
     patch:
       summary: Atomically save the supported Hero fields
       description: Requires homepage.update and CSRF. Unknown or restricted fields and changed fixed identities are rejected. Legacy generic Hero writes and revision restores return 409. Audit and revision records share the transaction.
