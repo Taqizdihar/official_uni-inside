@@ -1,9 +1,9 @@
 export type Media = {id:number;public_id:string;secure_url:string;original_filename:string|null;alt_text:string|null;caption:string|null;format:string|null;width_px:number|null;height_px:number|null;bytes_size:number|null;folder_path:string|null;created_at:string};
-export type SignedUpload = {uploadUrl:string;apiKey:string;signature:string;asset_folder:string;public_id_prefix:string;timestamp:number;allowed_formats:string};
+export type SignedUpload = {uploadUrl:string;apiKey:string;signature:string;asset_folder:string;public_id_prefix:string;public_id:string;overwrite:boolean;timestamp:number;allowed_formats:string;uploadGrant:string};
 export type UploadRequest = <T>(path:string, options?:RequestInit)=>Promise<{data:T}>;
 
 const formats = ['image/jpeg','image/png','image/webp','image/avif'];
-export const signedFormFields = ['asset_folder','public_id_prefix','timestamp','allowed_formats','signature'] as const;
+export const signedFormFields = ['asset_folder','public_id_prefix','public_id','overwrite','timestamp','allowed_formats','signature'] as const;
 
 export function uploadForm(signed:SignedUpload,file:File) {
   const form = new FormData();
@@ -25,13 +25,13 @@ function cloudinaryError(status:number) {
   return new Error('Cloudinary menolak unggahan gambar. Periksa format gambar dan coba lagi.');
 }
 
-export async function uploadImage(file:File,scope:string,entity:string|undefined,altText:string,caption:string,onProgress:(value:number)=>void,onXhr:(xhr:XMLHttpRequest|null)=>void,request:UploadRequest,xhrFactory:()=>XMLHttpRequest=()=>new XMLHttpRequest()):Promise<Media> {
+export async function uploadImage(file:File,section:string,context:string|undefined,altText:string,caption:string,onProgress:(value:number)=>void,onXhr:(xhr:XMLHttpRequest|null)=>void,request:UploadRequest,xhrFactory:()=>XMLHttpRequest=()=>new XMLHttpRequest()):Promise<Media> {
   validateImage(file);
   onProgress(0);
   try {
     let signed:SignedUpload;
     try {
-      signed=(await request<SignedUpload>('/admin/media/sign-upload',{method:'POST',body:JSON.stringify({scope,entity})})).data;
+      signed=(await request<SignedUpload>('/admin/media/sign-upload',{method:'POST',body:JSON.stringify({section,context,filename:file.name})})).data;
     } catch (error) {
       if(error&&typeof error==='object'&&'code' in error&&error.code==='INTEGRATION_NOT_CONFIGURED')throw new Error('Cloudinary belum siap. Hubungi administrator untuk memeriksa konfigurasi penyimpanan.');
       throw new Error('Tidak dapat menyiapkan izin unggah dari server CMS. Periksa sesi atau koneksi, lalu coba lagi.');
@@ -55,7 +55,7 @@ export async function uploadImage(file:File,scope:string,entity:string|undefined
       xhr.send(form);
     });
     try {
-      return (await request<Media>('/admin/media/finalize',{method:'POST',body:JSON.stringify({scope,entity,publicId:uploaded.public_id,altText:altText||null,caption:caption||null})})).data;
+      return (await request<Media>('/admin/media/finalize',{method:'POST',body:JSON.stringify({section,context,uploadGrant:signed.uploadGrant,publicId:uploaded.public_id,altText:altText||null,caption:caption||null})})).data;
     } catch {
       throw new Error('Gambar terunggah, tetapi tidak dapat disimpan ke Media Library. Hubungi administrator sebelum mencoba lagi.');
     }

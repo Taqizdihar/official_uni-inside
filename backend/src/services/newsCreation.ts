@@ -5,6 +5,8 @@ import { audit, revision } from '../repositories/audit';
 import { record } from '../repositories/content';
 import { resources, slugify } from '../schemas/resources';
 import { HttpError, parse } from '../utils/http';
+import {validateMediaIds} from './mediaReferences';
+import {insertWithUniqueSlug} from './uniqueSlug';
 import { readableNewsText, sanitizeNewsBody, suggestedNewsMinutes } from '../utils/newsText';
 
 const id = z.number().int().positive();
@@ -75,23 +77,11 @@ export async function createNewsArticle(db: Pool, raw: unknown, actor: { id: num
     }
     const mediaIds = [input.cover_media_id, ...input.gallery_media_ids].filter((value): value is number => value !== null);
     const mediaById = new Map<number, RowDataPacket>();
-    if (mediaIds.length) {
-      const folder = `${mediaRoot}/news`;
-      const media = await rows<RowDataPacket>(conn, `SELECT id,alt_text,caption FROM media_assets WHERE id IN (${mediaIds.map(() => '?').join(',')}) AND deleted_at IS NULL AND resource_type='image' AND (folder_path=? OR folder_path LIKE ?)`, [...mediaIds, folder, `${folder}/%`]);
-      for (const item of media) mediaById.set(Number(item.id), item);
-      if (mediaById.size !== mediaIds.length) throw new HttpError(400, 'INVALID_MEDIA', 'Gambar artikel tidak tersedia.', [{ path: 'gallery_media_ids', message: 'Pilih gambar dari folder Berita yang masih tersedia.' }]);
-    }
+    for(const item of await validateMediaIds(conn,mediaIds,'postingan',mediaRoot))mediaById.set(Number(item.id),item);
     const base = slugify(input.title).replace(/-+$/, '');
     if (!base) throw new HttpError(400, 'VALIDATION_ERROR', 'Judul harus menghasilkan alamat URL yang valid.', [{ path: 'title', message: 'Gunakan huruf atau angka pada judul.' }]);
-    let slug = base;
-    for (let suffix = 2; suffix <= 999; suffix++) {
-      const exists = await rows<RowDataPacket>(conn, 'SELECT id FROM news_articles WHERE slug=? LIMIT 1', [slug]);
-      if (!exists.length) break;
-      slug = `${base.slice(0, 190 - String(suffix).length - 1).replace(/-+$/, '')}-${suffix}`;
-      if (suffix === 999) throw new HttpError(409, 'ALREADY_EXISTS', 'Judul ini terlalu sering digunakan.');
-    }
     const status = input.action === 'publish' ? 'published' : 'draft';
-    const result = await write(conn, `INSERT INTO news_articles
+    const result = await insertWithUniqueSlug(conn,'news_articles',base,slug=>write(conn, `INSERT INTO news_articles
       (category_id,author_user_id,author_team_member_id,title,slug,content_type,excerpt,body,cover_media_id,status,reading_time_minutes,published_at)
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`, [
       input.category_id, input.author?.source === 'user' ? input.author.id : null,
@@ -99,7 +89,7 @@ export async function createNewsArticle(db: Pool, raw: unknown, actor: { id: num
       input.title, slug, input.content_type, input.excerpt, input.body || null,
       input.cover_media_id, status, input.reading_time_minutes,
       status === 'published' ? new Date().toISOString().slice(0, 23).replace('T', ' ') : null,
-    ]);
+    ]));
     const articleId = Number(result.insertId);
     for (const [index, mediaId] of input.gallery_media_ids.entries()) {
       const image = mediaById.get(mediaId)!;

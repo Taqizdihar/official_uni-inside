@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {signedFormFields,uploadForm,uploadImage,validateImage,type SignedUpload,type UploadRequest} from '../src/admin/media/upload';
 
-const signed:SignedUpload={uploadUrl:'https://api.cloudinary.com/v1_1/test-cloud/image/upload',apiKey:'public-key',signature:'short-lived-signature',asset_folder:'uni-inside/site',public_id_prefix:'uni-inside/site',timestamp:1234567890,allowed_formats:'jpg,jpeg,png,webp,avif'};
+const signed:SignedUpload={uploadUrl:'https://api.cloudinary.com/v1_1/test-cloud/image/upload',apiKey:'public-key',signature:'short-lived-signature',asset_folder:'uni-inside/site',public_id_prefix:'uni-inside/site',public_id:'test',overwrite:false,uploadGrant:'grant',timestamp:1234567890,allowed_formats:'jpg,jpeg,png,webp,avif'};
 const file=new File(['image'],'test.png',{type:'image/png'});
 
 class FakeXhr {
@@ -37,10 +37,10 @@ test('successful upload finalizes only after Cloudinary returns a public ID',asy
   const request:UploadRequest=async <T>(path:string,options?:RequestInit)=>{
     calls.push(path);
     if(path.endsWith('sign-upload'))return {data:signed as T};
-    assert.deepEqual(JSON.parse(String(options?.body)),{scope:'site',publicId:'uni-inside/site/test',altText:'Logo',caption:null});
+    assert.deepEqual(JSON.parse(String(options?.body)),{section:'pengaturan',context:'site',uploadGrant:'grant',publicId:'uni-inside/site/test',altText:'Logo',caption:null});
     return {data:{id:7,public_id:'uni-inside/site/test'} as T};
   };
-  const result=await uploadImage(file,'site',undefined,'Logo','',()=>{},()=>{},request,()=>xhr as unknown as XMLHttpRequest);
+  const result=await uploadImage(file,'pengaturan','site','Logo','',()=>{},()=>{},request,()=>xhr as unknown as XMLHttpRequest);
   assert.equal(result.id,7);
   assert.deepEqual(calls,['/admin/media/sign-upload','/admin/media/finalize']);
   assert.equal(xhr.sent?.get('max_file_size'),null);
@@ -50,7 +50,7 @@ test('Cloudinary rejection is sanitized and clears progress without finalization
   const xhr=new FakeXhr();xhr.status=401;xhr.responseText='{"error":{"message":"api_secret=private-value Invalid Signature"}}';
   const progress:number[]=[];const calls:string[]=[];
   const request:UploadRequest=async <T>(path:string)=>{calls.push(path);return {data:signed as T};};
-  await assert.rejects(uploadImage(file,'site',undefined,'','',value=>progress.push(value),()=>{},request,()=>xhr as unknown as XMLHttpRequest),error=>{
+  await assert.rejects(uploadImage(file,'pengaturan','site','','',value=>progress.push(value),()=>{},request,()=>xhr as unknown as XMLHttpRequest),error=>{
     assert.match(String(error),/Cloudinary menolak otorisasi/);
     assert.doesNotMatch(String(error),/private-value|api_secret|Invalid Signature/);
     return true;
@@ -63,12 +63,12 @@ test('a network interruption stays distinct from a Cloudinary rejection',async()
   const xhr=new FakeXhr();
   xhr.send=()=>{queueMicrotask(()=>xhr.onerror?.());};
   const request:UploadRequest=async <T>()=>({data:signed as T});
-  await assert.rejects(uploadImage(file,'site',undefined,'','',()=>{},()=>{},request,()=>xhr as unknown as XMLHttpRequest),/Koneksi ke Cloudinary terputus/);
+  await assert.rejects(uploadImage(file,'pengaturan','site','','',()=>{},()=>{},request,()=>xhr as unknown as XMLHttpRequest),/Koneksi ke Cloudinary terputus/);
 });
 
 test('signing and finalization errors have separate messages and clear progress',async()=>{
   const signing:UploadRequest=async()=>{throw new Error('secret-session-token');};
-  await assert.rejects(uploadImage(file,'site',undefined,'','',()=>{},()=>{},signing),error=>{
+  await assert.rejects(uploadImage(file,'pengaturan','site','','',()=>{},()=>{},signing),error=>{
     assert.match(String(error),/menyiapkan izin unggah/);
     assert.doesNotMatch(String(error),/secret-session-token/);
     return true;
@@ -78,7 +78,7 @@ test('signing and finalization errors have separate messages and clear progress'
     if(path.endsWith('sign-upload'))return {data:signed as T};
     throw new Error('secret-database-detail');
   };
-  await assert.rejects(uploadImage(file,'site',undefined,'','',value=>progress.push(value),()=>{},finalization,()=>xhr as unknown as XMLHttpRequest),error=>{
+  await assert.rejects(uploadImage(file,'pengaturan','site','','',value=>progress.push(value),()=>{},finalization,()=>xhr as unknown as XMLHttpRequest),error=>{
     assert.match(String(error),/tidak dapat disimpan ke Media Library/);
     assert.doesNotMatch(String(error),/secret-database-detail/);
     return true;

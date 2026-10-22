@@ -10,7 +10,7 @@ import * as service from '../services/auth';
 import * as repo from '../repositories/auth';
 import { transaction } from '../database/pool';
 import { audit } from '../repositories/audit';
-import { mediaById } from '../repositories/content';
+import { validateMediaIds } from '../services/mediaReferences';
 
 const id = z.coerce.number().int().positive();
 const email = z.email().max(254);
@@ -59,7 +59,7 @@ export function authRoutes(config: Config, db: Pool) {
     const result=await transaction(db,async conn=>{
       await repo.createProfile(conn,req.actor!.id);
       const before=await repo.findProfile(conn,req.actor!.id);
-      if(input.avatarMediaId && !(await mediaById(conn,input.avatarMediaId))) throw new HttpError(400,'INVALID_MEDIA','Select an active image.');
+      if(input.avatarMediaId) await validateMediaIds(conn,[input.avatarMediaId],'administrasi',config.CLOUDINARY_ROOT_FOLDER);
       await repo.updateProfile(conn,req.actor!.id,{avatarMediaId:input.avatarMediaId===undefined?before?.avatar_media_id??null:input.avatarMediaId,jobTitle:input.jobTitle===undefined?before?.job_title??null:input.jobTitle,bio:input.bio===undefined?before?.bio??null:input.bio});
       if(input.displayName)await repo.updateDisplayName(conn,req.actor!.id,input.displayName);
       const after=await repo.findProfile(conn,req.actor!.id);
@@ -91,6 +91,10 @@ export function authRoutes(config: Config, db: Pool) {
     const q = parse(page, req.query);
     const [data,total]=await Promise.all([repo.listUsers(db,q.limit,(q.page-1)*q.limit),repo.countUsers(db)]);
     res.json({ data, meta: {...q,total,totalPages:Math.ceil(total/q.limit)} });
+  }));
+  router.post('/admin/users/direct-create',requireAuth,requireCsrf,superAdmin,permit('users.invite'),resetLimit,asyncRoute(async(req,res)=>{
+    const input=parse(z.strictObject({email,displayName:z.string().trim().min(1).max(150),role:z.enum(['administrator','editor','author','viewer'])}),req.body);
+    res.status(201).json({data:await service.directCreate(db,config,input,{actorId:req.actor!.id,actorRole:req.actor!.roleCode,requestId:req.requestId})});
   }));
   router.get('/admin/users/:id', requireAuth, adminRoles, permit('users.view'), asyncRoute(async (req, res) => {
     const user = await repo.findUserById(db, parse(id, req.params.id));

@@ -7,6 +7,8 @@ import { record } from '../repositories/content';
 import { resources, slugify } from '../schemas/resources';
 import { HttpError, parse } from '../utils/http';
 import { safeServiceCtaHref } from '../utils/serviceLinks';
+import {validateMediaIds} from './mediaReferences';
+import {insertWithUniqueSlug} from './uniqueSlug';
 
 const allowedTags = ['p', 'br', 'strong', 'em', 'u', 'ul', 'ol', 'li', 'h2', 'h3', 'blockquote', 'a'];
 export function sanitizeServiceDescription(value: string) {
@@ -73,20 +75,10 @@ export async function createCompleteService(db: Pool, raw: unknown, actor: { id:
       if (!category.length) throw new HttpError(400, 'VALIDATION_ERROR', 'Pilih kategori aktif.', [{ path: 'category_id', message: 'Kategori tidak tersedia.' }]);
     }
     const mediaIds = [input.cover_media_id, ...input.gallery_media_ids].filter((id): id is number => id !== null);
-    if (mediaIds.length) {
-      const assets = await rows(conn, `SELECT id FROM media_assets WHERE id IN (${mediaIds.map(() => '?').join(',')}) AND deleted_at IS NULL AND resource_type='image' AND folder_path LIKE ?`, [...mediaIds, `${mediaRoot}/services/%`]);
-      if (assets.length !== mediaIds.length) throw new HttpError(400, 'INVALID_MEDIA', 'Pilih gambar yang masih tersedia.', [{ path: 'gallery_media_ids', message: 'Satu atau lebih gambar tidak tersedia.' }]);
-    }
+    await validateMediaIds(conn,mediaIds,'postingan',mediaRoot);
     const base = slugify(input.name);
     if (!base) throw new HttpError(400, 'VALIDATION_ERROR', 'Nama layanan tidak menghasilkan slug yang valid.', [{ path: 'name', message: 'Gunakan huruf atau angka pada nama layanan.' }]);
-    let slug = base;
-    for (let suffix = 2; suffix < 1000; suffix++) {
-      const existing = await rows(conn, 'SELECT id FROM services WHERE slug=? LIMIT 1', [slug]);
-      if (!existing.length) break;
-      slug = `${base.slice(0, 190 - String(suffix).length - 1)}-${suffix}`;
-      if (suffix === 999) throw new HttpError(409, 'ALREADY_EXISTS', 'Nama layanan sudah terlalu sering digunakan.');
-    }
-    const result = await write(conn, `INSERT INTO services
+    const result = await insertWithUniqueSlug(conn,'services',base,slug=>write(conn, `INSERT INTO services
       (category_id,name,slug,short_description,description,pricing_type,starting_price,currency_code,price_note,estimated_duration,cover_media_id,status,primary_cta_label,primary_cta_url,published_at,created_by,updated_by)
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
       input.category_id, input.name, slug, input.summary, input.sanitizedDescription || null,
@@ -95,7 +87,7 @@ export async function createCompleteService(db: Pool, raw: unknown, actor: { id:
       input.primary_cta_label || null, input.primary_cta_url || null,
       input.status === 'published' ? new Date().toISOString().slice(0, 23).replace('T', ' ') : null,
       actor.id, actor.id,
-    ]);
+    ]));
     const id = Number(result.insertId);
     for (const [index, mediaId] of mediaIds.entries()) await write(conn,
       'INSERT INTO service_images (service_id,media_id,is_cover,sort_order) VALUES (?,?,?,?)',

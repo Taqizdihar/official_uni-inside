@@ -11,7 +11,7 @@ function database(failChild=false,missingWhatsapp=false){
   const conn={beginTransaction:async()=>{},commit:async()=>{state.committed=true;},rollback:async()=>{state.rolledBack=true;},release:()=>{},execute:async(options:{sql:string},values:unknown[]=[])=>{
     const sql=options.sql;state.calls.push(sql);
     if(sql.startsWith('INSERT INTO `')){const match=sql.match(/INSERT INTO `([^`]+)` \(([^)]+)\)/)!;const table=match[1]!;const keys=match[2]!.split(',').map(key=>key.replace(/`/g,''));const data=Object.fromEntries(keys.map((key,index)=>[key,values[index]]));if(failChild&&table==='product_features')throw new Error('Child write failed');state.records.push({table,data});if(table==='products')state.product={id:42,...data};return [{insertId:42,affectedRows:1},[]];}
-    if(sql.includes('FROM media_assets'))return [values.filter(id=>id!==999).map(id=>({id})),[]];
+    if(sql.includes('FROM media_assets'))return [values.filter((id):id is number=>typeof id==='number'&&id!==999).map(id=>({id})),[]];
     if(sql.includes('FROM `product_categories`'))return [[{id:3,name:'Lampu'}],[]];
     if(sql.includes('FROM social_links a JOIN social_platforms p'))return [missingWhatsapp?[]:[{id:77,canonical_code:'whatsapp',url:'https://wa.me/628777777777',is_active:1}],[]];
     if(sql.includes('FROM social_links'))return [missingWhatsapp?[]:[{platform_code:'WhatsApp',url:'https://wa.me/628123456789'}],[]];

@@ -80,8 +80,8 @@ describe('security boundaries',()=>{
     expect(()=>loadConfig({DB_HOST:'127.0.0.1',DB_NAME:'uni-inside',DB_USER:'root',AUTH_TOKEN_PEPPER:'a'.repeat(40),ANALYTICS_HASH_PEPPER:'b'.repeat(40),SESSION_COOKIE_SAME_SITE:'none'})).toThrow(/SameSite=None/);
   });
   it('keeps media folders controlled and analytics events matched to entities',()=>{
-    expect(folderFor('products','golden-cube')).toBe('uni-inside/products/golden-cube');
-    expect(()=>folderFor('products','../private')).toThrow();
+    expect(folderFor('products','golden-cube')).toBe('uni-inside/products');
+    expect(folderFor('products','../private')).toBe('uni-inside/products');
     const input=eventSchema.parse({eventUuid:'03b8c029-7e80-414c-84d2-95bc349627f4',eventName:'product_view',entityType:'product',entityId:3,pagePath:'/products/cube?secret=1'});
     expect(normalizeEvent(input,'127.0.0.1','mobile',config())).toMatchObject({path:'/products/cube',device:'mobile',entityType:'product'});
     expect(()=>normalizeEvent({...input,entityType:'news'},'127.0.0.1','desktop',config())).toThrow();
@@ -90,17 +90,17 @@ describe('security boundaries',()=>{
   it('signs only controlled Cloudinary asset folders and prefixes',async()=>{
     expect(config().CLOUDINARY_ROOT_FOLDER).toBe('uni-inside');
     for(const scope of ['site','users','team','partners','achievements'])expect(folderFor(scope,undefined,'studio-assets')).toBe(`studio-assets/${scope}`);
-    for(const scope of ['products','services','projects','news'])expect(folderFor(scope,'item-one','studio-assets')).toBe(`studio-assets/${scope}/item-one`);
+    for(const scope of ['products','services','projects','news'])expect(folderFor(scope,'item-one','studio-assets')).toBe(`studio-assets/${scope}`);
     for(const root of ['/root','root/','root//bad','root/../bad','Root'])expect(()=>folderFor('site',undefined,root)).toThrow();
-    expect(()=>folderFor('products')).toThrow();
-    expect(()=>folderFor('products','../wrong')).toThrow();
+    expect(folderFor('products')).toBe('uni-inside/products');
+    expect(folderFor('products','../wrong')).toBe('uni-inside/products');
     const mediaConfig={...config(),CLOUDINARY_CLOUD_NAME:'example',CLOUDINARY_API_KEY:'public-key',CLOUDINARY_API_SECRET:'test-secret',CLOUDINARY_ROOT_FOLDER:'studio-assets'};
-    const signed=signedUpload(mediaConfig,'products','item-one');
-    expect(signed).toMatchObject({asset_folder:'studio-assets/products/item-one',public_id_prefix:'studio-assets/products/item-one'});
+    const signed=signedUpload(mediaConfig,'postingan','products','item.png',1);
+    expect(signed).toMatchObject({asset_folder:'studio-assets/products',public_id_prefix:'studio-assets/products'});
     expect(signed).not.toHaveProperty('folder');
-    const resource=vi.spyOn(cloudinary.api,'resource').mockResolvedValue({resource_type:'image',format:'webp',bytes:100,width:100,height:100,secure_url:'https://res.cloudinary.com/example/image/upload/item.webp',public_id:'studio-assets/products/item-one/item'} as never);
-    await expect(verifyUpload(mediaConfig,'studio-assets/products/item-one/item','products','item-one')).resolves.toMatchObject({folder:'studio-assets/products/item-one'});
-    await expect(verifyUpload(mediaConfig,'studio-assets/products/other/item','products','item-one')).rejects.toThrow();
+    const resource=vi.spyOn(cloudinary.api,'resource').mockResolvedValue({resource_type:'image',format:'webp',bytes:100,width:100,height:100,secure_url:'https://res.cloudinary.com/example/image/upload/item.webp',public_id:'studio-assets/products/item',asset_folder:'studio-assets/products'} as never);
+    await expect(verifyUpload(mediaConfig,'studio-assets/products/item','postingan','products')).resolves.toMatchObject({folder:'studio-assets/products'});
+    await expect(verifyUpload(mediaConfig,'studio-assets/products/other/item','postingan','products')).rejects.toThrow();
     resource.mockRestore();
   });
 });

@@ -5,6 +5,9 @@ This is a planning reference, not an authorization to change the schema. The sep
 | Capability | Current status | Schema requirement |
 | --- | --- | --- |
 | Super Administrator manual password reset | Supported by initial schema | Reuses `users.password_hash`, `users.password_changed_at`, `auth_sessions`, `password_reset_tokens`, and `audit_logs`. No new migration. |
+| Super Administrator direct member creation | Supported by initial schema | Reuses `users`, `roles`, `user_profiles`, and `audit_logs`. Active account and Argon2id password hash are inserted together; the generated temporary password is returned once and never stored in plaintext. No SMTP or migration required. Existing invited email addresses are rejected rather than activated. |
+| Bagian-based Cloudinary image organization | Supported by initial schema | Reuses `media_assets.folder_path` and `public_id` for generic Bagian folders and existing contextual folders. No new migration or rewrite of historical assets. |
+| Automatic content URL slugs | Supported by initial schema | Reuses existing unique slug indexes. New records receive collision-safe suffixes; existing URLs remain stable when titles change unless explicitly edited. No new migration. |
 | Activity History actor names and friendly labels | Supported by initial schema | Join `audit_logs.actor_user_id` to `users.id`/`users.display_name`; display labels are presentation logic. No new audit name column or migration. |
 | Social Media account platform and description | Prepared by separate database work | `social_platforms`, `social_links.platform_id`, and `social_links.description` are in staged 002. Production application status is separately verified by the database owner. |
 | Product purchase account reference | Prepared by separate database work | `product_purchase_links.social_link_id` is in staged 003. |

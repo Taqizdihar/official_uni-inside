@@ -7,13 +7,14 @@ import { asyncRoute, HttpError, parse } from '../utils/http';
 import * as repo from '../repositories/media';
 import { audit } from '../repositories/audit';
 import { transaction } from '../database/pool';
-import { signedUpload, verifyUpload,safeMediaName,renameCloudinary,moveCloudinary,deleteCloudinary,type StoredMedia } from '../services/media';
+import { signedUpload, verifyUpload,verifyUploadGrant,safeMediaName,renameCloudinary,moveCloudinary,deleteCloudinary,type StoredMedia } from '../services/media';
+import {mediaSections,sectionFolders,resolveMediaDestination} from '../services/mediaSections';
 import { cmsCapabilities } from '../services/capabilities';
 
 const id = z.coerce.number().int().positive();
-const destination = { scope:z.enum(['site','users','team','partners','products','services','projects','news','achievements']), entity:z.string().max(190).optional() };
-const groups:Record<string,string[]>={postingan:['products','services','news'],utama:['team','partners','achievements'],lanjutan:['projects'],pengaturan:['site'],administrasi:['users']};
-const knownScopes=[...new Set(Object.values(groups).flat())];
+const section=z.enum(['postingan','utama','lanjutan','pengaturan','administrasi']);
+const context=z.enum(['site','users','team','partners','products','services','projects','news','achievements']).optional();
+const destination={section,context};
 const auditMedia=(item:unknown)=>{const value=item as {public_id?:string;original_filename?:string;folder_path?:string}|undefined;return {publicId:value?.public_id,name:value?.original_filename,folder:value?.folder_path};};
 export function mediaRoutes(config: Config,db: Pool) {
   const router = Router(); const requireAuth=auth(config,db); const requireCsrf=csrf(config);
@@ -21,7 +22,7 @@ export function mediaRoutes(config: Config,db: Pool) {
     const q=parse(z.strictObject({page:z.coerce.number().int().positive().default(1),limit:z.coerce.number().int().min(1).max(100).default(20),search:z.string().max(100).optional(),folder:z.string().regex(/^[a-z0-9-]+(?:\/[a-z0-9-]+)*\/?$/).optional(),scope:z.enum(['site','users','team','partners','products','services','projects','news','achievements']).optional(),group:z.enum(['postingan','utama','lanjutan','pengaturan','administrasi','lainnya']).optional(),sort:z.enum(['created_at','bytes_size','original_filename']).default('created_at'),direction:z.enum(['asc','desc']).default('desc')}),req.query);
     if([q.scope,q.folder,q.group].filter(Boolean).length>1)throw new HttpError(400,'VALIDATION_ERROR','Choose one folder filter.');
     const root=config.CLOUDINARY_ROOT_FOLDER;
-    const filters:repo.MediaFilters={search:q.search,folders:q.group&&q.group!=='lainnya'?groups[q.group]!.map(scope=>`${root}/${scope}`):q.scope?[`${root}/${q.scope}`]:q.folder?[q.folder]:undefined,otherFolders:q.group==='lainnya'?knownScopes.map(scope=>`${root}/${scope}`):undefined,sort:q.sort,direction:q.direction.toUpperCase() as 'ASC'|'DESC'};
+    const filters:repo.MediaFilters={search:q.search,folders:q.group&&q.group!=='lainnya'?sectionFolders(q.group,root):q.scope?[`${root}/${q.scope}`]:q.folder?[q.folder]:undefined,otherFolders:q.group==='lainnya'?Object.keys(mediaSections).flatMap(key=>sectionFolders(key as keyof typeof mediaSections,root)):undefined,sort:q.sort,direction:q.direction.toUpperCase() as 'ASC'|'DESC'};
     const [data,total]=await Promise.all([repo.listMedia(db,q.limit,(q.page-1)*q.limit,filters),repo.countMedia(db,filters)]);
     res.set('Cache-Control','no-store').json({data,meta:{page:q.page,limit:q.limit,total,totalPages:Math.ceil(total/q.limit)}});
   }));
@@ -30,12 +31,13 @@ export function mediaRoutes(config: Config,db: Pool) {
     res.set('Cache-Control','no-store').json({data:known.map(row=>String(row.folder_path))});
   }));
   router.post('/admin/media/sign-upload',requireAuth,requireCsrf,permit('media.upload'),asyncRoute(async (req,res) => {
-    const input=parse(z.strictObject(destination),req.body);
-    res.json({data:signedUpload(config,input.scope,input.entity)});
+    const input=parse(z.strictObject({...destination,filename:z.string().min(1).max(255)}),req.body);
+    res.json({data:signedUpload(config,input.section,input.context,input.filename,req.actor!.id)});
   }));
   router.post('/admin/media/finalize',requireAuth,requireCsrf,permit('media.upload'),asyncRoute(async (req,res) => {
-    const input=parse(z.strictObject({...destination,publicId:z.string().min(1).max(255),altText:z.string().max(255).nullable().optional(),caption:z.string().max(500).nullable().optional()}),req.body);
-    const verified=await verifyUpload(config,input.publicId,input.scope,input.entity);
+    const input=parse(z.strictObject({...destination,uploadGrant:z.string().min(20).max(1024),publicId:z.string().min(1).max(255),altText:z.string().max(255).nullable().optional(),caption:z.string().max(500).nullable().optional()}),req.body);
+    verifyUploadGrant(config,input.uploadGrant,req.actor!.id,input.publicId);
+    const verified=await verifyUpload(config,input.publicId,input.section,input.context);
     const asset=await transaction(db,async conn => {
       const result=await repo.insertMedia(conn,{...verified,alt:input.altText??null,caption:input.caption??null,actorId:req.actor!.id});
       await audit(conn,{actorId:req.actor!.id,action:'media.create',entityType:'media_assets',entityId:Number(result.insertId),requestId:req.requestId,after:{publicId:verified.publicId,format:verified.format}});
@@ -82,12 +84,10 @@ export function mediaRoutes(config: Config,db: Pool) {
     }catch(error){if(rollback.current){try{await renameCloudinary(config,rollback.current.item,rollback.current.oldId);}catch{throw new HttpError(503,'MEDIA_SYNC_FAILED','The image changed in Cloudinary, but the CMS could not save it. Contact an administrator.');}}throw error;}
   }));
   router.patch('/admin/media/:id/move',requireAuth,requireCsrf,permit('media.update'),asyncRoute(async (req,res)=>{
-    const mediaId=parse(id,req.params.id);const {folder}=parse(z.strictObject({folder:z.string().max(255)}),req.body);
+    const mediaId=parse(id,req.params.id);const {section:destinationSection}=parse(z.strictObject({section}),req.body);
     const variantMediaReady=config.PRODUCT_VARIANT_MEDIA_ENABLED&&(await cmsCapabilities(db,config)).productVariantMedia.enabled;
     const root=config.CLOUDINARY_ROOT_FOLDER;
-    const base=['site','users','team','partners','achievements'].map(scope=>`${root}/${scope}`);
-    const existing=(await repo.mediaFolders(db)).map(row=>String(row.folder_path));
-    if(!/^[a-z0-9-]+(?:\/[a-z0-9-]+)*$/.test(folder)||![...base,...existing].includes(folder)||!folder.startsWith(`${root}/`))throw new HttpError(400,'INVALID_MEDIA_FOLDER','Choose an available destination.');
+    const folder=resolveMediaDestination(destinationSection,undefined,root);
     const rollback:{current?:{item:StoredMedia;oldFolder:string}}={};
     try{
       const changed=await transaction(db,async conn=>{

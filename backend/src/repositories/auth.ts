@@ -3,6 +3,8 @@ import type { Executor } from '../database/pool';
 import { rows, write } from '../database/pool';
 
 export const findUserByEmail = async (db: Executor, email: string) => (await rows<RowDataPacket>(db, 'SELECT u.id,u.email,u.display_name,u.password_hash,u.status,u.role_id,r.code AS role_code FROM users u JOIN roles r ON r.id=u.role_id WHERE u.email=? AND u.deleted_at IS NULL LIMIT 1', [email]))[0];
+export const findAnyUserByEmail = async (db: Executor, email: string) => (await rows<RowDataPacket>(db, 'SELECT id,status,deleted_at FROM users WHERE email=? LIMIT 1 FOR UPDATE', [email]))[0];
+export const createDirectUser = (db: Executor,email:string,roleId:number,name:string,hash:string,actorId:number) => write(db,"INSERT INTO users (role_id,email,password_hash,display_name,status,email_verified_at,password_changed_at,created_by) VALUES (?,?,?,?,'active',UTC_TIMESTAMP(3),UTC_TIMESTAMP(3),?)",[roleId,email,hash,name,actorId]);
 export const findUserById = async (db: Executor, id: number) => (await rows<RowDataPacket>(db, 'SELECT u.id,u.email,u.display_name,u.status,u.role_id,r.code AS role_code FROM users u JOIN roles r ON r.id=u.role_id WHERE u.id=? AND u.deleted_at IS NULL LIMIT 1', [id]))[0];
 export const findProfile = async (db: Executor, id: number) => (await rows<RowDataPacket>(db,'SELECT p.user_id,p.avatar_media_id,p.job_title,p.bio FROM user_profiles p WHERE p.user_id=? LIMIT 1',[id]))[0];
 export const updateProfile = (db: Executor,id:number,data:{avatarMediaId:number|null;jobTitle:string|null;bio:string|null}) => write(db,'UPDATE user_profiles SET avatar_media_id=?,job_title=?,bio=? WHERE user_id=?',[data.avatarMediaId,data.jobTitle,data.bio,id]);

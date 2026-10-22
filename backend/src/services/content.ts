@@ -7,6 +7,8 @@ import { HttpError, parse } from '../utils/http';
 import { sanitizeServiceDescription, serviceSummary } from './serviceCreation';
 import { productSummary,sanitizeProductDescription } from '../utils/productDescription';
 import { sanitizeNewsBody, suggestedNewsMinutes } from '../utils/newsText';
+import { insertWithUniqueSlug } from './uniqueSlug';
+import { mediaSectionForPermission, validateMediaIds } from './mediaReferences';
 
 type Actor = { id: number; permissions: Set<string> };
 const authorColumns = new Set(['partners','team_members','products','services','projects','achievements']);
@@ -75,21 +77,24 @@ export async function get(db: Pool, name: string, key: string) {
   if (!result) throw new HttpError(404, 'NOT_FOUND', 'Content record not found.');
   return result;
 }
-export async function create(db: Pool, name: string, raw: unknown, actor: Actor, requestId: string) {
+export async function create(db: Pool, name: string, raw: unknown, actor: Actor, requestId: string, mediaRoot = 'uni-inside') {
   const spec = getResource(name);
   if (spec.kind !== 'dynamic') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Fixed content cannot be created.');
   checkPermission(actor, permissionFor(spec,'create'));
   const data = { ...spec.defaults, ...parseBody(spec, raw) };
+  const autoSlug = Boolean(spec.fields.slug && spec.titleField && !data.slug);
   if (name === 'services') validateServiceCtaPair(data);
   for (const field of spec.required ?? []) if (!data[field]) throw new HttpError(400, 'VALIDATION_ERROR', `Please provide ${field}.`);
-  if (spec.titleField && !data.slug) data.slug = slugify(String(data[spec.titleField]));
-  if (spec.titleField && !data.slug) throw new HttpError(400, 'VALIDATION_ERROR', 'Use a title that produces a valid URL slug.');
+  if (autoSlug) data.slug = slugify(String(data[spec.titleField!]));
+  if (autoSlug && !data.slug) throw new HttpError(400, 'VALIDATION_ERROR', 'Use a title that produces a valid URL slug.');
   if (spec.fields.status && data.status && data.status !== 'draft') throw new HttpError(400, 'VALIDATION_ERROR', 'Create a draft before publishing.');
   const result = await transaction(db, async conn => {
+    const section=mediaSectionForPermission(spec.permission);
+    if(section)await validateMediaIds(conn,Object.entries(data).filter(([key])=>key==='media_id'||key.endsWith('_media_id')).map(([,value])=>Number(value)).filter(Boolean),section,mediaRoot);
     if (spec.maxRows && await content.countRecords(conn, spec) >= spec.maxRows) throw new HttpError(409, 'ROW_LIMIT', `This resource allows at most ${spec.maxRows} entries.`);
     if (authorColumns.has(spec.table)) { data.created_by = actor.id; data.updated_by = actor.id; }
     if (name === 'news' && data.body && data.reading_time_minutes == null) data.reading_time_minutes = suggestedNewsMinutes(String(data.body));
-    const id = await content.insertRecord(conn, spec, data);
+    const id = autoSlug ? await insertWithUniqueSlug(conn,spec.table,String(data.slug),slug=>content.insertRecord(conn,spec,{...data,slug})) : await content.insertRecord(conn, spec, data);
     const saved = await content.record(conn, spec, id, true);
     await revision(conn, { entityType: spec.table, entityId: id, snapshot: saved, actorId: actor.id, summary: 'Created' });
     await audit(conn, { actorId: actor.id, action: `${spec.table}.create`, entityType: spec.table, entityId: id, requestId, after: saved });
@@ -97,12 +102,14 @@ export async function create(db: Pool, name: string, raw: unknown, actor: Actor,
   });
   return result;
 }
-export async function update(db: Pool, name: string, key: string, raw: unknown, actor: Actor, requestId: string) {
+export async function update(db: Pool, name: string, key: string, raw: unknown, actor: Actor, requestId: string, mediaRoot = 'uni-inside') {
   const spec = getResource(name);
   checkPermission(actor, permissionFor(spec,'update'));
   const data = parseBody(spec, raw);
   const resolvedKey = recordKey(name, spec, key);
   return transaction(db, async conn => {
+    const section=mediaSectionForPermission(spec.permission);
+    if(section)await validateMediaIds(conn,Object.entries(data).filter(([key])=>key==='media_id'||key.endsWith('_media_id')).map(([,value])=>Number(value)).filter(Boolean),section,mediaRoot);
     const before = await content.record(conn, spec, resolvedKey, true);
     if (!before) throw new HttpError(404, 'NOT_FOUND', 'Content record not found.');
     if (spec.fields.status && ['published','scheduled','archived'].includes(String(before.status)) && !actor.permissions.has(`${spec.permission}.publish`)) throw new HttpError(403,'FORBIDDEN','Only a publisher can edit a non-draft record.');

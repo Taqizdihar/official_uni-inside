@@ -402,6 +402,25 @@ paths:
       security: [{ sessionCookie: [] }]
       parameters: [{ $ref: '#/components/parameters/Csrf' }]
       responses: { '200': { description: User updated }, '403': { description: FORBIDDEN or SELF_ADMIN_CHANGE_FORBIDDEN }, '409': { description: LAST_SUPER_ADMIN } }
+  /admin/users/direct-create:
+    post:
+      summary: Super Administrator directly creates an active CMS member
+      description: Requires super_admin, users.invite, CSRF, and a per-actor limit of five attempts per hour. Does not use SMTP. Existing email addresses, including invited and soft-deleted accounts, return USER_EXISTS. A cryptographically generated temporary password is stored only as an Argon2id hash and returned exactly once in a no-store response; audit records contain no credential.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [email, displayName, role]
+              properties:
+                email: { type: string, format: email, maxLength: 254 }
+                displayName: { type: string, minLength: 1, maxLength: 150 }
+                role: { type: string, enum: [administrator, editor, author, viewer] }
+      responses: { '201': { description: '{ data: { user, temporaryPassword } }; Cache-Control no-store' }, '403': { description: 'Role, permission, or CSRF denied' }, '409': { description: USER_EXISTS }, '429': { description: Rate limit exceeded } }
   /admin/users/{id}/reset-password:
     post:
       summary: Super Administrator sets an eligible member's new password
@@ -487,18 +506,47 @@ paths:
       responses: { '200': { description: Distinct stored folder paths } }
   /admin/media/sign-upload:
     post:
-      summary: Signed Cloudinary image upload parameters for controlled folder
+      summary: Signed Cloudinary image upload parameters for a CMS Bagian
+      description: A Bagian (postingan, utama, lanjutan, pengaturan, administrasi) is required. Optional context must belong to that Bagian; central uploads use a generic Bagian folder. The server generates a unique lowercase filename-based public ID and an actor-bound short-lived upload grant. No saved content slug is needed.
       security: [{ sessionCookie: [] }]
       parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [section, filename]
+              properties:
+                section: { type: string, enum: [postingan, utama, lanjutan, pengaturan, administrasi] }
+                context: { type: string, enum: [site, users, team, partners, achievements, products, services, projects, news] }
+                filename: { type: string, minLength: 1, maxLength: 255 }
       responses:
         '200':
-          description: 'Signed payload with uploadUrl, apiKey, signature, asset_folder, public_id_prefix, timestamp, allowed_formats, and max_file_size'
+          description: 'Signed payload with uploadUrl, apiKey, signature, asset_folder, public_id_prefix, public_id, overwrite=false, timestamp, allowed_formats, and uploadGrant'
         '503': { description: Cloudinary unavailable }
   /admin/media/finalize:
     post:
       summary: Verify Cloudinary image and record metadata
+      description: Requires the original section, optional context, uploadGrant, and Cloudinary publicId. The grant binds the authenticated actor and public ID; Cloudinary metadata must match the resolved destination.
       security: [{ sessionCookie: [] }]
       parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [section, uploadGrant, publicId]
+              properties:
+                section: { type: string, enum: [postingan, utama, lanjutan, pengaturan, administrasi] }
+                context: { type: string, enum: [site, users, team, partners, achievements, products, services, projects, news] }
+                uploadGrant: { type: string }
+                publicId: { type: string, maxLength: 255 }
+                altText: { type: [string, 'null'], maxLength: 255 }
+                caption: { type: [string, 'null'], maxLength: 500 }
       responses: { '201': { description: Image recorded } }
   /admin/media/{id}:
     parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
@@ -533,7 +581,7 @@ paths:
       responses: { '200': { description: Renamed image record }, '409': { description: Image is referenced or name exists }, '502': { description: Cloudinary rename failed } }
   /admin/media/{id}/move:
     patch:
-      summary: Move an unreferenced image to an existing Cloudinary asset folder
+      summary: Move an unreferenced image to a Bagian
       security: [{ sessionCookie: [] }]
       parameters: [{ name: id, in: path, required: true, schema: { type: integer } }, { $ref: '#/components/parameters/Csrf' }]
       requestBody:
@@ -542,9 +590,9 @@ paths:
           application/json:
             schema:
               type: object
-              required: [folder]
+              required: [section]
               additionalProperties: false
-              properties: { folder: { type: string, maxLength: 255 } }
+              properties: { section: { type: string, enum: [postingan, utama, lanjutan, pengaturan, administrasi] } }
       responses: { '200': { description: Moved image record }, '409': { description: Image is referenced }, '502': { description: Cloudinary move failed } }
   /admin/projects/{key}/services:
     get:

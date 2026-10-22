@@ -70,7 +70,7 @@ describe('complete service creation', () => {
     expect(result).toMatchObject({ id: 42, gallery_media_ids: [12, 13], items: input.items, process_steps: input.process_steps });
     expect(test.state()).toEqual({ committed: true, rolledBack: false });
     expect(test.calls.filter(call => call.sql.startsWith('INSERT INTO service_images')).map(call => call.values)).toEqual([[42, 11, 1, 0], [42, 12, 0, 1], [42, 13, 0, 2]]);
-    expect(test.calls.find(call => call.sql.includes('FROM media_assets'))?.values.at(-1)).toBe('uni-inside/services/%');
+    expect(test.calls.find(call => call.sql.includes('FROM media_assets'))?.values).toContain('uni-inside/postingan/%');
     expect(test.calls.filter(call => call.sql.startsWith('INSERT INTO service_list_items')).map(call => call.values.at(-1))).toEqual([0, 1]);
     expect(test.calls.filter(call => call.sql.startsWith('INSERT INTO service_process_steps')).map(call => call.values.at(-1))).toEqual([0, 1]);
     expect(test.calls.some(call => call.sql.startsWith('INSERT INTO content_revisions'))).toBe(true);

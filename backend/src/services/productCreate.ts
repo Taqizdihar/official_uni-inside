@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import type { Pool } from 'mysql2/promise';
-import type { RowDataPacket } from 'mysql2/promise';
-import { rows,transaction,write } from '../database/pool';
+import { transaction,write } from '../database/pool';
 import * as repo from '../repositories/content';
 import { audit,revision } from '../repositories/audit';
 import { resources,slugify } from '../schemas/resources';
@@ -10,6 +9,8 @@ import { HttpError,parse } from '../utils/http';
 import { productSummary,sanitizeProductDescription } from '../utils/productDescription';
 import type { CmsCapabilities } from './capabilities';
 import { account } from '../repositories/socialMedia';
+import {validateMediaIds} from './mediaReferences';
+import {insertWithUniqueSlug} from './uniqueSlug';
 
 const id=z.number().int().positive();
 const optionalText=(max:number)=>z.string().trim().max(max).nullable().optional();
@@ -46,7 +47,7 @@ export function productFormInput(raw:unknown,capabilities:ProductCapabilities=le
   const description=sanitizeProductDescription(input.description,true);
   return {...input,description,short_description:productSummary(description)};
 }
-export async function createProductForm(db:Pool,raw:unknown,actor:{id:number;permissions:Set<string>},requestId:string,capabilities?:CmsCapabilities){
+export async function createProductForm(db:Pool,raw:unknown,actor:{id:number;permissions:Set<string>},requestId:string,capabilities?:CmsCapabilities,mediaRoot='uni-inside'){
   if(!actor.permissions.has('products.create'))throw new HttpError(403,'FORBIDDEN','Anda tidak memiliki izin membuat produk.');
   const enabled:ProductCapabilities={socialMediaV2:capabilities?.socialMediaV2.enabled??false,productVariantMedia:capabilities?.productVariantMedia.enabled??false};
   const input=productFormInput(raw,enabled);
@@ -56,7 +57,7 @@ export async function createProductForm(db:Pool,raw:unknown,actor:{id:number;per
   return transaction(db,async conn=>{
     const imageIds=[input.cover_media_id,...input.gallery_media_ids].filter((value):value is number=>Boolean(value));
     const mediaIds=[...new Set([...imageIds,...(enabled.productVariantMedia?input.variants.map(variant=>variant.media_id).filter((value):value is number=>Boolean(value)):[])])];
-    if(mediaIds.length){const media=await rows<RowDataPacket>(conn,`SELECT id FROM media_assets WHERE deleted_at IS NULL AND id IN (${mediaIds.map(()=>'?').join(',')})`,mediaIds);if(media.length!==mediaIds.length)throw new HttpError(400,'INVALID_MEDIA','Gambar tidak tersedia.');}
+    await validateMediaIds(conn,mediaIds,'postingan',mediaRoot);
     if(input.category_id&&!await repo.record(conn,resources['product-categories']!,input.category_id))throw new HttpError(400,'INVALID_REFERENCE','Kategori tidak tersedia.');
     const whatsapp=enabled.socialMediaV2?null:input.platforms.some(link=>link.platform==='whatsapp')?await repo.globalWhatsApp(conn):null;
     if(!enabled.socialMediaV2&&input.platforms.some(link=>link.platform==='whatsapp')&&!whatsapp)throw new HttpError(400,'WHATSAPP_NOT_CONFIGURED','Tautan WhatsApp global belum tersedia.');
@@ -65,7 +66,7 @@ export async function createProductForm(db:Pool,raw:unknown,actor:{id:number;per
       const missing=publishProblems('products',product,{purchaseLinks:input.platforms.length});
       if(missing.length)throw new HttpError(400,'PUBLISH_INCOMPLETE','Lengkapi produk sebelum diterbitkan.',missing);
     }
-    const productId=await repo.insertRecord(conn,resources.products!,product);
+    const productId=await insertWithUniqueSlug(conn,'products',slug,candidate=>repo.insertRecord(conn,resources.products!,{...product,slug:candidate}));
     for(const [index,mediaId] of imageIds.entries())await repo.insertRecord(conn,resources['product-images']!,{product_id:productId,media_id:mediaId,is_cover:mediaId===input.cover_media_id?1:0,sort_order:index});
     for(const [index,feature] of input.features.entries())await repo.insertRecord(conn,resources['product-features']!,{product_id:productId,...feature,sort_order:index});
     for(const [index,variant] of input.variants.entries()){

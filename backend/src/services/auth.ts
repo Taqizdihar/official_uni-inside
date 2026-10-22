@@ -48,6 +48,26 @@ export async function invite(db: Pool, config: Config, input: { email: string; d
   const sent = await sendLink(config, email, 'Uni-Inside invitation', url);
   return { id: result, email, ...(sent ? {} : { developmentUrl: url }) };
 }
+export async function directCreate(db:Pool,config:Config,input:{email:string;displayName:string;role:string},ctx:Context){
+  if(ctx.actorRole!=='super_admin')throw new HttpError(403,'FORBIDDEN','Only a super administrator can add a member directly.');
+  const email=input.email.trim().toLowerCase();
+  const temporaryPassword=newToken();
+  validPassword(temporaryPassword,config);
+  const hash=await hashPassword(temporaryPassword);
+  const user=await transaction(db,async conn=>{
+    const existing=await repo.findAnyUserByEmail(conn,email);
+    if(existing)throw new HttpError(409,'USER_EXISTS','An account with this email already exists.');
+    const role=await repo.findRole(conn,input.role);
+    if(!role||input.role==='super_admin')throw new HttpError(400,'INVALID_ROLE','Select a permitted role.');
+    let id:number;
+    try{id=Number((await repo.createDirectUser(conn,email,Number(role.id),input.displayName,hash,ctx.actorId!)).insertId);}
+    catch(error){if((error as {code?:string}).code==='ER_DUP_ENTRY')throw new HttpError(409,'USER_EXISTS','An account with this email already exists.');throw error;}
+    await repo.createProfile(conn,id);
+    await audit(conn,{actorId:ctx.actorId,action:'users.direct_create',entityType:'users',entityId:id,requestId:ctx.requestId,after:{role:input.role,displayName:input.displayName,status:'active'}});
+    return {id,email,displayName:input.displayName,role:input.role,status:'active'};
+  });
+  return {user,temporaryPassword};
+}
 export async function resendInvite(db: Pool, config: Config, id: number, ctx: Context) {
   if (config.NODE_ENV === 'production' && (!config.SMTP_HOST || !config.SMTP_FROM_EMAIL)) throw new HttpError(503, 'INTEGRATION_NOT_CONFIGURED', 'Email delivery is not configured.');
   const token = newToken();

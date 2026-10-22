@@ -49,7 +49,7 @@ export function adminContentRoutes(config: Config, db: Pool) {
   const requireAuth = auth(config,db); const requireCsrf = csrf(config);
   router.post('/admin/products/compose',requireAuth,requireCsrf,asyncRoute(async(req,res)=>{
     const capabilities=await cmsCapabilities(db,config);
-    res.status(201).json({data:await createProductForm(db,req.body,req.actor!,req.requestId,capabilities)});
+    res.status(201).json({data:await createProductForm(db,req.body,req.actor!,req.requestId,capabilities,config.CLOUDINARY_ROOT_FOLDER)});
   }));
   router.get('/admin/news/author-options', requireAuth, permit('news.create'), asyncRoute(async (req, res) => {
     const q = parse(z.strictObject({ source: z.enum(['user', 'team']), page: z.coerce.number().int().positive().default(1), limit: z.coerce.number().int().min(1).max(100).default(100) }), req.query);
@@ -112,11 +112,11 @@ export function adminContentRoutes(config: Config, db: Pool) {
   }));
   router.post('/admin/:resource', requireAuth, requireCsrf, asyncRoute(async (req,res) => {
     if(req.params.resource==='social-links'&&config.SOCIAL_MEDIA_V2_ENABLED&&(await cmsCapabilities(db,config)).socialMediaV2.enabled)throw new HttpError(409,'LEGACY_ROUTE_DISABLED','Gunakan Manajemen Sosial Media untuk mengubah akun.');
-    res.status(201).json({ data:await content.create(db,String(req.params.resource),req.body,req.actor!,req.requestId) });
+    res.status(201).json({ data:await content.create(db,String(req.params.resource),req.body,req.actor!,req.requestId,config.CLOUDINARY_ROOT_FOLDER) });
   }));
   router.patch('/admin/:resource/:key', requireAuth, requireCsrf, asyncRoute(async (req,res) => {
     if(req.params.resource==='social-links'&&config.SOCIAL_MEDIA_V2_ENABLED&&(await cmsCapabilities(db,config)).socialMediaV2.enabled)throw new HttpError(409,'LEGACY_ROUTE_DISABLED','Gunakan Manajemen Sosial Media untuk mengubah akun.');
-    res.json({ data:await content.update(db,String(req.params.resource),String(req.params.key),req.body,req.actor!,req.requestId) });
+    res.json({ data:await content.update(db,String(req.params.resource),String(req.params.key),req.body,req.actor!,req.requestId,config.CLOUDINARY_ROOT_FOLDER) });
   }));
   router.delete('/admin/:resource/:key', requireAuth, requireCsrf, asyncRoute(async (req,res) => {
     if(req.params.resource==='social-links'&&config.SOCIAL_MEDIA_V2_ENABLED&&(await cmsCapabilities(db,config)).socialMediaV2.enabled)throw new HttpError(409,'LEGACY_ROUTE_DISABLED','Gunakan Manajemen Sosial Media untuk mengubah akun.');

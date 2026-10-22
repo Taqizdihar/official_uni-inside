@@ -138,14 +138,25 @@ describe('HTTP behavior',()=>{
   });
   it('reports Cloudinary as unavailable when unconfigured',async()=>{
     const raw='session-token';const csrf=csrfToken(config,raw);
-    const result=await request(app).post('/api/v1/admin/media/sign-upload').set('Origin','http://localhost:3000').set('X-CSRF-Token',csrf).set('Cookie',[`${config.SESSION_COOKIE_NAME}=${raw}`,`${config.CSRF_COOKIE_NAME}=${csrf}`]).send({scope:'products',entity:'cube'});
+    const result=await request(app).post('/api/v1/admin/media/sign-upload').set('Origin','http://localhost:3000').set('X-CSRF-Token',csrf).set('Cookie',[`${config.SESSION_COOKIE_NAME}=${raw}`,`${config.CSRF_COOKIE_NAME}=${csrf}`]).send({section:'postingan',context:'products',filename:'cube.png'});
     expect(result.status).toBe(503);expect(result.body.error.code).toBe('INTEGRATION_NOT_CONFIGURED');
+  });
+  it('rejects direct provisioning by an administrator even with invite permission',async()=>{
+    const raw='session-token',csrf=csrfToken(config,raw);
+    const administratorDb={execute:async(options:{sql:string})=>{
+      if(options.sql.includes('FROM auth_sessions'))return [[{session_id:2,user_id:8,role_id:2,role_code:'administrator',last_activity_at:new Date().toISOString().replace('T',' ').replace('Z','')}],[]];
+      if(options.sql.includes('FROM role_permissions'))return [[{code:'users.invite'}],[]];
+      return [{affectedRows:1},[]];
+    }} as unknown as Pool;
+    const response=await request(createApp(config,administratorDb)).post('/api/v1/admin/users/direct-create').set('Origin','http://localhost:3000').set('X-CSRF-Token',csrf).set('Cookie',[`${config.SESSION_COOKIE_NAME}=${raw}`,`${config.CSRF_COOKIE_NAME}=${csrf}`]).send({email:'new@example.com',displayName:'New Member',role:'viewer'});
+    expect(response.status).toBe(403);
+    expect(response.body.error.code).toBe('FORBIDDEN');
   });
   it('requires media action permissions and blocks referenced assets before Cloudinary changes',async()=>{
     const raw='session-token',csrf=csrfToken(config,raw),cookies=[`${config.SESSION_COOKIE_NAME}=${raw}`,`${config.CSRF_COOKIE_NAME}=${csrf}`];
     const headers=(method:'patch'|'delete',path:string)=>request(app)[method](path).set('Origin','http://localhost:3000').set('X-CSRF-Token',csrf).set('Cookie',cookies);
     for(const path of ['/api/v1/admin/media/7/rename','/api/v1/admin/media/7/move']){
-      const denied=await headers('patch',path).send(path.endsWith('rename')?{name:'renamed'}:{folder:'uni-inside/team'});
+      const denied=await headers('patch',path).send(path.endsWith('rename')?{name:'renamed'}:{section:'utama'});
       expect(denied.status).toBe(403);expect(denied.body.error.code).toBe('FORBIDDEN');
     }
     const deniedDelete=await headers('delete','/api/v1/admin/media/7');expect(deniedDelete.status).toBe(403);
@@ -161,7 +172,7 @@ describe('HTTP behavior',()=>{
     const protectedApp=createApp(config,protectedDb);
     const response=await request(protectedApp).delete('/api/v1/admin/media/7').set('Origin','http://localhost:3000').set('X-CSRF-Token',csrf).set('Cookie',cookies);
     expect(response.status).toBe(409);expect(response.body.error.code).toBe('MEDIA_REFERENCED');
-    for(const [path,body] of [['rename',{name:'new-photo'}],['move',{folder:'uni-inside/team'}]] as const){
+    for(const [path,body] of [['rename',{name:'new-photo'}],['move',{section:'utama'}]] as const){
       const blocked=await request(protectedApp).patch(`/api/v1/admin/media/7/${path}`).set('Origin','http://localhost:3000').set('X-CSRF-Token',csrf).set('Cookie',cookies).send(body);
       expect(blocked.status).toBe(409);expect(blocked.body.error.code).toBe('MEDIA_REFERENCED');
     }

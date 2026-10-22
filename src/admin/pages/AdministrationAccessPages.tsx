@@ -26,6 +26,7 @@ export function UsersPage(){
   const [email,setEmail]=useState(''),[name,setName]=useState(''),[role,setRole]=useState('viewer');
   const [selected,setSelected]=useState<User|null>(null),[resetTarget,setResetTarget]=useState<User|null>(null),[revokeId,setRevokeId]=useState<number|null>(null);
   const [developmentUrl,setDevelopmentUrl]=useState('');
+  const [credential,setCredential]=useState<{email:string;temporaryPassword:string}|null>(null),[showCredential,setShowCredential]=useState(false),[discardCredential,setDiscardCredential]=useState(false);
   const [newPassword,setNewPassword]=useState(''),[confirmation,setConfirmation]=useState(''),[showPassword,setShowPassword]=useState(false),[showConfirmation,setShowConfirmation]=useState(false);
   const {toast,element}=useToast();
   useEffect(()=>{
@@ -45,7 +46,7 @@ export function UsersPage(){
   const closeReset=()=>{if(busy)return;setResetTarget(null);setNewPassword('');setConfirmation('');setShowPassword(false);setShowConfirmation(false);setError(null);};
   async function invite(event:FormEvent){
     event.preventDefault();if(busy)return;setBusy(true);setError(null);
-    try{const result=await api<{developmentUrl?:string}>('/admin/invitations',{method:'POST',body:JSON.stringify({email,displayName:name,role})});setDevelopmentUrl(result.data.developmentUrl??'');setEmail('');setName('');setReload(value=>value+1);toast(invitationMessage('invite',result.data.developmentUrl));}
+    try{if(isSuper){const result=await api<{user:{email:string};temporaryPassword:string}>('/admin/users/direct-create',{method:'POST',body:JSON.stringify({email,displayName:name,role})});setCredential({email:result.data.user.email,temporaryPassword:result.data.temporaryPassword});setShowCredential(false);toast('Anggota tim berhasil ditambahkan.');}else{const result=await api<{developmentUrl?:string}>('/admin/invitations',{method:'POST',body:JSON.stringify({email,displayName:name,role})});setDevelopmentUrl(result.data.developmentUrl??'');toast(invitationMessage('invite',result.data.developmentUrl));}setEmail('');setName('');setReload(value=>value+1);}
     catch(e){setError(invitationError(e));}finally{setBusy(false);}
   }
   async function updateUser(){
@@ -69,13 +70,13 @@ export function UsersPage(){
     {!selected&&!resetTarget&&<Notice error={error}/>}
     {developmentUrl&&<div className="cms-notice"><div><strong>Tautan undangan pengembangan</strong><p>Email tidak dikirim. Tautan ini hanya tersedia di lingkungan pengembangan.</p><a href={developmentUrl}>{developmentUrl}</a></div></div>}
     {has('users.invite')&&<form className="cms-card cms-invite-card" onSubmit={invite}>
-      <div className="cms-section-heading"><h2>Undang anggota tim</h2><p>Berikan akses sesuai tanggung jawab anggota.</p></div>
+      <div className="cms-section-heading"><h2>{isSuper?'Tambah anggota tim':'Undang anggota tim'}</h2><p>{isSuper?'Buat akun aktif dan salin password sementara satu kali.':'Berikan akses sesuai tanggung jawab anggota.'}</p></div>
       <div className="cms-invite-grid">
         <div className="cms-field"><label>Email<input type="email" required maxLength={254} value={email} onChange={e=>setEmail(e.target.value)} disabled={busy}/></label></div>
         <div className="cms-field"><label>Nama tampilan<input required maxLength={150} value={name} onChange={e=>setName(e.target.value)} disabled={busy}/></label></div>
         <div className="cms-field cms-invite-role"><label>Role<select value={role} onChange={e=>setRole(e.target.value)} disabled={busy}>{roles.filter(item=>item.code!=='super_admin').map(item=><option key={item.code} value={item.code}>{roleLabels[item.code]??item.name}</option>)}</select></label><small>{roleDescriptions[role]}</small></div>
       </div>
-      <div className="cms-invite-actions"><button className="cms-button primary" disabled={busy}>{busy?'Memproses…':'Kirim undangan'}</button></div>
+      <div className="cms-invite-actions"><button className="cms-button primary" disabled={busy}>{busy?'Memproses…':isSuper?'Tambahkan Anggota':'Kirim undangan'}</button></div>
     </form>}
     {loading?<Loading/>:<>
       <section className="cms-card cms-administration-table"><div className="cms-section-heading"><h2>Anggota tim</h2><p>Akun yang terdaftar dan waktu masuk terakhir.</p></div>
@@ -101,6 +102,8 @@ export function UsersPage(){
         {confirmation&&newPassword!==confirmation&&<p className="cms-field-error" role="alert">Konfirmasi password belum cocok.</p>}
       </form>
     </CmsModal>}
+    {credential&&<CmsModal title="Password sementara anggota" onClose={()=>setDiscardCredential(true)} actions={<button type="button" className="cms-button primary" onClick={()=>setDiscardCredential(true)}>Selesai</button>}><p>Salin password ini sekarang. Password hanya ditampilkan satu kali dan tidak dapat dibuka kembali setelah dialog ditutup.</p><div className="cms-field"><label>Email<input readOnly value={credential.email}/></label></div><div className="cms-field"><label>Password sementara<div className="cms-password"><input readOnly type={showCredential?'text':'password'} value={credential.temporaryPassword}/><button type="button" aria-label={showCredential?'Sembunyikan password':'Tampilkan password'} onClick={()=>setShowCredential(!showCredential)}>{showCredential?<EyeOff size={18}/>:<Eye size={18}/>}</button></div></label></div><button type="button" className="cms-button secondary" onClick={()=>void navigator.clipboard.writeText(credential.temporaryPassword).then(()=>toast('Password sementara disalin.')).catch(()=>toast('Tidak dapat menyalin password. Salin secara manual.'))}><Copy size={16}/> Salin password</button></CmsModal>}
+    {discardCredential&&<ConfirmDialog title="Tutup password sementara?" confirmLabel="Tutup dan hapus" onCancel={()=>setDiscardCredential(false)} onConfirm={()=>{setCredential(null);setShowCredential(false);setDiscardCredential(false);}}><p>Password ini tidak akan ditampilkan lagi. Pastikan sudah disalin dengan aman.</p></ConfirmDialog>}
     {revokeId!==null&&<ConfirmDialog title="Batalkan undangan?" confirmLabel="Batalkan undangan" busy={busy} onCancel={()=>setRevokeId(null)} onConfirm={()=>void invitationAction(revokeId,'revoke')}><p>Tautan undangan ini akan berhenti berfungsi.</p></ConfirmDialog>}
     {element}
   </div>;

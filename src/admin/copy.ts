@@ -57,6 +57,7 @@ export function auditActionLabel(code: string) {
     'auth.invitation.accept':'Menerima undangan',
     'users.password.admin_reset':'Reset password anggota',
     'users.invite':'Mengundang anggota',
+    'users.direct_create':'Menambahkan anggota',
     'users.invitation.resend':'Mengirim ulang undangan',
     'users.invitation.revoke':'Membatalkan undangan',
     'users.update':'Memperbarui pengguna',
