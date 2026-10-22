@@ -40,6 +40,28 @@ components:
       required: true
       schema: { type: string }
   schemas:
+    FooterSettingsInput:
+      type: object
+      additionalProperties: false
+      required: [footer_description, public_email, public_phone, address_text]
+      properties:
+        footer_description: { type: [string, 'null'], maxLength: 1000 }
+        public_email: { type: [string, 'null'], format: email, maxLength: 254 }
+        public_phone: { type: [string, 'null'], maxLength: 50, pattern: '^[+0-9().\\s-]+$' }
+        address_text: { type: [string, 'null'], maxLength: 500 }
+    FooterSocialPlacement:
+      type: object
+      description: Future contract only. No live Footer placement endpoint or storage exists yet.
+      additionalProperties: false
+      required: [social_link_id, position]
+      properties:
+        social_link_id: { type: integer, minimum: 1 }
+        position: { type: integer, minimum: 1, maximum: 10 }
+    FooterMapsEmbed:
+      type: string
+      format: uri
+      maxLength: 2048
+      description: Future contract only. HTTPS official Google Maps Embed URLs; no live storage or save route exists yet.
     ProductCompose:
       type: object
       additionalProperties: false
@@ -558,6 +580,24 @@ paths:
       parameters: [{ $ref: '#/components/parameters/Csrf' }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/NewsCreateInput' } } } }
       responses: { '201': { description: Persisted article and gallery }, '400': { description: Invalid input or incomplete publication }, '403': { description: Missing permission } }
+  /admin/footer:
+    get:
+      summary: Read the four persistent Footer settings and independent pending capabilities
+      description: Requires settings.view. Footer social placement and Maps embed capabilities remain disabled; this route never queries pending V2 tables.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: 'data.settings contains only the four Footer fields; data.capabilities reports base settings available and advanced controls pending' }
+        '403': { description: Missing settings.view permission }
+    patch:
+      summary: Save only the four existing Footer settings fields
+      description: Requires settings.update and CSRF. Unknown fields are rejected. Does not persist social placement IDs or a Maps URL. Existing audit and revision records are written.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/FooterSettingsInput' } } } }
+      responses:
+        '200': { description: The four persisted Footer settings and capability state }
+        '400': { description: Invalid or unknown field }
+        '403': { description: Missing permission or CSRF token }
   /admin/social-media/capabilities:
     get:
       summary: Check disabled-by-default Social Media V2 and product variant-media readiness

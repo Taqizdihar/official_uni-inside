@@ -3,6 +3,7 @@ import { FaWhatsapp, FaInstagram, FaTiktok, FaLinkedinIn } from 'react-icons/fa6
 import { Link, useLocation } from 'react-router-dom';
 import logoDarkTheme from '../assets/global/Logo - Dark Theme.svg';
 import { usePublicContent } from '../public/client';
+import {PUBLIC_FOOTER_MAP_URL} from '../config/footerMap';
 
 export const Footer = () => {
   const { site } = usePublicContent();
@@ -19,6 +20,8 @@ export const Footer = () => {
   const settings = site?.site;
   const phone = String(settings?.public_phone||'+62 813-1655-6908');
   const email = String(settings?.public_email||'uninsidemed@gmail.com');
+  const emailHref=`mailto:${encodeURIComponent(email)}`;
+  const phoneHref=`tel:${phone.replace(/[^+\d]/g,'')}`;
 
   return (
     <footer className="w-full bg-[#202121] text-[#f0f0f0] z-10 relative border-t border-[#333] pt-16 pb-8">
@@ -32,17 +35,18 @@ export const Footer = () => {
                 UNI-INSIDE
               </span>
             </div>
-            <p className="text-sm text-gray-400 leading-relaxed font-medium">
+            <p className="text-sm text-gray-400 leading-relaxed font-medium whitespace-pre-line">
               {settings?.footer_description || 'We are a creative agency dedicated to crafting premium digital experiences and building innovative solutions for tomorrow.'}
             </p>
             {/* Social Icons */}
-            <div className="flex items-center gap-4 pt-2">
+            <div className="grid grid-cols-4 xl:grid-cols-5 gap-2 xl:gap-3 pt-2">
               {socialLinks.map((social) => (
                 <a 
                   key={social.id} 
                   href={social.url} 
                   target="_blank" 
-                  rel="noreferrer"
+                  rel="noopener noreferrer"
+                  aria-label={`Buka ${social.id} di tab baru`}
                   className="w-10 h-10 rounded-full bg-[#333] flex items-center justify-center text-white hover:bg-[#f9d02d] hover:text-[#202121] transition-all duration-300"
                 >
                   <social.Icon className="w-5 h-5" />
@@ -97,15 +101,15 @@ export const Footer = () => {
             <div className="space-y-4 text-sm text-gray-400 font-medium">
               <p className="flex flex-col">
                 <span className="text-gray-500 mb-1">Email</span>
-                <a href={`mailto:${email}`} className="text-white hover:text-[#f9d02d] transition-colors">{email}</a>
+                <a href={emailHref} className="text-white hover:text-[#f9d02d] transition-colors break-all">{email}</a>
               </p>
               <p className="flex flex-col pt-2">
                 <span className="text-gray-500 mb-1">Phone</span>
-                <a href={`tel:${phone.replace(/[^+\d]/g,'')}`} className="text-white hover:text-[#f9d02d] transition-colors">{phone}</a>
+                <a href={phoneHref} className="text-white hover:text-[#f9d02d] transition-colors">{phone}</a>
               </p>
               <p className="flex flex-col pt-2">
                 <span className="text-gray-500 mb-1">Location</span>
-                <span className="text-white leading-relaxed">
+                <span className="text-white leading-relaxed whitespace-pre-line">
                   {settings?.address_text || 'Telkom University, Gedung Selaru 4th floor'}
                 </span>
               </p>
@@ -117,7 +121,8 @@ export const Footer = () => {
             <h4 className="text-white font-bold tracking-widest uppercase mb-6 text-sm">Find Us</h4>
             <div className="w-full h-[200px] rounded-2xl overflow-hidden border-2 border-[#333] shadow-lg">
               <iframe 
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3960.304324586581!2d107.6326175!3d-6.973377200000001!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e68e9afad6fa06f%3A0xd4fc2f579a78668a!2sSchool%20of%20Applied%20Science%20Telkom%20University!5e0!3m2!1sen!2sid!4v1783657462332!5m2!1sen!2sid" 
+                src={PUBLIC_FOOTER_MAP_URL}
+                title="Peta lokasi Uni-Inside"
                 className="w-full h-full" 
                 style={{ border: 0 }} 
                 allowFullScreen={true} 

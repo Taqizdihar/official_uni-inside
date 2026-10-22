@@ -5,7 +5,7 @@ const legacyCodes:Record<string,PlatformCode>={instagram_studio:'instagram',inst
 export type LegacyAccount={id:number;platform_code:string;label:string;url:string;icon_key?:string|null;is_active:number|boolean;sort_order:number};
 export type SocialAccount=LegacyAccount&{platform_id?:number;canonical_code:PlatformCode;platform_name:string;description?:string|null};
 export type SocialPlatform={id:number;platform_code:PlatformCode;name:string;icon_key:string;sort_order:number};
-export type AccountDraft={suffix:string;description:string;url:string;is_active:boolean;sort_order:string};
+export type AccountDraft={suffix:string;description:string;url:string};
 export function groupLegacyAccount(account:LegacyAccount):SocialAccount|null{
   const canonical_code=legacyCodes[account.platform_code.toLowerCase()];
   return canonical_code?{...account,canonical_code,platform_name:platformNames[canonical_code]}:null;
@@ -42,12 +42,10 @@ export function accountChanges(platform:PlatformCode,draft:AccountDraft,original
   if(!original||draft.url!==original.url)body.url=validateAccountUrl(draft.url,platform);
   if(draft.description.length>1000)throw new Error('Deskripsi maksimal 1.000 karakter.');
   if(!original||draft.description!==(original.description??''))body.description=draft.description.trim()||null;
-  if(!/^\d+$/.test(draft.sort_order)||Number(draft.sort_order)>65535)throw new Error('Urutan harus berupa angka 0–65.535.');
-  if(!original||Number(draft.sort_order)!==Number(original.sort_order))body.sort_order=Number(draft.sort_order);
-  if(!original||draft.is_active!==Boolean(original.is_active))body.is_active=draft.is_active;
   if(!Object.keys(body).length)throw new Error('Belum ada perubahan untuk disimpan.');
   return {label,body};
 }
+export function safeAccountHref(raw:string,platform:PlatformCode):string|null{try{return validateAccountUrl(raw,platform);}catch{return null;}}
 export function filteredPlatforms<T extends {name:string;platform_code:string}>(items:T[],query:string){const needle=query.trim().toLocaleLowerCase('id');return items.filter(item=>`${item.name} ${item.platform_code}`.toLocaleLowerCase('id').includes(needle));}
 export function canAddAccount(count:number){return count<5;}
 export function nextTabIndex(key:string,index:number,total:number){if(!total)return 0;return key==='Home'?0:key==='End'?total-1:key==='ArrowRight'?(index+1)%total:key==='ArrowLeft'?(index-1+total)%total:index;}

@@ -31,7 +31,7 @@ const sections:Section[]=[
     destination('Media Kit','settings.view',FileText,'/admin/site/page-settings/media_kit'),resource('projects','Projects',FolderKanban),
     destination('Products','settings.view',Package,'/admin/site/page-settings/products'),destination('Services','settings.view',BriefcaseBusiness,'/admin/site/page-settings/services'),destination('Uni-Tools','settings.view',Sparkles),
   ]},
-  {label:'PENGATURAN',items:[resource('social-links','Sosial Media',ExternalLink),resource('site-settings','Footer',Settings2)]},
+  {label:'PENGATURAN',items:[resource('social-links','Sosial Media',ExternalLink),destination('Footer','settings.view',Settings2,'/admin/site/footer')]},
   {label:'ADMINISTRASI',items:[
     destination('Manajemen Pengguna','users.view',UserCog,'/admin/users'),destination('Role & Akses','roles.view',ShieldCheck,'/admin/roles'),
     destination('Riwayat Aktivitas','audit.view',History,'/admin/audit'),

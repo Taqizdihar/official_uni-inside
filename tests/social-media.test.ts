@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import React from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
-import {accountChanges,accountSuffix,canAddAccount,completeLabel,filteredPlatforms,groupLegacyAccount,nextTabIndex,platformCodes,validateAccountUrl} from '../src/admin/social/model';
+import {accountChanges,accountSuffix,canAddAccount,completeLabel,filteredPlatforms,groupLegacyAccount,nextTabIndex,platformCodes,safeAccountHref,validateAccountUrl} from '../src/admin/social/model';
 import {platformCatalog,platformIcons} from '../src/admin/social/platformCatalog';
 
 test('every selectable platform has an explicit renderable brand icon',()=>{
@@ -33,7 +33,7 @@ test('locked platform prefix and editable suffix obey the database length',()=>{
 });
 test('editing a historical account URL leaves its stored label untouched',()=>{
   const original={id:5,platform_code:'linkedin',canonical_code:'linkedin' as const,platform_name:'LinkedIn',label:'LinkedIn',url:'https://www.linkedin.com/company/uni-inside/',description:null,is_active:1,sort_order:40};
-  const changed=accountChanges('linkedin',{suffix:'LinkedIn',description:'',url:'https://www.linkedin.com/company/uni-inside-new/',is_active:true,sort_order:'40'},original);
+  const changed=accountChanges('linkedin',{suffix:'LinkedIn',description:'',url:'https://www.linkedin.com/company/uni-inside-new/'},original);
   assert.equal(changed.label,'LinkedIn');assert.deepEqual(changed.body,{url:'https://www.linkedin.com/company/uni-inside-new/'});
 });
 test('social account URLs require a direct HTTPS platform domain',()=>{
@@ -41,4 +41,6 @@ test('social account URLs require a direct HTTPS platform domain',()=>{
   assert.equal(validateAccountUrl('https://wa.me/628123456789','whatsapp'),'https://wa.me/628123456789');
   for(const value of ['javascript:alert(1)','data:text/html,x','http://instagram.com/account','https://instagram.com.evil.test/u','https://user:pass@instagram.com/u','https://instagram.com/redirect?url=https://evil.test'])assert.throws(()=>validateAccountUrl(value,'instagram'));
   assert.throws(()=>validateAccountUrl('https://wa.me/not-a-number','whatsapp'));
+  assert.equal(safeAccountHref('javascript:alert(1)','instagram'),null);
+  assert.equal(safeAccountHref('https://www.instagram.com/uniinside.id/','instagram'),'https://www.instagram.com/uniinside.id/');
 });

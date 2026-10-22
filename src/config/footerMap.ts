@@ -1,0 +1,1 @@
+export const PUBLIC_FOOTER_MAP_URL='https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3960.304324586581!2d107.6326175!3d-6.973377200000001!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e68e9afad6fa06f%3A0xd4fc2f579a78668a!2sSchool%20of%20Applied%20Science%20Telkom%20University!5e0!3m2!1sen!2sid!4v1783657462332!5m2!1sen!2sid';

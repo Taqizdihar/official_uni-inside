@@ -26,6 +26,7 @@ const special:Record<string,string>={
   '/admin/users':'Manajemen Pengguna','/admin/roles':'Role dan Akses',
   '/admin/audit':'Riwayat Aktivitas','/admin/profile':'Profil Saya','/admin/content/categories':'Manajemen Kategori',
   '/admin/site/social-links':'Manajemen Sosial Media',
+  '/admin/site/footer':'Pengaturan Footer',
 };
 
 export function resolveBreadcrumb(pathname:string):Crumb[]{

@@ -95,12 +95,13 @@ export function adminContentRoutes(config: Config, db: Pool) {
     const spec = content.getResource(String(req.params.resource));
     if (!req.actor!.permissions.has(content.permissionFor(spec,'view'))) throw new HttpError(403,'FORBIDDEN','You do not have permission for this action.');
     const q = parse(z.strictObject({ page:z.coerce.number().int().positive().default(1), limit:z.coerce.number().int().min(1).max(100).default(20), sort:z.string().optional(), direction:z.enum(['asc','desc']).default('asc'),search:z.string().trim().min(1).max(100).optional(),status:z.enum(['draft','scheduled','published','archived']).optional(),categoryId:z.coerce.number().int().positive().optional(),productType:z.enum(['ready_made','custom','both']).optional(),contentType:z.enum(['news','article','update','event']).optional(),parentId:z.coerce.number().int().positive().optional(),isActive:z.enum(['true','false']).optional() }),req.query);
-    const sort = q.sort ?? (spec.fields.sort_order ? 'sort_order' : spec.key);
+    const postListing=['products','services','news_articles'].includes(spec.table);
+    const sort = q.sort ?? (postListing ? 'updated_at' : spec.fields.sort_order ? 'sort_order' : spec.key);
     if (sort !== spec.key && !Object.hasOwn(spec.fields,sort)) throw new HttpError(400,'VALIDATION_ERROR','This sort field is not supported.');
     const searchable=['name','title','full_name','label','slug','message_text'].some(field=>Object.hasOwn(spec.fields,field));
     if((q.search&&!searchable)||(q.status&&!spec.fields.status)||(q.categoryId&&!spec.fields.category_id)||(q.productType&&spec.table!=='products')||(q.contentType&&spec.table!=='news_articles')||(q.parentId&&!spec.childOf)||(q.isActive&&!spec.fields.is_active))throw new HttpError(400,'VALIDATION_ERROR','This filter is not supported for the selected content.');
     const filters={search:q.search,status:q.status,categoryId:q.categoryId,productType:q.productType,contentType:q.contentType,parentId:q.parentId,isActive:q.isActive===undefined?undefined:q.isActive==='true'};
-    const [records,total]=await Promise.all([repo.listRecords(db,spec,q.limit,(q.page-1)*q.limit,sort,q.direction.toUpperCase() as 'ASC'|'DESC',filters),repo.countRecords(db,spec,filters)]);
+    const [records,total]=await Promise.all([repo.listRecords(db,spec,q.limit,(q.page-1)*q.limit,sort,(postListing&&req.query.direction===undefined?'DESC':q.direction.toUpperCase()) as 'ASC'|'DESC',filters),repo.countRecords(db,spec,filters)]);
     const data=await repo.postListingDetails(db,spec.table,records);
     res.set('Cache-Control','no-store').json({ data,meta:{page:q.page,limit:q.limit,total,totalPages:Math.ceil(total/q.limit)} });
   }));
