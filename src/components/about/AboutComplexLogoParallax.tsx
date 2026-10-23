@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { motion, useMotionValue, useSpring, useTransform, type MotionValue } from 'motion/react';
+import { motion, useMotionValue, useReducedMotion, useSpring, useTransform, type MotionValue } from 'motion/react';
 import styles from './AboutComplexLogoParallax.module.css';
 
 import composite from '../../assets/about-us/complex-logo/complex-logo-composite.avif';
@@ -28,6 +28,7 @@ type ComplexLogoLayer = {
   zIndex: number;
   depth: number;
   motionGroup: MotionGroup;
+  exploded: { x: number; y: number; rotate: number; scale: number };
 };
 
 /**
@@ -37,22 +38,22 @@ type ComplexLogoLayer = {
  * share one motion group, with the Uni symbol between their z positions.
  */
 const COMPLEX_LOGO_LAYERS: ComplexLogoLayer[] = [
-  { id: 'drone', src: drone, zIndex: 1, depth: -0.4, motionGroup: 'far' },
-  { id: 'broadcast-arcs', src: broadcastArcs, zIndex: 2, depth: 0.2, motionGroup: 'core' },
-  { id: 'selfie-stick', src: selfieStick, zIndex: 3, depth: 0.45, motionGroup: 'middle' },
-  { id: 'tablet-arm-extension', src: tabletArmExtension, zIndex: 4, depth: 0.75, motionGroup: 'tablet' },
-  { id: 'photo-camera-arm-full', src: photoCameraArm, zIndex: 5, depth: 0.95, motionGroup: 'camera' },
-  { id: 'vintage-microphone', src: vintageMicrophone, zIndex: 6, depth: 0.45, motionGroup: 'middle' },
-  { id: 'megaphone-hand', src: megaphoneHand, zIndex: 7, depth: 0.45, motionGroup: 'middle' },
-  { id: 'uni-symbol', src: uniSymbol, zIndex: 8, depth: 0.2, motionGroup: 'core' },
-  { id: 'seated-creator', src: seatedCreator, zIndex: 9, depth: 0.65, motionGroup: 'foreground' },
-  { id: 'headset', src: headset, zIndex: 10, depth: 0.65, motionGroup: 'foreground' },
-  { id: 'tablet-main', src: tabletMain, zIndex: 11, depth: 0.75, motionGroup: 'tablet' },
-  { id: '3d-printer', src: printer, zIndex: 12, depth: 0.8, motionGroup: 'foreground' },
-  { id: 'video-camera-operator', src: videoCameraOperator, zIndex: 13, depth: 0.8, motionGroup: 'foreground' },
-  { id: 'clapperboard', src: clapperboard, zIndex: 14, depth: 0.8, motionGroup: 'foreground' },
-  { id: 'inside-badge', src: insideBadge, zIndex: 15, depth: 0.2, motionGroup: 'core' },
-  { id: 'photo-camera-foreground-crop', src: photoCameraForeground, zIndex: 16, depth: 0.95, motionGroup: 'camera' },
+  { id: 'drone', src: drone, zIndex: 1, depth: -0.4, motionGroup: 'far', exploded: { x: 12, y: 3, rotate: 12, scale: 0.9 } },
+  { id: 'broadcast-arcs', src: broadcastArcs, zIndex: 2, depth: 0.2, motionGroup: 'core', exploded: { x: -7, y: -8, rotate: -8, scale: 0.9 } },
+  { id: 'selfie-stick', src: selfieStick, zIndex: 3, depth: 0.45, motionGroup: 'middle', exploded: { x: 9, y: -7, rotate: 14, scale: 0.9 } },
+  { id: 'tablet-arm-extension', src: tabletArmExtension, zIndex: 4, depth: 0.75, motionGroup: 'tablet', exploded: { x: -10, y: 12, rotate: -11, scale: 0.9 } },
+  { id: 'photo-camera-arm-full', src: photoCameraArm, zIndex: 5, depth: 0.95, motionGroup: 'camera', exploded: { x: -7, y: -7, rotate: 9, scale: 0.9 } },
+  { id: 'vintage-microphone', src: vintageMicrophone, zIndex: 6, depth: 0.45, motionGroup: 'middle', exploded: { x: -5, y: 10, rotate: -13, scale: 0.9 } },
+  { id: 'megaphone-hand', src: megaphoneHand, zIndex: 7, depth: 0.45, motionGroup: 'middle', exploded: { x: -12, y: -6, rotate: -15, scale: 0.9 } },
+  { id: 'uni-symbol', src: uniSymbol, zIndex: 8, depth: 0.2, motionGroup: 'core', exploded: { x: -9, y: -6, rotate: -5, scale: 0.84 } },
+  { id: 'seated-creator', src: seatedCreator, zIndex: 9, depth: 0.65, motionGroup: 'foreground', exploded: { x: 9, y: -1, rotate: 10, scale: 0.9 } },
+  { id: 'headset', src: headset, zIndex: 10, depth: 0.65, motionGroup: 'foreground', exploded: { x: 15, y: 5, rotate: 15, scale: 0.9 } },
+  { id: 'tablet-main', src: tabletMain, zIndex: 11, depth: 0.75, motionGroup: 'tablet', exploded: { x: -10, y: 12, rotate: -11, scale: 0.9 } },
+  { id: '3d-printer', src: printer, zIndex: 12, depth: 0.8, motionGroup: 'foreground', exploded: { x: 13, y: 4, rotate: 13, scale: 0.9 } },
+  { id: 'video-camera-operator', src: videoCameraOperator, zIndex: 13, depth: 0.8, motionGroup: 'foreground', exploded: { x: 4, y: -3, rotate: 8, scale: 0.9 } },
+  { id: 'clapperboard', src: clapperboard, zIndex: 14, depth: 0.8, motionGroup: 'foreground', exploded: { x: -2, y: 6, rotate: -12, scale: 0.9 } },
+  { id: 'inside-badge', src: insideBadge, zIndex: 15, depth: 0.2, motionGroup: 'core', exploded: { x: 5, y: -7, rotate: 5, scale: 0.84 } },
+  { id: 'photo-camera-foreground-crop', src: photoCameraForeground, zIndex: 16, depth: 0.95, motionGroup: 'camera', exploded: { x: -7, y: -7, rotate: 9, scale: 0.9 } },
 ];
 
 type AboutComplexLogoParallaxProps = {
@@ -81,8 +82,9 @@ const useDepthMotion = (x: MotionValue<number>, y: MotionValue<number>, depth: n
   y: useTransform(y, [-1, 1], [-depth * 8, depth * 8]),
 });
 
-const InteractiveComplexLogo: React.FC<{ active: boolean }> = ({ active }) => {
+const InteractiveComplexLogo: React.FC<{ active: boolean; trackingAllowed: boolean }> = ({ active, trackingAllowed }) => {
   const frameRef = useRef<HTMLDivElement>(null);
+  const reducedMotion = useReducedMotion();
   const pointerX = useMotionValue(0);
   const pointerY = useMotionValue(0);
   const springX = useSpring(pointerX, { stiffness: 170, damping: 26, mass: 0.35 });
@@ -103,6 +105,7 @@ const InteractiveComplexLogo: React.FC<{ active: boolean }> = ({ active }) => {
 
   const [layerState, setLayerState] = useState<'idle' | 'loading' | 'ready' | 'failed'>('idle');
   const [logoVisible, setLogoVisible] = useState(false);
+  const [assembled, setAssembled] = useState(false);
   const [pageVisible, setPageVisible] = useState(() => typeof document === 'undefined' || document.visibilityState === 'visible');
   const [windowFocused, setWindowFocused] = useState(() => typeof document === 'undefined' || typeof document.hasFocus !== 'function' || document.hasFocus());
   const lastPointer = useRef<{ x: number; y: number } | null>(null);
@@ -151,6 +154,15 @@ const InteractiveComplexLogo: React.FC<{ active: boolean }> = ({ active }) => {
   }, [active]);
 
   useEffect(() => {
+    if (!logoVisible || !pageVisible || layerState !== 'ready') {
+      setAssembled(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setAssembled(true), 1750);
+    return () => window.clearTimeout(timer);
+  }, [logoVisible, pageVisible, layerState]);
+
+  useEffect(() => {
     if (!active || !logoVisible) return;
 
     const updatePageVisibility = () => {
@@ -186,6 +198,8 @@ const InteractiveComplexLogo: React.FC<{ active: boolean }> = ({ active }) => {
   }, [active, logoVisible, pointerX, pointerY]);
 
   const trackingEnabled = active
+    && trackingAllowed
+    && assembled
     && layerState === 'ready'
     && logoVisible
     && pageVisible
@@ -253,6 +267,7 @@ const InteractiveComplexLogo: React.FC<{ active: boolean }> = ({ active }) => {
       role="img"
       aria-label="Uni-Inside Studio complex logo"
       data-parallax-active={trackingEnabled ? 'true' : 'false'}
+      data-logo-assembly={layerState === 'ready' ? assembled ? 'assembled' : 'exploded' : 'loading'}
     >
       <motion.img
         className={`${styles.image} ${styles.fallback}`}
@@ -277,30 +292,50 @@ const InteractiveComplexLogo: React.FC<{ active: boolean }> = ({ active }) => {
           transition={{ duration: 0.2, ease: 'easeOut' }}
           style={{ pointerEvents: 'none' }}
         >
+          <motion.svg
+            className={styles.blueprintGuide}
+            viewBox="0 0 1080 1080"
+            fill="none"
+            animate={{ opacity: assembled ? 0 : 0.5 }}
+            transition={{ duration: reducedMotion ? 0 : 0.25 }}
+          >
+            <path d="M 160 410 L 320 520 L 570 480 L 810 310 M 320 520 L 180 810 M 570 480 L 805 740 M 805 740 L 650 900" stroke="currentColor" strokeWidth="2" strokeDasharray="9 10" />
+            <circle cx="320" cy="520" r="13" /><circle cx="570" cy="480" r="13" /><circle cx="805" cy="740" r="13" />
+          </motion.svg>
           {COMPLEX_LOGO_LAYERS.map((layer) => {
             const movement = sharedMotion[layer.motionGroup];
             return (
-              <motion.img
+              <motion.div
                 key={layer.id}
                 data-complex-logo-layer={layer.id}
                 className={styles.layer}
-                src={layer.src}
-                alt=""
                 aria-hidden="true"
-                width={1080}
-                height={1080}
-                loading="eager"
-                decoding="async"
-                draggable={false}
-                onError={() => setLayerState('failed')}
+                animate={{
+                  x: assembled ? '0%' : `${layer.exploded.x}%`,
+                  y: assembled ? '0%' : `${layer.exploded.y}%`,
+                  rotate: assembled ? 0 : layer.exploded.rotate,
+                  scale: assembled ? 1 : layer.exploded.scale,
+                  filter: assembled ? 'grayscale(0) contrast(1) brightness(1)' : 'grayscale(1) contrast(1.4) brightness(1.13)',
+                }}
+                transition={{ duration: assembled && !reducedMotion ? 1.25 : 0, ease: [0.2, 0.8, 0.2, 1] }}
                 style={{
-                  x: movement.x,
-                  y: movement.y,
                   zIndex: layer.zIndex,
-                  willChange: trackingEnabled ? 'transform' : 'auto',
                 }}
                 data-depth={layer.depth}
-              />
+              >
+                <motion.img
+                  className={styles.layer}
+                  src={layer.src}
+                  alt=""
+                  width={1080}
+                  height={1080}
+                  loading="eager"
+                  decoding="async"
+                  draggable={false}
+                  onError={() => setLayerState('failed')}
+                  style={{ x: movement.x, y: movement.y, willChange: trackingEnabled ? 'transform' : 'auto' }}
+                />
+              </motion.div>
             );
           })}
         </motion.div>
@@ -311,7 +346,6 @@ const InteractiveComplexLogo: React.FC<{ active: boolean }> = ({ active }) => {
 
 const ParallaxCapabilityGate: React.FC<{ active: boolean }> = ({ active }) => {
   const [canUseParallax, setCanUseParallax] = useState(false);
-  const [wasActivated, setWasActivated] = useState(false);
 
   useEffect(() => {
     if (typeof window.matchMedia !== 'function') return;
@@ -322,12 +356,7 @@ const ParallaxCapabilityGate: React.FC<{ active: boolean }> = ({ active }) => {
     return () => capability.removeEventListener('change', update);
   }, []);
 
-  useEffect(() => {
-    if (canUseParallax && active) setWasActivated(true);
-  }, [active, canUseParallax]);
-
-  if (!canUseParallax || !wasActivated) return <StaticComplexLogo />;
-  return <InteractiveComplexLogo active={active} />;
+  return <InteractiveComplexLogo active={active} trackingAllowed={canUseParallax} />;
 };
 
 export const AboutComplexLogoParallax: React.FC<AboutComplexLogoParallaxProps> = ({ active, interactive = true }) => {

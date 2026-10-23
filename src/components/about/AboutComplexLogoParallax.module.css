@@ -34,3 +34,17 @@
 .layer {
   inset: 0;
 }
+
+.blueprintGuide {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  color: #55616a;
+  pointer-events: none;
+}
+
+.blueprintGuide circle {
+  stroke: currentColor;
+  stroke-width: 2;
+}
