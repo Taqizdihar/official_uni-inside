@@ -28,7 +28,7 @@ type ComplexLogoLayer = {
   zIndex: number;
   depth: number;
   motionGroup: MotionGroup;
-  exploded: { x: number; y: number; rotate: number; scale: number };
+  exploded: { x: number; y: number; z: number; scale: number; pivotX: number; pivotY: number };
 };
 
 /**
@@ -36,24 +36,26 @@ type ComplexLogoLayer = {
  * Camera arm 14 and crop 15 share one motion group, with the camera operator
  * and badge intentionally stacked between them. Tablet pieces 09 and 10 also
  * share one motion group, with the Uni symbol between their z positions.
+ * Exploded offsets use percentages of the shared canvas. Pivots sit on each
+ * visible cutout; the two split-photo pairs keep matching transforms.
  */
 const COMPLEX_LOGO_LAYERS: ComplexLogoLayer[] = [
-  { id: 'drone', src: drone, zIndex: 1, depth: -0.4, motionGroup: 'far', exploded: { x: 12, y: 3, rotate: 12, scale: 0.9 } },
-  { id: 'broadcast-arcs', src: broadcastArcs, zIndex: 2, depth: 0.2, motionGroup: 'core', exploded: { x: -7, y: -8, rotate: -8, scale: 0.9 } },
-  { id: 'selfie-stick', src: selfieStick, zIndex: 3, depth: 0.45, motionGroup: 'middle', exploded: { x: 9, y: -7, rotate: 14, scale: 0.9 } },
-  { id: 'tablet-arm-extension', src: tabletArmExtension, zIndex: 4, depth: 0.75, motionGroup: 'tablet', exploded: { x: -10, y: 12, rotate: -11, scale: 0.9 } },
-  { id: 'photo-camera-arm-full', src: photoCameraArm, zIndex: 5, depth: 0.95, motionGroup: 'camera', exploded: { x: -7, y: -7, rotate: 9, scale: 0.9 } },
-  { id: 'vintage-microphone', src: vintageMicrophone, zIndex: 6, depth: 0.45, motionGroup: 'middle', exploded: { x: -5, y: 10, rotate: -13, scale: 0.9 } },
-  { id: 'megaphone-hand', src: megaphoneHand, zIndex: 7, depth: 0.45, motionGroup: 'middle', exploded: { x: -12, y: -6, rotate: -15, scale: 0.9 } },
-  { id: 'uni-symbol', src: uniSymbol, zIndex: 8, depth: 0.2, motionGroup: 'core', exploded: { x: -9, y: -6, rotate: -5, scale: 0.84 } },
-  { id: 'seated-creator', src: seatedCreator, zIndex: 9, depth: 0.65, motionGroup: 'foreground', exploded: { x: 9, y: -1, rotate: 10, scale: 0.9 } },
-  { id: 'headset', src: headset, zIndex: 10, depth: 0.65, motionGroup: 'foreground', exploded: { x: 15, y: 5, rotate: 15, scale: 0.9 } },
-  { id: 'tablet-main', src: tabletMain, zIndex: 11, depth: 0.75, motionGroup: 'tablet', exploded: { x: -10, y: 12, rotate: -11, scale: 0.9 } },
-  { id: '3d-printer', src: printer, zIndex: 12, depth: 0.8, motionGroup: 'foreground', exploded: { x: 13, y: 4, rotate: 13, scale: 0.9 } },
-  { id: 'video-camera-operator', src: videoCameraOperator, zIndex: 13, depth: 0.8, motionGroup: 'foreground', exploded: { x: 4, y: -3, rotate: 8, scale: 0.9 } },
-  { id: 'clapperboard', src: clapperboard, zIndex: 14, depth: 0.8, motionGroup: 'foreground', exploded: { x: -2, y: 6, rotate: -12, scale: 0.9 } },
-  { id: 'inside-badge', src: insideBadge, zIndex: 15, depth: 0.2, motionGroup: 'core', exploded: { x: 5, y: -7, rotate: 5, scale: 0.84 } },
-  { id: 'photo-camera-foreground-crop', src: photoCameraForeground, zIndex: 16, depth: 0.95, motionGroup: 'camera', exploded: { x: -7, y: -7, rotate: 9, scale: 0.9 } },
+  { id: 'drone', src: drone, zIndex: 1, depth: -0.4, motionGroup: 'far', exploded: { x: 15, y: -2, z: 30, scale: 0.82, pivotX: 42, pivotY: 9 } },
+  { id: 'broadcast-arcs', src: broadcastArcs, zIndex: 2, depth: 0.2, motionGroup: 'core', exploded: { x: 0, y: -9, z: 20, scale: 0.78, pivotX: 23, pivotY: 29 } },
+  { id: 'selfie-stick', src: selfieStick, zIndex: 3, depth: 0.45, motionGroup: 'middle', exploded: { x: 11, y: -2, z: 70, scale: 0.88, pivotX: 68, pivotY: 27 } },
+  { id: 'tablet-arm-extension', src: tabletArmExtension, zIndex: 4, depth: 0.75, motionGroup: 'tablet', exploded: { x: -7, y: 6, z: 70, scale: 0.85, pivotX: 30, pivotY: 57 } },
+  { id: 'photo-camera-arm-full', src: photoCameraArm, zIndex: 5, depth: 0.95, motionGroup: 'camera', exploded: { x: -1, y: -5, z: 95, scale: 0.85, pivotX: 66, pivotY: 87 } },
+  { id: 'vintage-microphone', src: vintageMicrophone, zIndex: 6, depth: 0.45, motionGroup: 'middle', exploded: { x: -6, y: 6, z: 60, scale: 0.88, pivotX: 90, pivotY: 72 } },
+  { id: 'megaphone-hand', src: megaphoneHand, zIndex: 7, depth: 0.45, motionGroup: 'middle', exploded: { x: -13, y: -1, z: 75, scale: 0.88, pivotX: 26, pivotY: 32 } },
+  { id: 'uni-symbol', src: uniSymbol, zIndex: 8, depth: 0.2, motionGroup: 'core', exploded: { x: -7, y: -17, z: 40, scale: 0.65, pivotX: 39, pivotY: 50 } },
+  { id: 'seated-creator', src: seatedCreator, zIndex: 9, depth: 0.65, motionGroup: 'foreground', exploded: { x: 4, y: -8, z: 65, scale: 0.82, pivotX: 47, pivotY: 27 } },
+  { id: 'headset', src: headset, zIndex: 10, depth: 0.65, motionGroup: 'foreground', exploded: { x: 7, y: 4, z: 85, scale: 0.9, pivotX: 8, pivotY: 49 } },
+  { id: 'tablet-main', src: tabletMain, zIndex: 11, depth: 0.75, motionGroup: 'tablet', exploded: { x: -7, y: 6, z: 70, scale: 0.85, pivotX: 30, pivotY: 57 } },
+  { id: '3d-printer', src: printer, zIndex: 12, depth: 0.8, motionGroup: 'foreground', exploded: { x: 9, y: 0, z: 65, scale: 0.86, pivotX: 52, pivotY: 55 } },
+  { id: 'video-camera-operator', src: videoCameraOperator, zIndex: 13, depth: 0.8, motionGroup: 'foreground', exploded: { x: 2, y: -6, z: 80, scale: 0.84, pivotX: 76, pivotY: 50 } },
+  { id: 'clapperboard', src: clapperboard, zIndex: 14, depth: 0.8, motionGroup: 'foreground', exploded: { x: -1, y: 5, z: 100, scale: 0.85, pivotX: 22, pivotY: 76 } },
+  { id: 'inside-badge', src: insideBadge, zIndex: 15, depth: 0.2, motionGroup: 'core', exploded: { x: -9, y: -12, z: 55, scale: 0.6, pivotX: 61, pivotY: 78 } },
+  { id: 'photo-camera-foreground-crop', src: photoCameraForeground, zIndex: 16, depth: 0.95, motionGroup: 'camera', exploded: { x: -1, y: -5, z: 95, scale: 0.85, pivotX: 66, pivotY: 87 } },
 ];
 
 type AboutComplexLogoParallaxProps = {
@@ -280,28 +282,18 @@ const InteractiveComplexLogo: React.FC<{ active: boolean; trackingAllowed: boole
         decoding="async"
         draggable={false}
         initial={false}
-        animate={{ opacity: layerState === 'ready' ? 0 : 1 }}
-        transition={{ duration: 0.2, ease: 'easeOut' }}
+        animate={{ opacity: showLayers ? 0 : 1 }}
+        transition={{ duration: 0 }}
       />
       {showLayers && (
         <motion.div
           className={styles.layerStack}
           aria-hidden="true"
           initial={false}
-          animate={{ opacity: layerState === 'ready' ? 1 : 0 }}
-          transition={{ duration: 0.2, ease: 'easeOut' }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0 }}
           style={{ pointerEvents: 'none' }}
         >
-          <motion.svg
-            className={styles.blueprintGuide}
-            viewBox="0 0 1080 1080"
-            fill="none"
-            animate={{ opacity: assembled ? 0 : 0.5 }}
-            transition={{ duration: reducedMotion ? 0 : 0.25 }}
-          >
-            <path d="M 160 410 L 320 520 L 570 480 L 810 310 M 320 520 L 180 810 M 570 480 L 805 740 M 805 740 L 650 900" stroke="currentColor" strokeWidth="2" strokeDasharray="9 10" />
-            <circle cx="320" cy="520" r="13" /><circle cx="570" cy="480" r="13" /><circle cx="805" cy="740" r="13" />
-          </motion.svg>
           {COMPLEX_LOGO_LAYERS.map((layer) => {
             const movement = sharedMotion[layer.motionGroup];
             return (
@@ -310,16 +302,22 @@ const InteractiveComplexLogo: React.FC<{ active: boolean; trackingAllowed: boole
                 data-complex-logo-layer={layer.id}
                 className={styles.layer}
                 aria-hidden="true"
+                initial={false}
                 animate={{
                   x: assembled ? '0%' : `${layer.exploded.x}%`,
                   y: assembled ? '0%' : `${layer.exploded.y}%`,
-                  rotate: assembled ? 0 : layer.exploded.rotate,
+                  z: assembled ? 0 : layer.exploded.z,
+                  rotateX: assembled ? 0 : 48,
+                  rotateY: assembled ? 0 : -24,
+                  rotateZ: assembled ? 0 : -14,
                   scale: assembled ? 1 : layer.exploded.scale,
-                  filter: assembled ? 'grayscale(0) contrast(1) brightness(1)' : 'grayscale(1) contrast(1.4) brightness(1.13)',
+                  filter: assembled ? 'drop-shadow(0px 0px 0px rgba(0,0,0,0))' : 'drop-shadow(5px 8px 4px rgba(0,0,0,0.27))',
                 }}
                 transition={{ duration: assembled && !reducedMotion ? 1.25 : 0, ease: [0.2, 0.8, 0.2, 1] }}
                 style={{
                   zIndex: layer.zIndex,
+                  transformOrigin: `${layer.exploded.pivotX}% ${layer.exploded.pivotY}%`,
+                  transformStyle: 'preserve-3d',
                 }}
                 data-depth={layer.depth}
               >
