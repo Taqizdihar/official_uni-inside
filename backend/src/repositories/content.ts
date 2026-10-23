@@ -3,6 +3,7 @@ import type { Executor } from '../database/pool';
 import { rows, write } from '../database/pool';
 import type { ResourceSpec } from '../schemas/resources';
 import { sanitizeProductDescription } from '../utils/productDescription';
+import {aboutPreviewDefaults} from '../contracts/aboutTeam';
 
 const ident = (value: string) => {
   if (!/^[a-z][a-z0-9_]*$/.test(value)) throw new Error('Unsafe database identifier');
@@ -194,5 +195,5 @@ export async function publicHomepageSettings(db: Executor, threeLineHero=false) 
   const achievements = (await rows<RowDataPacket>(db, 'SELECT eyebrow,heading,description FROM achievement_section_settings WHERE id=1'))[0] ?? null;
   const contact = (await rows<RowDataPacket>(db, 'SELECT eyebrow,heading,description,email_label,phone_label,whatsapp_cta_label FROM contact_section_settings WHERE id=1'))[0] ?? null;
   const chatMessages = await rows<RowDataPacket>(db, 'SELECT message_text,speaker,sort_order FROM contact_chat_messages WHERE is_active=1 ORDER BY sort_order,id LIMIT 16');
-  return { sections, hero, heroTrustSignals, heroWorkspaces, heroHotspots, about, aboutWorkspaces, aboutPrinciples, team, achievements, contact, chatMessages };
+  return { sections, hero, heroTrustSignals, heroWorkspaces, heroHotspots, about, aboutWorkspaces, aboutPrinciples, aboutEditorial:aboutPreviewDefaults, team, achievements, contact, chatMessages };
 }

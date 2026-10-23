@@ -24,6 +24,8 @@ const schema = z.object({
   SOCIAL_MEDIA_V2_ENABLED: bool,
   PRODUCT_VARIANT_MEDIA_ENABLED: bool,
   HERO_THREE_LINE_ENABLED: bool,
+  TEAM_MEMBERS_PUBLIC_ENABLED: bool,
+  PARTNERS_PUBLIC_ENABLED: bool,
   SESSION_COOKIE_NAME: z.string().default('uniinside_session'),
   SESSION_COOKIE_SECURE: bool,
   SESSION_COOKIE_SAME_SITE: z.enum(['lax', 'strict', 'none']).default('lax'),

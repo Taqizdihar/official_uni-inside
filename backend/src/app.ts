@@ -15,6 +15,7 @@ import { mediaRoutes } from './routes/media';
 import { analyticsRoutes } from './routes/analytics';
 import { socialMediaRoutes } from './routes/socialMedia';
 import {footerRoutes} from './routes/footer';
+import {aboutTeamRoutes} from './routes/aboutTeam';
 
 export function originAllowed(origin: string | undefined, config: Config) { return !!origin && config.origins.includes(origin); }
 export function createApp(config: Config, db: Pool) {
@@ -58,6 +59,7 @@ export function createApp(config: Config, db: Pool) {
     } catch { res.status(503).json({error:{code:'NOT_READY',message:'Dependencies are not ready.',details:[],requestId:_req.requestId}}); }
   }));
   app.use(config.API_BASE_PATH,authRoutes(config,db));
+  app.use(config.API_BASE_PATH,aboutTeamRoutes(config,db));
   app.use(config.API_BASE_PATH,mediaRoutes(config,db));
   app.use(config.API_BASE_PATH,analyticsRoutes(config,db));
   app.use(config.API_BASE_PATH,socialMediaRoutes(config,db));

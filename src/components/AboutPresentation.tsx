@@ -6,12 +6,11 @@ import printerIcon from '../assets/about-us/icons/3d-printer-icon.avif';
 import { useElementVisibility } from '../hooks/useElementVisibility';
 import { AboutComplexLogoParallax } from './about/AboutComplexLogoParallax';
 import { usePublicContent } from '../public/client';
+import {resolveAboutContent} from '../public/aboutTeam';
 
 const AboutIntroContent: React.FC<{ shouldFloat: boolean; parallaxActive: boolean; interactive: boolean }> = ({ shouldFloat, parallaxActive, interactive }) => {
   const { homepage } = usePublicContent();
-  const about = homepage?.about;
-  const heading = String(about?.heading || 'ABOUT US');
-  const [headingFirst, headingLast] = heading.length <= 14 && heading.split(' ').length === 2 ? heading.split(' ') : ['ABOUT','US'];
+  const {edit,editorial}=resolveAboutContent(homepage);
   return (
     <section aria-label="About Us" aria-hidden={!interactive || undefined} className="mx-auto grid w-full max-w-7xl grid-cols-1 items-center gap-8 px-6 pt-24 pb-10 sm:px-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1fr)] lg:gap-14 lg:px-10 lg:pt-[clamp(7.5rem,15vh,9.5rem)] lg:pb-4 2xl:max-w-[88rem] 2xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1fr)] 2xl:gap-16 2xl:-translate-y-6 2xl:scale-[1.04]">
       <div className="order-1 flex min-h-[15rem] items-center justify-center overflow-hidden lg:min-h-0">
@@ -32,9 +31,9 @@ const AboutIntroContent: React.FC<{ shouldFloat: boolean; parallaxActive: boolea
       </div>
       <div className="relative top-1 order-2 flex min-w-0 max-w-[27rem] flex-col justify-center text-[#202121] xl:max-w-[34rem] 2xl:max-w-[40rem]">
         <h2 className="text-[clamp(3.75rem,9vw,7rem)] font-black leading-[0.94] tracking-normal uppercase 2xl:text-[clamp(7rem,7.5vw,8rem)]">
-          <span className="block">{headingFirst}</span>
+          <span className="block">ABOUT</span>
           <span className="mt-2 flex items-center gap-3 sm:gap-4">
-            <span>{headingLast}</span>
+            <span>US</span>
             <span aria-hidden="true" className="flex min-w-0 items-center gap-3 sm:gap-4">
               <img src={cameraIcon} alt="" className="h-[clamp(3.25rem,8.2vw,5.5rem)] w-[clamp(3.25rem,8.2vw,5.5rem)] shrink-0 object-contain 2xl:h-24 2xl:w-24" />
               <img src={droneIcon} alt="" className="h-[clamp(3.25rem,8.2vw,5.5rem)] w-[clamp(3.25rem,8.2vw,5.5rem)] shrink-0 object-contain 2xl:h-24 2xl:w-24" />
@@ -43,13 +42,13 @@ const AboutIntroContent: React.FC<{ shouldFloat: boolean; parallaxActive: boolea
           </span>
         </h2>
         <p className="mt-4 max-w-[35rem] text-[clamp(0.85rem,1.8vw,1.15rem)] font-black leading-tight tracking-[-0.025em] sm:mt-4 2xl:text-[clamp(1.15rem,1.8vw,1.25rem)]">
-          {about?.lead_text && String(about.lead_text).length <= 52 ? about.lead_text : 'CREATIVE BY NATURE, TECHNICAL BY DESIGN'}
+          {edit.intro.subtitle}
         </p>
         <p className="mt-7 w-full max-w-[35rem] text-[clamp(0.95rem,1.65vw,1.1rem)] leading-[1.32] 2xl:text-[clamp(1.1rem,1.65vw,1.25rem)]">
-          {about?.body_text || 'We are a Bandung-based creative technology studio where visual production, digital experimentation, and 3D fabrication meet. We collaborate to turn ideas into stories, systems, and physical products with purpose.'}
+          {edit.intro.description}
         </p>
         <p aria-label="Studio disciplines" className="mt-3 w-full max-w-[35rem] border-t-2 border-[#202121] pt-2 text-[clamp(0.7rem,1.55vw,1rem)] font-extrabold leading-tight tracking-[-0.015em] 2xl:text-[clamp(1rem,1.55vw,1.1rem)]">
-          <span className="block w-full bg-[#f9d02d] px-1 py-1 text-justify [text-align-last:justify]">MULTIMEDIA • CREATIVE TECHNOLOGY • 3D PRINTING</span>
+          <span className="block w-full bg-[#f9d02d] px-1 py-1 text-justify [text-align-last:justify]">{editorial.highlight}</span>
         </p>
       </div>
     </section>

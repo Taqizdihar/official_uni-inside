@@ -32,7 +32,7 @@ export function publicContentRoutes(db: Pool, config?: Config) {
   router.get('/homepage', asyncRoute(async (_req,res) => {
     const settings = await repo.publicHomepageSettings(db,config?await heroThreeLineReady(db,config):false);
     const featured = Object.fromEntries(await Promise.all(publicNames.map(async name => [name, await repo.publicList(db,resources[name]!,name === 'products' || name === 'news' ? 6 : 12,0)])));
-    res.set('Cache-Control','public, max-age=60').json({ data: { ...settings, featured } });
+    res.set('Cache-Control','public, max-age=60').json({ data: { ...settings, featured,capabilities:{managedTeam:config?.TEAM_MEMBERS_PUBLIC_ENABLED??false,managedPartners:config?.PARTNERS_PUBLIC_ENABLED??false} } });
   }));
   for (const name of publicNames) {
     router.get(`/${name}`, asyncRoute(async (req,res) => {

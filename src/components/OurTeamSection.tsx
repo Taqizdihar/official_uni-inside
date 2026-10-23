@@ -16,6 +16,7 @@ import logoDarkTheme from '../assets/global/Logo - Dark Theme.svg';
 import normalModeIcon from '../assets/our-team/icons/normal-mode-icon.avif';
 import ringModeIcon from '../assets/our-team/icons/ring-mode-icon.avif';
 import {usePublicContent} from '../public/client';
+import {memberIndexForSlot,memberProfileLinks,ringMemberAngle,selectManagedItems} from '../public/aboutTeam';
 
 const staticMembers = [
   { name: 'April', image: member1, role: 'Chief Executive Officer', description: 'Leads the overall direction of Uni-Inside Studio and coordinates the team in turning creative ideas into focused, collaborative work.' },
@@ -28,18 +29,17 @@ const staticMembers = [
   { name: 'Amany', image: member8, role: 'Staff of Specialty', description: 'Creates social media content for Uni-Inside Studio, with a primary focus on posts, feeds, and visual presentation.' },
   { name: 'Ropaldo', image: member9, role: 'Souvenir & 3D Engineer', description: 'Designs custom 3D models and configures models for reliable 3D-printing production.' },
 ];
-const memberForSlot = (slot: number,count:number) => ((slot + 4) % count + count) % count;
 const normalizedAngle = (angle: number) => ((angle + 180) % 360 + 360) % 360 - 180;
 type TeamViewMode = 'fan' | 'ring';
 
 const socials = [
-  { name: 'LinkedIn', url: 'https://www.linkedin.com/', Icon: RiLinkedinLine },
-  { name: 'Instagram', url: 'https://www.instagram.com/', Icon: RiInstagramLine },
-  { name: 'X', url: 'https://x.com/', Icon: RiTwitterXLine },
-  { name: 'GitHub', url: 'https://github.com/', Icon: RiGithubLine },
+  { name: 'LinkedIn', column:'linkedin_url', Icon: RiLinkedinLine },
+  { name: 'Instagram', column:'instagram_url', Icon: RiInstagramLine },
+  { name: 'X', column:'x_url', Icon: RiTwitterXLine },
+  { name: 'GitHub', column:'github_url', Icon: RiGithubLine },
 ];
 
-type Member=typeof staticMembers[number] & {linkedin_url?:string;instagram_url?:string;x_url?:string;github_url?:string};
+type Member=typeof staticMembers[number] & {id?:number;linkedin_url?:string|null;instagram_url?:string|null;x_url?:string|null;github_url?:string|null};
 const CardFaces = React.memo(({ member, flipped, interactive, prominent = false, onClick }: { member: Member; flipped: boolean; interactive: boolean; prominent?: boolean; onClick: () => void }) => {
   const reducedMotion = Boolean(useReducedMotion());
   return <motion.div
@@ -53,12 +53,14 @@ const CardFaces = React.memo(({ member, flipped, interactive, prominent = false,
       <button type="button" onClick={(event) => { event.stopPropagation(); onClick(); }} aria-label={`${member.name}, show details`} tabIndex={interactive && !flipped ? 0 : -1} className="absolute inset-0 cursor-pointer rounded-2xl focus-visible:outline-4 focus-visible:outline-offset-[-5px] focus-visible:outline-[#f9d02d]" style={{ pointerEvents: interactive && !flipped ? 'auto' : 'none' }} />
     </div>
     <div className="absolute inset-0 flex flex-col items-center overflow-hidden rounded-2xl border-[4px] border-[#f9d02d] bg-[#202121] p-[5%] text-center shadow-[0_20px_50px_rgba(0,0,0,0.5)]" style={{ transform: 'rotateY(180deg) translateZ(1px)', backfaceVisibility: 'hidden' }}>
-      <button type="button" onClick={(event) => { event.stopPropagation(); onClick(); }} aria-label={`${member.name}, show photo`} tabIndex={interactive && flipped ? 0 : -1} className="absolute inset-0 z-0 cursor-pointer rounded-2xl focus-visible:outline-4 focus-visible:outline-offset-[-5px] focus-visible:outline-[#f9d02d]" style={{ pointerEvents: interactive && flipped ? 'auto' : 'none' }} />
-      <h3 className={`pointer-events-none relative mt-2 mb-1 font-black uppercase tracking-wide text-white ${prominent ? 'text-xl' : 'text-[clamp(1.05rem,1.5vw,1.5rem)]'}`}>{member.name}</h3>
-      <p className={`pointer-events-none relative mb-3 font-bold uppercase tracking-wider text-[#f9d02d] ${prominent ? 'text-[11px]' : 'text-[clamp(0.55rem,0.7vw,0.7rem)]'}`}>{member.role}</p>
-      <p className={`pointer-events-none relative mb-auto leading-snug font-medium text-white/85 ${prominent ? 'text-[13px]' : 'text-[clamp(0.62rem,0.8vw,0.85rem)]'}`}>{member.description}</p>
-      <div className="relative z-10 mb-2 flex gap-3 text-white/75">
-        {socials.map(({ name, url, Icon }) => ({name,Icon,url:(member as any)[name==='LinkedIn'?'linkedin_url':name==='Instagram'?'instagram_url':name==='X'?'x_url':'github_url']??(member.linkedin_url===undefined?url:null)})).filter(item=>item.url).map(({ name, url, Icon }) => <a key={name} href={url!} target="_blank" rel="noopener noreferrer" aria-label={`${member.name} on ${name}`} tabIndex={interactive && flipped ? 0 : -1} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()} className="rounded focus-visible:outline-2 focus-visible:outline-[#f9d02d] hover:text-[#f9d02d]" style={{ pointerEvents: interactive && flipped ? 'auto' : 'none' }}><Icon className={prominent ? 'h-5 w-5' : 'h-[clamp(14px,1.3vw,20px)] w-[clamp(14px,1.3vw,20px)]'} /></a>)}
+      <button type="button" onPointerDown={event=>event.stopPropagation()} onClick={(event) => { event.stopPropagation(); onClick(); }} aria-label={`${member.name}, show photo`} tabIndex={interactive && flipped ? 0 : -1} className="absolute right-1 top-1 z-20 grid h-7 w-7 cursor-pointer place-items-center rounded-full bg-[#202121] text-lg text-white hover:text-[#f9d02d] focus-visible:outline-2 focus-visible:outline-[#f9d02d]" style={{ pointerEvents: interactive && flipped ? 'auto' : 'none' }}>↶</button>
+      <div className="relative z-10 mt-2 min-h-0 w-full flex-1 overflow-y-auto overscroll-contain" onPointerDown={event=>event.stopPropagation()} style={{pointerEvents:interactive&&flipped?'auto':'none'}}>
+        <h3 className={`mb-1 break-words font-black uppercase tracking-wide text-white ${prominent ? 'text-xl' : 'text-[clamp(1.05rem,1.5vw,1.5rem)]'}`}>{member.name}</h3>
+        <p className={`mb-3 break-words font-bold uppercase tracking-wider text-[#f9d02d] ${prominent ? 'text-[11px]' : 'text-[clamp(0.55rem,0.7vw,0.7rem)]'}`}>{member.role}</p>
+        <p className={`whitespace-pre-line break-words leading-snug font-medium text-white/85 ${prominent ? 'text-[13px]' : 'text-[clamp(0.62rem,0.8vw,0.85rem)]'}`}>{member.description}</p>
+      </div>
+      <div className="relative z-10 mb-2 mt-3 flex shrink-0 gap-3 text-white/75">
+        {memberProfileLinks(member).map(({column,url})=>{const {name,Icon}=socials.find(item=>item.column===column)!;return <a key={name} href={url} target="_blank" rel="noopener noreferrer" aria-label={`${member.name} on ${name}`} tabIndex={interactive && flipped ? 0 : -1} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()} className="rounded focus-visible:outline-2 focus-visible:outline-[#f9d02d] hover:text-[#f9d02d]" style={{ pointerEvents: interactive && flipped ? 'auto' : 'none' }}><Icon className={prominent ? 'h-5 w-5' : 'h-[clamp(14px,1.3vw,20px)] w-[clamp(14px,1.3vw,20px)]'} /></a>;})}
       </div>
     </div>
   </motion.div>;
@@ -69,7 +71,7 @@ const FanCard = React.memo(({ slot, active, interactive, flipped, deckShift, spa
   deckShift: MotionValue<number>; spacing: MotionValue<number>; visibleAngle: MotionValue<number>; origin: MotionValue<string>;
   moving: boolean; onClick: (slot: number) => void;members:Member[];
 }) => {
-  const member = members[memberForSlot(slot,members.length)];
+  const member = members[memberIndexForSlot(slot,members.length)!];
   // Repeat the member sequence beyond both ends of the fan, while keeping
   // each card's angle continuous as it enters and leaves the circle.
   const angle = useTransform(() => (slot + deckShift.get()) * spacing.get());
@@ -99,7 +101,7 @@ const RingCard = React.memo(({ index, width, radius, depth, rotation, flipped, o
   index: number; width: number; radius: number; depth: number; rotation: MotionValue<number>;
   flipped: boolean; onClick: (index: number) => void;members:Member[];
 }) => {
-  const angle = index * (360 / members.length);
+  const angle = ringMemberAngle(index,members.length);
   const radians = angle * Math.PI / 180;
   const stackOrder = useTransform(rotation, (value) => Math.round(500 + 500 * Math.cos((angle + value) * Math.PI / 180)));
   const member = members[index];
@@ -134,7 +136,9 @@ const ModeIcon = ({ mode }: { mode: TeamViewMode }) => (
 
 export const OurTeamSection = forwardRef<HTMLDivElement>((_, ref) => {
   const {team,homepage}=usePublicContent();
-  const members=useMemo<Member[]>(()=>team?.length?team.map(item=>({name:String(item.full_name),role:String(item.role_title),description:String(item.short_bio??''),image:String(item.image?.secure_url??''),linkedin_url:item.linkedin_url,instagram_url:item.instagram_url,x_url:item.x_url,github_url:item.github_url})):staticMembers,[team]);
+  const managed=homepage?.capabilities?.managedTeam===true;
+  const members=useMemo<Member[]>(()=>selectManagedItems(managed,team===null?null:team.filter(item=>item.image?.secure_url&&item.full_name&&item.role_title&&item.short_bio).map(item=>({id:Number(item.id),name:String(item.full_name),role:String(item.role_title),description:String(item.short_bio??''),image:String(item.image.secure_url),linkedin_url:item.linkedin_url,instagram_url:item.instagram_url,x_url:item.x_url,github_url:item.github_url})),staticMembers),[team,managed]);
+  const membersKey=members.map(item=>item.id??item.image).join('|');
   const containerRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const ringStageRef = useRef<HTMLDivElement>(null);
@@ -233,6 +237,7 @@ export const OurTeamSection = forwardRef<HTMLDivElement>((_, ref) => {
     if (pointer && ringStageRef.current?.hasPointerCapture(pointer.id)) ringStageRef.current.releasePointerCapture(pointer.id);
     drag.current = null;
   }, []);
+  useEffect(()=>{setActiveSlot(null);setFlipped(false);setRingFlipped(new Set());activeProgress.current=null;releaseRingPointer();inertiaVelocity.current=0;deckShift.set(0);ringRotation.set(0);},[membersKey,deckShift,ringRotation,releaseRingPointer]);
   useEffect(() => {
     if (!pageVisible) {
       releaseRingPointer();
@@ -333,7 +338,7 @@ export const OurTeamSection = forwardRef<HTMLDivElement>((_, ref) => {
                   <motion.div animate={{ rotate: reducedMotion ? 0 : 360 }} transition={{ repeat: Infinity, duration: 25, ease: 'linear' }} className="pointer-events-none absolute inset-0 flex items-center justify-center"><svg className="h-[92%] w-[92%]" viewBox="0 0 360 360"><defs><path id="centerCirclePath" d="M 180, 180 m -130, 0 a 130,130 0 1,1 260,0 a 130,130 0 1,1 -260,0" /></defs><text className="fill-white text-[21px] font-extrabold tracking-[0.14em]"><textPath href="#centerCirclePath" startOffset="0%" textLength="816" lengthAdjust="spacing">{'•\u00A0Creative Inside\u00A0•\u00A0Impact Outside\u00A0'}</textPath></text></svg></motion.div>
                   <motion.div animate={{ rotate: reducedMotion ? 0 : -360 }} transition={{ repeat: Infinity, duration: 20, ease: 'linear' }} className="relative z-10 flex h-32 w-32 items-center justify-center"><img src={logoDarkTheme} alt="Uni-Inside Logo" className="h-full w-full object-contain drop-shadow-lg" /></motion.div>
                 </motion.div>
-                {fanSlots.map((slot) => <FanCard key={slot} slot={slot} active={activeSlot === slot} interactive={!switching && Math.abs(slot - centerSlot) <= overscan - 5} flipped={flipped} deckShift={deckShift} spacing={spacing} visibleAngle={visibleAngle} origin={transformOrigin} moving={isTeamInView && pageVisible && !reducedMotion && activeSlot === null} onClick={selectFan} members={members}/>)}
+                {members.length>0&&fanSlots.map((slot) => <FanCard key={slot} slot={slot} active={activeSlot === slot} interactive={!switching && Math.abs(slot - centerSlot) <= overscan - 5} flipped={flipped} deckShift={deckShift} spacing={spacing} visibleAngle={visibleAngle} origin={transformOrigin} moving={isTeamInView && pageVisible && !reducedMotion && activeSlot === null} onClick={selectFan} members={members}/>)}
               </motion.div>
             </motion.div>
           ) : (
@@ -345,6 +350,7 @@ export const OurTeamSection = forwardRef<HTMLDivElement>((_, ref) => {
           )}
         </AnimatePresence>
       </div>
+      {members.length===0&&<p className="relative z-50 px-8 text-center text-white/80">No team members are published yet.</p>}
       {mode === 'fan' && activeSlot !== null && <div className="fixed inset-0 z-30" onClick={() => { setActiveSlot(null); activeProgress.current = null; setFlipped(false); }} />}
     </div>
   );

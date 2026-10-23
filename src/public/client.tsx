@@ -2,9 +2,10 @@ import {createContext,useContext,useEffect,useMemo,useState,type ReactNode} from
 import {useLocation} from 'react-router-dom';
 import {API_BASE} from '../config/apiBase';
 import {isDesignPreviewRoute} from './designPreview';
+import type {AboutPreview} from '../../backend/src/contracts/aboutTeam';
 export const PUBLIC_API_BASE=API_BASE;
 export type PublicRecord=Record<string,any>;
-export type Homepage={hero:PublicRecord|null;heroTrustSignals:PublicRecord[];heroWorkspaces:PublicRecord[];heroHotspots:PublicRecord[];about:PublicRecord|null;aboutWorkspaces:PublicRecord[];aboutPrinciples:PublicRecord[];team:PublicRecord|null;achievements:PublicRecord|null;contact:PublicRecord|null;chatMessages:PublicRecord[];sections:PublicRecord[];featured:Record<string,PublicRecord[]>};
+export type Homepage={hero:PublicRecord|null;heroTrustSignals:PublicRecord[];heroWorkspaces:PublicRecord[];heroHotspots:PublicRecord[];about:PublicRecord|null;aboutWorkspaces:PublicRecord[];aboutPrinciples:PublicRecord[];aboutEditorial?:AboutPreview;capabilities?:{managedTeam:boolean;managedPartners:boolean};team:PublicRecord|null;achievements:PublicRecord|null;contact:PublicRecord|null;chatMessages:PublicRecord[];sections:PublicRecord[];featured:Record<string,PublicRecord[]>};
 export type Site={site:PublicRecord|null;socialLinks:PublicRecord[];pages:PublicRecord[]};
 async function get<T>(path:string,signal?:AbortSignal):Promise<T>{const response=await fetch(`${PUBLIC_API_BASE}${path}`,{signal,credentials:'omit'});if(!response.ok)throw new Error('Public API unavailable');const envelope=await response.json();return envelope.data as T;}
 async function getAchievements(signal:AbortSignal){const all:PublicRecord[]=[];for(let page=1;page<=656;page++){const batch=await get<PublicRecord[]>(`/achievements?page=${page}&limit=100`,signal);all.push(...batch);if(batch.length<100)break;}return all;}

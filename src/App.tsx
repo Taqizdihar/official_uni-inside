@@ -13,6 +13,7 @@ import { useNearViewportOnce } from './hooks/useNearViewportOnce';
 import { OurTeamSection } from './components/OurTeamSection';
 import { type AppSectionId } from './components/ThemeController';
 import {usePublicContent} from './public/client';
+import {partnerHref,resolveAboutContent,selectManagedItems} from './public/aboutTeam';
 
 import logoDarkTheme from './assets/global/Logo - Dark Theme.svg';
 import logoLightTheme from './assets/global/Logo - Light Theme.svg';
@@ -25,21 +26,22 @@ const staticPartners = Object.entries(PARTNER_MODULES).map(([path, image]) => {
   return { name, image };
 });
 const PARTNER_SET_COUNT = 5;
-const FilmFrame: React.FC<{ partner: { name: string; image: string } }> = ({ partner }) => (
-  <div className="w-[280px] sm:w-[320px] h-[220px] flex flex-col justify-between bg-[#111] p-2 flex-shrink-0 border-r border-black/50">
+type FilmPartner={name:string;image:string;url?:string|null};
+const FilmFrame: React.FC<{ partner:FilmPartner;interactive:boolean }> = ({ partner,interactive }) => (
+  <div aria-hidden={!interactive||undefined} className="w-[280px] sm:w-[320px] h-[220px] flex flex-col justify-between bg-[#111] p-2 flex-shrink-0 border-r border-black/50">
     <div className="h-4 w-full flex justify-around items-center">
       {Array.from({length: 8}).map((_, i) => (
         <div key={`t-${i}`} className="w-5 h-4 bg-[#f0f0f0] rounded-[2px] shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)]" />
       ))}
     </div>
     <div className="w-full h-[150px] bg-white relative overflow-hidden flex items-center justify-center border-4 border-black/80 rounded-sm p-4">
-      <img 
+      {partner.url?<a href={partner.url} target="_blank" rel="noopener noreferrer" tabIndex={interactive?0:-1} aria-label={partner.name} className="flex h-full w-full items-center justify-center rounded focus-visible:outline-4 focus-visible:outline-[#f9d02d]" style={{pointerEvents:interactive?'auto':'none'}}><img src={partner.image} alt={partner.name} loading="lazy" decoding="async" className="max-w-full max-h-full object-contain relative z-10"/></a>:<img
         src={partner.image} 
         alt={partner.name}
         loading="lazy"
         decoding="async"
         className="max-w-full max-h-full object-contain relative z-10" 
-      />
+      />}
     </div>
     <div className="h-4 w-full flex justify-around items-center">
       {Array.from({length: 8}).map((_, i) => (
@@ -51,8 +53,8 @@ const FilmFrame: React.FC<{ partner: { name: string; image: string } }> = ({ par
 
 const FilmRollSection = ({ filmRollXVal, isCursor }: { filmRollXVal?: any, isCursor?: boolean }) => {
   const {partners,homepage}=usePublicContent();
-  const partnersList=partners?.length?partners.map(item=>({name:String(item.name),image:String(item.image?.secure_url??'')})):staticPartners;
-  const duplicatedPartners=Array(PARTNER_SET_COUNT).fill(partnersList).flat() as { name: string; image: string }[];
+  const partnersList=selectManagedItems<FilmPartner>(homepage?.capabilities?.managedPartners===true,partners===null?null:partners.filter(item=>item.image?.secure_url).map(item=>({name:String(item.name),image:String(item.image.secure_url),url:partnerHref(item.website_url)})),staticPartners);
+  const duplicatedPartners=Array(PARTNER_SET_COUNT).fill(partnersList).flat() as FilmPartner[];
   const containerRef = useRef<HTMLDivElement>(null);
   const isInView = useInView(containerRef, { once: false, amount: 0.3 });
 
@@ -86,8 +88,8 @@ const FilmRollSection = ({ filmRollXVal, isCursor }: { filmRollXVal?: any, isCur
   });
 
   return (
-    <div ref={containerRef} className="py-24 overflow-hidden relative z-10">
-      <h2 className="text-center text-4xl sm:text-5xl font-black text-[#202121] mb-16 uppercase tracking-wider">{homepage?.sections?.find(item=>item.section_key==='partners')?.heading||'Our Partners'}</h2>
+    <div ref={containerRef} data-partner-film={isCursor?'presentation':'live'} className="py-24 overflow-hidden relative z-10">
+      <h2 className="text-center text-4xl sm:text-5xl font-black text-[#202121] mb-16 uppercase tracking-wider">{resolveAboutContent(homepage).edit.partnersHeading}</h2>
       <div className="w-full relative shadow-2xl">
         <div className="absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-[#f0f0f0] to-transparent z-10 pointer-events-none" />
         <div className="absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-[#f0f0f0] to-transparent z-10 pointer-events-none" />
@@ -97,10 +99,11 @@ const FilmRollSection = ({ filmRollXVal, isCursor }: { filmRollXVal?: any, isCur
           style={{ x: xPercent }}
         >
           {duplicatedPartners.map((partner, index) => (
-            <FilmFrame key={index} partner={partner} />
+            <FilmFrame key={index} partner={partner} interactive={!isCursor&&index<partnersList.length}/>
           ))}
         </motion.div>
       </div>
+      {partnersList.length===0&&<p className="px-8 text-center text-[#202121]/70">Partners will be featured here soon.</p>}
     </div>
   );
 };

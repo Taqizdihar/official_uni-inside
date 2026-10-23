@@ -9,6 +9,9 @@ import { productSummary,sanitizeProductDescription } from '../utils/productDescr
 import { sanitizeNewsBody, suggestedNewsMinutes } from '../utils/newsText';
 import { insertWithUniqueSlug } from './uniqueSlug';
 import { mediaSectionForPermission, validateMediaIds } from './mediaReferences';
+import {protectedAboutTeamResource} from './aboutTeam';
+import {validateCollectionMedia} from './homepageCollections';
+import {validatePartner,validateTeamMember,type PartnerInput,type TeamMemberInput} from '../contracts/aboutTeam';
 
 type Actor = { id: number; permissions: Set<string> };
 const authorColumns = new Set(['partners','team_members','products','services','projects','achievements']);
@@ -46,7 +49,7 @@ export function parseBody(spec: ResourceSpec, value: unknown) {
 }
 export function publishProblems(name: string, item: Record<string, unknown>, extras: { purchaseLinks?: number } = {}) {
   const missing: string[] = [];
-  const need = (field: string, message = field) => { if (item[field] == null || item[field] === '') missing.push(message); };
+  const need = (field: string, message = field) => { if (item[field] == null || typeof item[field]==='string'&&!String(item[field]).trim()) missing.push(message); };
   if (name === 'team-members') { need('full_name','name'); need('slug'); need('role_title','role'); need('short_bio','biography'); need('photo_media_id','photo'); }
   if (name === 'partners') { need('name'); need('slug'); need('logo_media_id','logo'); }
   if (name === 'products') { need('name'); need('slug'); need('product_type','type'); need('short_description'); need('category_id','category'); need('cover_media_id','cover image'); if (item.base_price == null && !item.price_note) missing.push('price or pricing note'); if (!extras.purchaseLinks) missing.push('purchase/contact link'); }
@@ -57,10 +60,17 @@ export function publishProblems(name: string, item: Record<string, unknown>, ext
   if (item.status === 'scheduled' && (!item.scheduled_at || new Date(String(item.scheduled_at).replace(' ', 'T') + (String(item.scheduled_at).includes('Z') ? '' : 'Z')).getTime() <= Date.now())) missing.push('future scheduled date');
   return missing;
 }
-async function validatePublish(db: PoolConnection, name: string, data: Record<string, unknown>, id?: number) {
+async function validatePublish(db: PoolConnection, name: string, data: Record<string, unknown>, id?: number,mediaRoot='uni-inside') {
   const extras = name === 'products' && id ? { purchaseLinks: await content.activePurchaseLinkCount(db, id) } : {};
   const missing = publishProblems(name, data, extras);
   if (missing.length) throw new HttpError(400, 'PUBLISH_INCOMPLETE', `Complete these fields before publishing: ${missing.join(', ')}.`, missing);
+  if(name==='team-members'||name==='partners'){
+    const issues=name==='team-members'
+      ?validateTeamMember({...data,photo_media_id:Number(data.photo_media_id)} as TeamMemberInput)
+      :validatePartner({...data,logo_media_id:Number(data.logo_media_id)} as PartnerInput);
+    if(issues.length)throw new HttpError(400,'VALIDATION_ERROR','Periksa kolom yang ditandai.',issues);
+    await validateCollectionMedia(db,Number(data[name==='team-members'?'photo_media_id':'logo_media_id']),name,mediaRoot);
+  }
 }
 function recordKey(name: string, spec: ResourceSpec, key: string) {
   if (spec.kind === 'fixed') {
@@ -109,6 +119,7 @@ export async function create(db: Pool, name: string, raw: unknown, actor: Actor,
 export async function update(db: Pool, name: string, key: string, raw: unknown, actor: Actor, requestId: string, mediaRoot = 'uni-inside') {
   const spec = getResource(name);
   checkPermission(actor, permissionFor(spec,'update'));
+  if(protectedAboutTeamResource(name,key))throw new HttpError(409,'LEGACY_ROUTE_DISABLED','Gunakan editor Our Team atau About Us untuk mengubah konten ini.');
   const data = parseBody(spec, raw);
   if(name==='achievements'&&Object.hasOwn(data,'sort_order'))throw new HttpError(400,'VALIDATION_ERROR','Gunakan pengurutan Achievement khusus.');
   const resolvedKey = recordKey(name, spec, key);
@@ -135,8 +146,8 @@ export async function update(db: Pool, name: string, key: string, raw: unknown, 
     const proposed = { ...before, ...data } as Record<string, unknown>;
     if(name==='achievements'&&(!String(proposed.description??'').trim()||!proposed.year_label&&!proposed.achievement_date))throw new HttpError(400,'VALIDATION_ERROR','Isi deskripsi dan tahun atau tanggal Achievement.');
     if (name === 'services' && (data.primary_cta_label !== undefined || data.primary_cta_url !== undefined)) validateServiceCtaPair(proposed);
-    if (proposed.status === 'published' || proposed.status === 'scheduled') await validatePublish(conn, name, proposed, Number(resolvedKey));
-    if (data.status === 'published' && before.status !== 'published') data.published_at = new Date().toISOString().slice(0,23).replace('T',' ');
+    if (proposed.status === 'published' || proposed.status === 'scheduled') await validatePublish(conn, name, proposed, Number(resolvedKey),mediaRoot);
+    if (data.status === 'published' && before.status !== 'published'&&['products','services','projects','news_articles'].includes(spec.table)) data.published_at = new Date().toISOString().slice(0,23).replace('T',' ');
     if (name === 'news' && data.body != null && data.reading_time_minutes === null) data.reading_time_minutes = suggestedNewsMinutes(String(data.body));
     if (authorColumns.has(spec.table) || spec.kind === 'fixed') data.updated_by = actor.id;
     await content.updateRecord(conn, spec, resolvedKey, data);

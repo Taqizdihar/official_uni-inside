@@ -12,6 +12,8 @@ import {SocialMediaPage} from './pages/SocialMediaPage';
 import {FooterSettingsPage} from './pages/FooterSettingsPage';
 import {HeroSettingsPage} from './pages/HeroSettingsPage';
 import {HomepageSectionPage} from './pages/HomepageSectionPage';
+import {AboutSettingsPage} from './pages/AboutSettingsPage';
+import {TeamSettingsPage} from './pages/TeamSettingsPage';
 import {categoryResourceFor,categoryUrl} from './categories/model';
 import {RolesPage,ProfilePage} from './pages/AdministrationPages';
 import {UsersPage,AuditPage} from './pages/AdministrationAccessPages';
@@ -22,8 +24,10 @@ function Protected(){const {user,loading,offline}=useAuth();const location=useLo
 function Guest({children}:{children:React.ReactNode}){const {user,loading}=useAuth();if(loading)return <div className="cms-auth-screen" role="status">Memeriksa sesi Anda…</div>;return user?<Navigate to="/admin/dashboard" replace/>:<>{children}</>;}
 function UserManagementRoute(){const {user,has}=useAuth();return user&&['super_admin','administrator'].includes(user.role_code)&&has('users.view')?<UsersPage/>:<div className="cms-notice cms-notice-error" role="alert">Anda tidak memiliki akses ke Manajemen Pengguna.</div>;}
 function LegacyCategoryRedirect({action,resource:fixedResource}:{action?:'create'|'edit';resource?:string}){const {resource,key}=useParams();const tab=categoryResourceFor(fixedResource??resource??'');const id=key?Number(key):undefined;return tab?<Navigate to={categoryUrl(tab,action,id!==undefined&&Number.isSafeInteger(id)&&id>0?id:undefined)} replace/>:<Navigate to="/admin/content/categories" replace/>;}
-function CategoryOrResourceLanding(){const {resource}=useParams();return categoryResourceFor(resource??'')?<LegacyCategoryRedirect/>:<ResourceLandingPage/>;}
-function homepageRedirect(resource?:string,key?:string){if(['hero-settings','hero-trust-signals','hero-workspaces','hero-hotspots'].includes(resource??''))return '/admin/homepage/hero-settings';if(resource==='achievement-section-settings')return '/admin/homepage/achievements';if(resource==='contact-section-settings')return '/admin/homepage/contact';if(resource==='homepage-sections'&&['products','services','news'].includes(key??''))return `/admin/homepage/${key}`;return null;}
+function collectionHomepage(resource?:string){return resource==='team-members'?'/admin/homepage/team-section-settings':resource==='partners'?'/admin/homepage/about-settings':null;}
+function CategoryOrResourceLanding(){const {resource}=useParams();const target=collectionHomepage(resource);return target?<Navigate to={target} replace/>:categoryResourceFor(resource??'')?<LegacyCategoryRedirect/>:<ResourceLandingPage/>;}
+function ContentResourceEditor({create=false}:{create?:boolean}){const {resource}=useParams();const target=collectionHomepage(resource);return target?<Navigate to={target} replace/>:<ResourceEditorPage create={create}/>;}
+function homepageRedirect(resource?:string,key?:string){if(['hero-settings','hero-trust-signals','hero-workspaces','hero-hotspots'].includes(resource??''))return '/admin/homepage/hero-settings';if(['about-settings','about-workspaces','about-principles'].includes(resource??'')||resource==='homepage-sections'&&key==='partners')return '/admin/homepage/about-settings';if(resource==='team-section-settings')return '/admin/homepage/team-section-settings';if(resource==='achievement-section-settings')return '/admin/homepage/achievements';if(resource==='contact-section-settings')return '/admin/homepage/contact';if(resource==='homepage-sections'&&['products','services','news'].includes(key??''))return `/admin/homepage/${key}`;return null;}
 function HeroOrResourceLanding(){const {resource}=useParams();const target=homepageRedirect(resource);return target?<Navigate to={target} replace/>:<ResourceLandingPage/>;}
 function HeroOrResourceEditor(){const {resource,key}=useParams();const target=homepageRedirect(resource,key);return target?<Navigate to={target} replace/>:<ResourceEditorPage/>;}
 export default function AdminApp(){return <div className="cms" lang="id"><AuthProvider><Routes>
@@ -37,6 +41,8 @@ export default function AdminApp(){return <div className="cms" lang="id"><AuthPr
     <Route path="dashboard" element={<DashboardPage/>}/>
     <Route path="analytics" element={<AnalyticsPage/>}/>
     <Route path="homepage/hero-settings" element={<HeroSettingsPage/>}/>
+    <Route path="homepage/about-settings" element={<AboutSettingsPage/>}/>
+    <Route path="homepage/team-section-settings" element={<TeamSettingsPage/>}/>
     <Route path="homepage/contact" element={<HomepageSectionPage kind="contact"/>}/>
     <Route path="homepage/achievements" element={<HomepageSectionPage kind="achievements"/>}/>
     <Route path="homepage/news" element={<HomepageSectionPage kind="news"/>}/>
@@ -61,8 +67,8 @@ export default function AdminApp(){return <div className="cms" lang="id"><AuthPr
     <Route path="content/news-categories/:key" element={<LegacyCategoryRedirect resource="news-categories" action="edit"/>}/>
     <Route path="content/services/new" element={<ServiceCreatePage/>}/>
     <Route path="content/news/new" element={<ArticleCreatePage/>}/>
-    <Route path="content/:resource/new" element={<ResourceEditorPage create/>}/>
-    <Route path="content/:resource/:key" element={<ResourceEditorPage/>}/>
+    <Route path="content/:resource/new" element={<ContentResourceEditor create/>}/>
+    <Route path="content/:resource/:key" element={<ContentResourceEditor/>}/>
     <Route path="media" element={<MediaPage/>}/>
     <Route path="users" element={<UserManagementRoute/>}/>
     <Route path="roles" element={<RolesPage/>}/>

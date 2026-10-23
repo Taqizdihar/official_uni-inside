@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { safeServiceCtaHref } from '../utils/serviceLinks';
+import {characterCount,safeExternalUrl,safeMemberProfile,type MemberSocialColumn} from '../contracts/aboutTeam';
 
 const text = (max: number) => z.string().trim().min(1).max(max);
 const optionalText = (max: number) => z.string().max(max).nullable();
@@ -41,13 +42,16 @@ const media = { cover_media_id: optionalId };
 const short = { short_description: z.string().max(500) };
 const commonStatus = { status };
 const longBody = optionalText(100_000);
+const unicodeText=(max:number)=>z.string().trim().min(1).refine(value=>characterCount(value)<=max,`Maksimal ${max} karakter.`);
+const memberProfile=(column:MemberSocialColumn)=>z.string().max(1000).refine(value=>safeMemberProfile(value,column),'Gunakan URL profil HTTPS resmi.').nullable();
+const partnerUrl=z.string().max(1000).refine(value=>safeExternalUrl(value,false),'Gunakan URL HTTP(S) yang aman.').nullable();
 
 // Each path has a fixed table, editable-field schema and permission family. No
 // caller-supplied table or column identifier is ever accepted by the API.
 export const resources: Record<string, ResourceSpec> = {
   'social-links': dynamic('social_links','settings', { platform_code: text(64), label: text(100), url, icon_key: optionalText(100), is_active: bool, ...ordering }, { required: ['platform_code','label','url'], maxRows: 24 }),
-  partners: dynamic('partners','partners', { name: text(150), slug, logo_media_id: optionalId, website_url: optionalUrl, description: optionalText(1000), ...commonStatus, ...ordering }, { required: ['name'], titleField:'name', softDelete:true, publicFields:['id','name','slug','logo_media_id','website_url','description','sort_order'] }),
-  'team-members': dynamic('team_members','team', { full_name: text(150), slug, role_title: z.string().max(190), short_bio: optionalText(1000), photo_media_id: optionalId, linkedin_url: optionalUrl, instagram_url: optionalUrl, x_url: optionalUrl, github_url: optionalUrl, ...commonStatus, ...ordering, joined_at: date, departed_at: date }, { required:['full_name'], defaults:{role_title:''}, titleField:'full_name', softDelete:true, publicFields:['id','full_name','slug','role_title','short_bio','photo_media_id','linkedin_url','instagram_url','x_url','github_url','sort_order'] }),
+  partners: dynamic('partners','partners', { name: unicodeText(150), slug, logo_media_id: optionalId, website_url: partnerUrl, description: optionalText(1000), ...commonStatus, ...ordering }, { required: ['name'], titleField:'name', softDelete:true, publicFields:['id','name','slug','logo_media_id','website_url','description','sort_order'] }),
+  'team-members': dynamic('team_members','team', { full_name: unicodeText(150), slug, role_title: z.string().refine(value=>characterCount(value)<=190), short_bio: z.string().refine(value=>characterCount(value)<=1000).nullable(), photo_media_id: optionalId, linkedin_url: memberProfile('linkedin_url'), instagram_url: memberProfile('instagram_url'), x_url: memberProfile('x_url'), github_url: memberProfile('github_url'), ...commonStatus, ...ordering, joined_at: date, departed_at: date }, { required:['full_name'], defaults:{role_title:''}, titleField:'full_name', softDelete:true, publicFields:['id','full_name','slug','role_title','short_bio','photo_media_id','linkedin_url','instagram_url','x_url','github_url','sort_order'] }),
   'product-categories': dynamic('product_categories','products', { name: text(150), slug, description: optionalText(1000), ...ordering, is_active: bool }, {required:['name'],titleField:'name',publicFields:['id','name','slug','description','sort_order']}),
   products: dynamic('products','products', { category_id:optionalId,name:text(190),slug,product_type:z.enum(['ready_made','custom','both']),...short,description:longBody,base_price:price,currency_code:z.string().regex(/^[A-Z]{3}$/),price_note:optionalText(255),availability_label:optionalText(100),lead_time_text:optionalText(255),minimum_order_quantity:int.nullable(),...media,status:scheduledStatus,is_featured:bool,...ordering,...seo,scheduled_at:datetime }, {required:['name'],defaults:{short_description:''},titleField:'name',softDelete:true,publicFields:['id','category_id','name','slug','product_type','short_description','description','base_price','currency_code','price_note','availability_label','lead_time_text','minimum_order_quantity','cover_media_id','is_featured','sort_order','meta_title','meta_description','published_at']}),
   'product-images': dynamic('product_images','products',{product_id:id,media_id:id,alt_text:optionalText(255),is_cover:bool,...ordering},{required:['product_id','media_id'],childOf:{table:'products',foreignKey:'product_id'}}),

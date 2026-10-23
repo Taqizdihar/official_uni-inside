@@ -40,6 +40,101 @@ components:
       required: true
       schema: { type: string }
   schemas:
+    AboutSupportedEdit:
+      type: object
+      additionalProperties: false
+      required: [intro, ecosystem, guides, partnersHeading]
+      description: Only supported existing-schema fields. Unchanged legacy values above a new visual limit are preserved; pending editorial properties are rejected.
+      properties:
+        intro:
+          type: object
+          additionalProperties: false
+          required: [subtitle, description]
+          properties:
+            subtitle: { type: string, minLength: 1, maxLength: 50 }
+            description: { type: string, minLength: 1, maxLength: 170 }
+        ecosystem:
+          type: object
+          additionalProperties: false
+          required: [heading, workspaces]
+          properties:
+            heading: { type: string, minLength: 1, maxLength: 40 }
+            workspaces:
+              type: array
+              minItems: 2
+              maxItems: 2
+              description: Studio then Craft, with fixed identities.
+              items:
+                type: object
+                additionalProperties: false
+                required: [key, subtitle, description]
+                properties:
+                  key: { type: string, enum: [studio, craft] }
+                  subtitle: { type: string, minLength: 1, maxLength: 30 }
+                  description: { type: string, minLength: 1, maxLength: 180 }
+        guides:
+          type: object
+          additionalProperties: false
+          required: [heading, principles]
+          properties:
+            heading: { type: string, minLength: 1, maxLength: 20 }
+            principles:
+              type: array
+              minItems: 3
+              maxItems: 3
+              description: Fixed slots 1, 2, and 3 in that order.
+              items:
+                type: object
+                additionalProperties: false
+                required: [slot, heading, description]
+                properties:
+                  slot: { type: integer, minimum: 1, maximum: 3 }
+                  heading: { type: string, minLength: 1, maxLength: 30 }
+                  description: { type: string, minLength: 1, maxLength: 110 }
+        partnersHeading: { type: string, minLength: 1, maxLength: 30 }
+    AboutSaveInput:
+      type: object
+      additionalProperties: false
+      required: [edit, expectedVersion]
+      properties:
+        edit: { $ref: '#/components/schemas/AboutSupportedEdit' }
+        expectedVersion: { type: string, pattern: '^[a-f0-9]{64}$' }
+    TeamHeadingSaveInput:
+      type: object
+      additionalProperties: false
+      required: [edit, expectedVersion]
+      properties:
+        edit:
+          type: object
+          additionalProperties: false
+          required: [heading]
+          properties:
+            heading: { type: string, minLength: 1, maxLength: 15 }
+        expectedVersion: { type: string, pattern: '^[a-f0-9]{64}$' }
+    HomepageTeamMemberInput:
+      type: object
+      additionalProperties: false
+      required: [full_name, role_title, short_bio, photo_media_id, status]
+      description: Website member card, independent of CMS users. Profile URLs are optional individual HTTPS profiles on the matching official platform. Images must be supported raster formats in Halaman Utama. A non-1080x1350 image produces a dimension warning.
+      properties:
+        full_name: { type: string, minLength: 1, maxLength: 150 }
+        role_title: { type: string, minLength: 1, maxLength: 190 }
+        short_bio: { type: string, minLength: 1, maxLength: 1000 }
+        photo_media_id: { type: integer, minimum: 1 }
+        linkedin_url: { type: [string, 'null'], maxLength: 1000 }
+        instagram_url: { type: [string, 'null'], maxLength: 1000 }
+        x_url: { type: [string, 'null'], maxLength: 1000 }
+        github_url: { type: [string, 'null'], maxLength: 1000 }
+        status: { type: string, enum: [draft, published, archived] }
+    HomepagePartnerInput:
+      type: object
+      additionalProperties: false
+      required: [name, logo_media_id, status]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 150 }
+        logo_media_id: { type: integer, minimum: 1 }
+        website_url: { type: [string, 'null'], maxLength: 1000, description: Optional safe HTTP(S) URL; null produces a non-clickable logo. }
+        status: { type: string, enum: [draft, published, archived] }
     HeroEditInput:
       type: object
       additionalProperties: false
@@ -737,6 +832,102 @@ paths:
       parameters: [{ $ref: '#/components/parameters/Csrf' }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/HeroEditInput' } } } }
       responses: { '200': { description: Actual persisted Hero values and capability state }, '400': { description: Invalid content or unavailable third heading line }, '403': { description: Missing permission or CSRF token }, '503': { description: Fixed Hero data incomplete } }
+  /admin/homepage/about:
+    get:
+      summary: Read the dedicated five-part About Us editor
+      description: Requires homepage.view. Returns supported edit, version token, separate read-only pending defaults, false capabilities, and managedPartners activation state. No pending storage is queried.
+      security: [{ sessionCookie: [] }]
+      responses: { '200': { description: "Supported content and readiness" }, '403': { description: "Missing permission" }, '503': { description: "Incomplete fixed slots" } }
+    patch:
+      summary: Save supported About fields in one transaction
+      description: Requires homepage.update and CSRF. Locks fixed records, rejects stale versions, preserves hidden fields, and writes audit/revision logs atomically. Generic About and Partners-heading writes/restores cannot bypass this endpoint.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AboutSaveInput' } } } }
+      responses: { '200': { description: "Actual supported saved values" }, '400': { description: "Invalid field or fixed identity" }, '403': { description: "Missing permission or CSRF" }, '409': { description: "Content changed since load" } }
+  /admin/homepage/team:
+    get:
+      summary: Read Team heading and Canva helper readiness
+      description: Requires homepage.view. Returns heading, version, initial read-only Canva link, roleMayEdit, disabled template capability, and managedTeam activation state.
+      security: [{ sessionCookie: [] }]
+      responses: { '200': { description: "Saved heading and template readiness" } }
+    patch:
+      summary: Save only the Team heading
+      description: Requires homepage.update and CSRF. Other Team instructions and default display mode are preserved.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/TeamHeadingSaveInput' } } } }
+      responses: { '200': { description: "Saved heading" }, '400': { description: "Invalid or unknown fields" }, '403': { description: "Missing permission or CSRF" }, '409': { description: "Stale version" } }
+  /admin/homepage/team/template:
+    patch:
+      summary: Reserved role-protected Canva template mutation
+      description: Only super_admin and administrator may call this route with CSRF. Storage is not active; valid administrator requests return CAPABILITY_PENDING without querying a missing column. This route never claims a save.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [url]
+              properties:
+                url: { type: string, maxLength: 1000, format: uri }
+      responses: { '400': { description: "Invalid HTTPS URL" }, '403': { description: "Missing role or CSRF" }, '503': { description: "Template persistence pending" } }
+  /admin/homepage/team/members:
+    get:
+      summary: List website Team cards for the dedicated editor
+      description: Requires team.view. Bounded page size up to 24; supports search and publication status filters. Includes media metadata for previews.
+      security: [{ sessionCookie: [] }]
+      responses: { '200': { description: "Member cards and page metadata" } }
+    post:
+      summary: Create and optionally publish a Team card atomically
+      description: Requires team.create, CSRF, and team.publish for publication. Does not create CMS users or upload media.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/HomepageTeamMemberInput' } } } }
+      responses: { '201': { description: "Saved record and dimension warnings" }, '400': { description: "Invalid content or media" }, '403': { description: "Missing permission or CSRF" } }
+  /admin/homepage/team/members/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    patch:
+      summary: Edit a Team card with existing publication rules
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/HomepageTeamMemberInput' } } } }
+      responses: { '200': { description: "Saved record and warnings" }, '403': { description: "Missing update or publication permission" }, '404': { description: "Member not found" } }
+    delete:
+      summary: Soft-delete a Team card
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      responses: { '200': { description: "Deleted; media and CMS users unchanged" }, '403': { description: "Missing team.archive or CSRF" } }
+  /admin/homepage/about/partners:
+    get:
+      summary: List Partner cards for About Us
+      description: Requires partners.view. Bounded page size up to 24 with search and publication status filters.
+      security: [{ sessionCookie: [] }]
+      responses: { '200': { description: "Partner cards, media previews, and page metadata" } }
+    post:
+      summary: Create and optionally publish a Partner atomically
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/HomepagePartnerInput' } } } }
+      responses: { '201': { description: "Saved Partner" }, '400': { description: "Missing name/logo or unsafe URL" }, '403': { description: "Missing create/publication permission or CSRF" } }
+  /admin/homepage/about/partners/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    patch:
+      summary: Edit a Partner while preserving its automatic slug
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/HomepagePartnerInput' } } } }
+      responses: { '200': { description: "Saved Partner" }, '403': { description: "Missing update/publication permission" }, '404': { description: "Partner not found" } }
+    delete:
+      summary: Soft-delete a Partner without deleting its media
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      responses: { '200': { description: "Deleted Partner" }, '403': { description: "Missing partners.archive or CSRF" } }
   /admin/link-destinations:
     get:
       summary: List verified public page and Homepage anchor destinations

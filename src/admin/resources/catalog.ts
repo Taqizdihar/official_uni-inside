@@ -97,6 +97,8 @@ export function fixedRecordKey(def:ResourceDef,record:Record<string,unknown>){
 }
 export function fixedLandingPath(def:ResourceDef,records:Record<string,unknown>[]){
   if(['hero-settings','hero-trust-signals','hero-workspaces','hero-hotspots'].includes(def.name))return '/admin/homepage/hero-settings';
+  if(['about-settings','about-workspaces','about-principles'].includes(def.name))return '/admin/homepage/about-settings';
+  if(def.name==='team-section-settings')return '/admin/homepage/team-section-settings';
   return def.kind==='fixed'&&records.length?`${pathFor(def)}/${encodeURIComponent(fixedRecordKey(def,records[0]))}`:null;
 }
 export function pathFor(def:ResourceDef){return `/admin/${def.group==='Homepage'?'homepage':def.group==='Site'?'site':'content'}/${def.name}`;}

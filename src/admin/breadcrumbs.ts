@@ -28,6 +28,7 @@ const special:Record<string,string>={
   '/admin/site/social-links':'Manajemen Sosial Media',
   '/admin/site/footer':'Pengaturan Footer',
   '/admin/homepage/hero-settings':'Hero',
+  '/admin/homepage/about-settings':'About Us','/admin/homepage/team-section-settings':'Our Team',
   '/admin/homepage/contact':'Contact Us','/admin/homepage/achievements':'Achievements',
   '/admin/homepage/news':'News','/admin/homepage/services':'Services','/admin/homepage/products':'Products',
 };
