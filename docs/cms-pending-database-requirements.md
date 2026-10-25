@@ -69,3 +69,77 @@ Every new table needs an explicit primary key for Aiven's `sql_require_primary_k
 Collection rollout is separate from these schema additions: `TEAM_MEMBERS_PUBLIC_ENABLED=false` and `PARTNERS_PUBLIC_ENABLED=false` are independent default-disabled API configuration flags. Keep them false while cards/logos are being prepared. The original nine Team assets and static Partner assets remain in the repository; none are automatically imported, uploaded, merged, or duplicated. After the owner reviews a complete prepared collection, check desktop/mobile fan/ring and film-roll behavior, approve replacing that collection, and activate only its corresponding flag. A first published record never activates the collection. With an active flag, an intentionally empty published collection shows an empty state. Public cache age remains 60 seconds.
 
 Migration sequence: coordinate with the database owner after current checksum reconciliation and staged 002–004 status is verified; review the scalar additions and child-table constraints above; rehearse an additive migration and reviewed backfill on an isolated copy; deploy schema-ready gated read/write support; verify all fixed rows and permissions; then obtain explicit activation approval. No production environment variable changes are included here. See [Our Team and About Us implementation](our-team-about-us-cms.md) for API contracts, tests, and the manual asset preparation procedure.
+
+## Secondary Pages CMS
+
+The audit uses the checked-in baseline and prepared migration files, including the separate workflow’s uncommitted changes. The prepared 002–004 scripts add no secondary-page content slots. Live Aiven readiness has not been asserted. Existing supported values are preserved; source examples are never used as a production backfill by this task. No migration is executed.
+
+| Page | Field/feature | Existing schema | Missing storage | Runtime status | Migration requirement |
+|---|---|---|---|---|---|
+| Products | `heading` — Heading utama, 30 | `page_settings.heading` | None | Persisted | None |
+| Products | `accent` — Heading aksen, 25 | None with matching meaning | Fixed text slot `accent` | Read-only pending | Add slot, reviewed backfill, gated read/write activation |
+| Products | `description` — Deskripsi Hero, 220 | `page_settings.description` | None | Persisted | None |
+| Products | `listing_heading` — Heading katalog, 35 | None with matching meaning | Fixed text slot `listing_heading` | Read-only pending | Add slot, reviewed backfill, gated read/write activation |
+| Products | `cta_heading` — Heading, 60 | None with matching meaning | Fixed text slot `cta_heading` | Read-only pending | Add slot, reviewed backfill, gated read/write activation |
+| Products | `cta_description` — Deskripsi, 200 | None with matching meaning | Fixed text slot `cta_description` | Read-only pending | Add slot, reviewed backfill, gated read/write activation |
+| Products | `cta_label` — Label tombol, 25 | `page_settings.primary_cta_label` | None | Persisted | None |
+| Products | `cta_url` — Tujuan tombol, 1000 | `page_settings.primary_cta_url` | None | Persisted | None |
+| Services | `heading` — Heading utama, 30 | `page_settings.heading` | None | Persisted | None |
+| Services | `accent` — Heading aksen, 30 | None with matching meaning | Fixed text slot `accent` | Read-only pending | Add slot, reviewed backfill, gated read/write activation |
+| Services | `description` — Deskripsi Hero, 220 | `page_settings.description` | None | Persisted | None |
+| Services | `scroll_label` — Label tombol scroll, 25 | None with matching meaning | Fixed text slot `scroll_label` | Read-only pending | Add slot, reviewed backfill, gated read/write activation |
+| Services | `listing_heading` — Heading daftar, 35 | None with matching meaning | Fixed text slot `listing_heading` | Read-only pending | Add slot, reviewed backfill, gated read/write activation |
+| Services | `cta_heading` — Heading, 65 | None with matching meaning | Fixed text slot `cta_heading` | Read-only pending | Add slot, reviewed backfill, gated read/write activation |
+| Services | `cta_description` — Deskripsi, 200 | None with matching meaning | Fixed text slot `cta_description` | Read-only pending | Add slot, reviewed backfill, gated read/write activation |
+| Services | `cta_label` — Label tombol, 25 | `page_settings.primary_cta_label` | None | Persisted | None |
+| Services | `cta_url` — Tujuan tombol, 1000 | `page_settings.primary_cta_url` | None | Persisted | None |
+| News | `heading` — Heading utama, 45 | `page_settings.heading` | None | Persisted | None |
+| News | `description` — Deskripsi Hero, 120 | `page_settings.description` | None | Persisted | None |
+| News | `archive_heading` — Heading arsip, 35 | None with matching meaning | Fixed text slot `archive_heading` | Read-only pending | Add slot, reviewed backfill, gated read/write activation |
+| News | `sidebar_heading` — Heading sidebar, 25 | None with matching meaning | Fixed text slot `sidebar_heading` | Read-only pending | Add slot, reviewed backfill, gated read/write activation |
+| Media Kit | `tagline` — Tagline, 60 | None with matching meaning | Fixed text slot `tagline` | Read-only pending | Add slot, reviewed backfill, gated read/write activation |
+| Media Kit | `description` — Deskripsi Hero, 220 | `page_settings.description` | None | Persisted | None |
+| Media Kit | `explore_label` — Label tombol utama, 25 | None with matching meaning | Fixed text slot `explore_label` | Read-only pending | Add slot, reviewed backfill, gated read/write activation |
+| Media Kit | `download_label` — Label tombol kedua, 25 | None with matching meaning | Fixed text slot `download_label` | Read-only pending | Add slot, reviewed backfill, gated read/write activation |
+| Media Kit | `brand_heading` — Heading, 60 | None with matching meaning | Fixed text slot `brand_heading` | Read-only pending | Add slot, reviewed backfill, gated read/write activation |
+| Media Kit | `brand_description` — Deskripsi, 250 | None with matching meaning | Fixed text slot `brand_description` | Read-only pending | Add slot, reviewed backfill, gated read/write activation |
+| Media Kit | `brand_support` — Paragraf pendukung, 250 | None with matching meaning | Fixed text slot `brand_support` | Read-only pending | Add slot, reviewed backfill, gated read/write activation |
+| Media Kit | `workspaces_heading` — Heading bagian, 60 | None with matching meaning | Fixed text slot `workspaces_heading` | Read-only pending | Add slot, reviewed backfill, gated read/write activation |
+| Media Kit | `workspaces_description` — Deskripsi bagian, 180 | None with matching meaning | Fixed text slot `workspaces_description` | Read-only pending | Add slot, reviewed backfill, gated read/write activation |
+| Media Kit | `studio_description` — Deskripsi Studio, 220 | None with matching meaning | Fixed text slot `studio_description` | Read-only pending | Add slot, reviewed backfill, gated read/write activation |
+| Media Kit | `craft_description` — Deskripsi Craft, 220 | None with matching meaning | Fixed text slot `craft_description` | Read-only pending | Add slot, reviewed backfill, gated read/write activation |
+| Media Kit | `capabilities_heading` — Heading bagian, 60 | None with matching meaning | Fixed text slot `capabilities_heading` | Read-only pending | Add slot, reviewed backfill, gated read/write activation |
+| Media Kit | `capabilities_description` — Deskripsi bagian, 180 | None with matching meaning | Fixed text slot `capabilities_description` | Read-only pending | Add slot, reviewed backfill, gated read/write activation |
+| Media Kit | `capability_1_heading` — Heading kartu 1, 35 | None with matching meaning | Fixed text slot `capability_1_heading` | Read-only pending | Add slot, reviewed backfill, gated read/write activation |
+| Media Kit | `capability_1_description` — Deskripsi kartu 1, 120 | None with matching meaning | Fixed text slot `capability_1_description` | Read-only pending | Add slot, reviewed backfill, gated read/write activation |
+| Media Kit | `capability_2_heading` — Heading kartu 2, 35 | None with matching meaning | Fixed text slot `capability_2_heading` | Read-only pending | Add slot, reviewed backfill, gated read/write activation |
+| Media Kit | `capability_2_description` — Deskripsi kartu 2, 120 | None with matching meaning | Fixed text slot `capability_2_description` | Read-only pending | Add slot, reviewed backfill, gated read/write activation |
+| Media Kit | `capability_3_heading` — Heading kartu 3, 35 | None with matching meaning | Fixed text slot `capability_3_heading` | Read-only pending | Add slot, reviewed backfill, gated read/write activation |
+| Media Kit | `capability_3_description` — Deskripsi kartu 3, 120 | None with matching meaning | Fixed text slot `capability_3_description` | Read-only pending | Add slot, reviewed backfill, gated read/write activation |
+| Media Kit | `identity_heading` — Visual Identity — Heading, 60 | None with matching meaning | Fixed text slot `identity_heading` | Read-only pending | Add slot, reviewed backfill, gated read/write activation |
+| Media Kit | `identity_description` — Visual Identity — Deskripsi, 180 | None with matching meaning | Fixed text slot `identity_description` | Read-only pending | Add slot, reviewed backfill, gated read/write activation |
+| Media Kit | `typography_heading` — Typography — Heading, 60 | None with matching meaning | Fixed text slot `typography_heading` | Read-only pending | Add slot, reviewed backfill, gated read/write activation |
+| Media Kit | `typography_description` — Typography — Deskripsi, 220 | None with matching meaning | Fixed text slot `typography_description` | Read-only pending | Add slot, reviewed backfill, gated read/write activation |
+| Media Kit | `logos_heading` — Heading, 50 | None with matching meaning | Fixed text slot `logos_heading` | Read-only pending | Add slot, reviewed backfill, gated read/write activation |
+| Media Kit | `logos_description` — Panduan penggunaan logo, 300 | None with matching meaning | Fixed text slot `logos_description` | Read-only pending | Add slot, reviewed backfill, gated read/write activation |
+| Media Kit | `contact_heading` — Heading, 70 | None with matching meaning | Fixed text slot `contact_heading` | Read-only pending | Add slot, reviewed backfill, gated read/write activation |
+| Media Kit | `contact_description` — Deskripsi, 200 | None with matching meaning | Fixed text slot `contact_description` | Read-only pending | Add slot, reviewed backfill, gated read/write activation |
+| Projects | `heading` — Heading utama, 25 | `page_settings.heading` | Approved Projects singleton | Prepared, disabled | Reviewed singleton + activation |
+| Projects | `description` — Deskripsi pengantar, 160 optional | `page_settings.description` | Approved Projects singleton | Prepared, disabled | Reviewed singleton + activation |
+| Products | Banner mode and media reference | Published Product images supply automatic mode | Fixed `banner_mode` and `banner_media_id` slots | Automatic only; manual disabled | Mode enum + media FK and section validation |
+
+### Proposed fixed content storage
+
+Use one additive `secondary_page_content_slots` table with an explicit `BIGINT UNSIGNED` primary key (required by Aiven), `page_settings_id BIGINT UNSIGNED NOT NULL` referencing `page_settings.id` with ON DELETE RESTRICT, `slot_key VARCHAR(64) NOT NULL`, `value_type ENUM('text','media','mode') NOT NULL`, nullable `text_value VARCHAR(1000)`, nullable `media_id BIGINT UNSIGNED` referencing `media_assets.id` with ON DELETE RESTRICT, `updated_by BIGINT UNSIGNED NULL` referencing users, and created/updated timestamps. Unique (page_settings_id, slot_key). CHECK that media slots have only media_id and text/mode slots have only text_value. Enforce the exact page/slot/type whitelist and limits from `backend/src/contracts/secondaryPages.ts` in the API, with no arbitrary slot creation, ordering, CSS, HTML, assets, or component identifiers. Banner mode is automatic/manual; manual requires an available raster image from Halaman Lanjutan. A safe initial backfill is automatic with a null manual reference. Do not use `og_media_id` as a banner.
+
+The three Media Kit capability cards use fixed keys capability_1 through capability_3 with heading/description suffixes. Studio/Craft are independent fixed description slots. Visual Identity and Typography are separate groups inside one CMS panel. Official download files and color/font identities require no storage additions. Media Kit heading is locked; its legacy CTA columns do not match the fixed #brand/#downloads actions and are therefore preserved without repurposing. Its only currently matching field is description. Footer public_email remains the shared email source.
+
+Products/Services primary_cta columns are explicitly mapped to the closing CTA. Existing seeded values may point back to their own archive: this task preserves and displays them for owner review instead of overwriting them. Changed values accept safe site paths or HTTPS; public rendering falls back safely for invalid historical URLs. Character counts use Unicode code points; unchanged historical over-limit values remain intact.
+
+Projects requires an owner-approved page_settings row with page_key='projects', heading up to 25, optional description up to 160, and the explicit SECONDARY_PROJECTS_ENABLED configuration flag (default false). With the flag off, GET returns a disabled preparation contract without querying a missing row, and PATCH returns 403 before any content query. With a later approved flag, readiness verifies the singleton exists; absent storage stays disabled. The public /projects route and Project CRUD stay operational. Adding a row alone does not enable the editor.
+
+Activation sequence: coordinate with the database owner after checksum reconciliation; review the whitelist, foreign keys, types and exact current copy; rehearse additive DDL and backfill on an isolated copy; add schema-ready, default-disabled slot read/write capability and atomic whole-page saves; verify row completeness, media validation, permissions, stale versions, audit/revision rollback and public bindings; obtain explicit owner activation approval; deploy and verify rollback. Current contentSlots/manualBanner flags remain false and never query proposed storage. No automatic asset uploads, slot writes or production backfill occur.
+
+### Future translation cache — documentation only
+
+English remains the CMS authoring language. A future content_translations table should have a primary key, stable source entity/key + field/slot identity, target_language (initially id), SHA-256 source_hash, translated_value, status (pending/ready/failed), provider/version metadata and timestamps; unique (source identity, field identity, target_language). After a successful committed English save, a future outbox/job should generate Indonesian translations, publish only a result matching the current source hash, and reuse it until the source changes. Handle retries and stale responses without changing the English record. No provider, calls, toggle, job, cache table or migration is implemented here.

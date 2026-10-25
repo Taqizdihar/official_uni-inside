@@ -104,3 +104,6 @@
   .cms-hero-trust .cms-hero-subcard:last-child { grid-column: auto; }
   .cms-hero-actions .cms-button { flex: 1; }
 }
+
+.cms-hero-page .cms-hero-field label { font-size:15px; }
+.cms-hero-page .cms-hero-help small { font-size:13px; line-height:1.5; }

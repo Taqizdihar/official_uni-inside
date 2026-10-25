@@ -40,6 +40,150 @@ components:
       required: true
       schema: { type: string }
   schemas:
+    SecondaryPageSave:
+      anyOf:
+        - title: Products
+          type: object
+          additionalProperties: false
+          required:
+            - edit
+            - expectedVersion
+          properties:
+            expectedVersion:
+              type: string
+              pattern: ^[a-f0-9]{64}$
+            edit:
+              type: object
+              additionalProperties: false
+              required:
+                - heading
+                - description
+                - cta_label
+                - cta_url
+              properties:
+                heading:
+                  type: string
+                  maxLength: 30
+                  minLength: 1
+                description:
+                  type: string
+                  maxLength: 220
+                  minLength: 1
+                cta_label:
+                  type: string
+                  maxLength: 25
+                  minLength: 1
+                cta_url:
+                  type: string
+                  maxLength: 1000
+                  minLength: 1
+        - title: Services
+          type: object
+          additionalProperties: false
+          required:
+            - edit
+            - expectedVersion
+          properties:
+            expectedVersion:
+              type: string
+              pattern: ^[a-f0-9]{64}$
+            edit:
+              type: object
+              additionalProperties: false
+              required:
+                - heading
+                - description
+                - cta_label
+                - cta_url
+              properties:
+                heading:
+                  type: string
+                  maxLength: 30
+                  minLength: 1
+                description:
+                  type: string
+                  maxLength: 220
+                  minLength: 1
+                cta_label:
+                  type: string
+                  maxLength: 25
+                  minLength: 1
+                cta_url:
+                  type: string
+                  maxLength: 1000
+                  minLength: 1
+        - title: News
+          type: object
+          additionalProperties: false
+          required:
+            - edit
+            - expectedVersion
+          properties:
+            expectedVersion:
+              type: string
+              pattern: ^[a-f0-9]{64}$
+            edit:
+              type: object
+              additionalProperties: false
+              required:
+                - heading
+                - description
+              properties:
+                heading:
+                  type: string
+                  maxLength: 45
+                  minLength: 1
+                description:
+                  type: string
+                  maxLength: 120
+                  minLength: 1
+        - title: Media Kit
+          type: object
+          additionalProperties: false
+          required:
+            - edit
+            - expectedVersion
+          properties:
+            expectedVersion:
+              type: string
+              pattern: ^[a-f0-9]{64}$
+            edit:
+              type: object
+              additionalProperties: false
+              required:
+                - description
+              properties:
+                description:
+                  type: string
+                  maxLength: 220
+                  minLength: 1
+        - title: Projects
+          type: object
+          additionalProperties: false
+          required:
+            - edit
+            - expectedVersion
+          properties:
+            expectedVersion:
+              type: string
+              pattern: ^[a-f0-9]{64}$
+            edit:
+              type: object
+              additionalProperties: false
+              required:
+                - heading
+                - description
+              properties:
+                heading:
+                  type: string
+                  maxLength: 25
+                  minLength: 1
+                description:
+                  type: string
+                  maxLength: 160
+      description: >-
+        Select the variant for the page path. Unchanged over-limit historical text is preserved by
+        server validation.
     AboutSupportedEdit:
       type: object
       additionalProperties: false
@@ -380,6 +524,61 @@ components:
       minProperties: 1
       description: Resource-specific, strict writable fields. Unknown fields are rejected. See backend/src/schemas/resources.ts for each explicit Zod schema; status transitions also run publish validation.
 paths:
+  /admin/secondary-pages/{page}:
+    parameters:
+      - name: page
+        in: path
+        required: true
+        schema:
+          type: string
+          enum:
+            - products
+            - services
+            - news
+            - media-kit
+            - projects
+    get:
+      summary: Read one fixed secondary-page editor
+      description: >-
+        Requires settings.view. Returns supported edit, version, read-only pending defaults and false
+        slot/banner capabilities. Projects is disabled by default without querying its missing
+        singleton.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Supported content or disabled Projects preparation
+        '403':
+          description: Missing permission
+        '503':
+          description: Missing page settings
+    patch:
+      summary: Save supported secondary fields atomically
+      description: >-
+        Requires settings.update and CSRF. Rejects pending/restricted properties; preserves hidden
+        SEO, artwork and fixed structure. Projects requires explicit activation and an existing
+        singleton.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/Csrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SecondaryPageSave'
+      responses:
+        '200':
+          description: Actual persisted supported values
+        '400':
+          description: Invalid or restricted fields
+        '403':
+          description: Missing permission, CSRF or disabled Projects
+        '409':
+          description: Stale version
+        '503':
+          description: Missing singleton
   /health:
     get:
       summary: Process liveness without database access

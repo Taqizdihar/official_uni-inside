@@ -11,30 +11,86 @@
 .cms-homepage-extra { margin-top: 24px; }
 .cms-homepage-extra h2 { margin: 0 0 8px; }
 .cms-homepage-extra p { margin: 0 0 18px; color: var(--muted,#62655f); }
-.cms-homepage-pending { padding: 14px 18px; margin: 20px 0; border: 1px solid #c2a341; border-radius: 12px; background: #fff9df; color: #584613; }
-.cms-homepage-extra fieldset { display: flex; flex-wrap: wrap; gap: 16px; border: 0; padding: 0; margin: 16px 0; }
-.cms-homepage-extra fieldset label { display: inline-flex; align-items: center; gap: 6px; }
-.cms-homepage-extra > .cms-hero-field { margin-top: 20px; }
-.cms-homepage-search { display:flex; align-items:center; gap:8px; max-width:420px; padding:8px 12px; border:1px solid #cfd0ca; border-radius:12px; }
 .cms-homepage-search input { width:100%; border:0; outline:0; font:inherit; }
-.cms-homepage-filters { display:flex; gap:12px; flex-wrap:wrap; }
-.cms-homepage-filters select { min-height:42px; padding:8px; border:1px solid #cfd0ca; border-radius:10px; }
-.cms-homepage-options { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:9px; margin:17px 0; max-height:290px; overflow:auto; }
-.cms-homepage-options button { display:flex; align-items:center; gap:9px; min-width:0; min-height:52px; padding:9px 12px; border:1px solid #dfe1db; border-radius:10px; background:#fff; text-align:left; cursor:pointer; }
-.cms-homepage-options button.chosen { border-color:#b88b00; background:#fff9dc; }
-.cms-homepage-options button:disabled { opacity:.5; cursor:not-allowed; }
-.cms-homepage-options button span { min-width:0; overflow:hidden; text-overflow:ellipsis; }
-.cms-homepage-options button small { display:block; color:#62655f; }
-.cms-homepage-options button > small:last-child { margin-left:auto; }
-.cms-homepage-options img { width:42px; height:42px; object-fit:cover; border-radius:7px; }
 .cms-homepage-craft { display:flex; align-items:center; gap:8px; margin-top:9px; }
 .cms-homepage-craft img { width:30px; height:30px; }
-.cms-achievement-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 .cms-achievement-list { display: grid; gap: 12px; margin-top: 18px; }
 .cms-achievement-item { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px; border: 1px solid #dfe1db; border-radius: 13px; background: #fcfcfa; }
 .cms-achievement-item h3 { margin: 0 0 4px; }
 .cms-achievement-item p { margin: 0; color: var(--muted,#62655f); }
-.cms-achievement-editor .cms-hero-grid { margin-top: 16px; }
-.cms .cms-achievement-editor { width:min(780px,100%); }
-.cms-achievement-editor textarea { width: 100%; min-height: 96px; padding: 12px; border: 2px solid #cfd0ca; border-radius: 12px; font: inherit; }
 @media (max-width: 680px) { .cms-homepage-locked { flex-wrap: wrap; } .cms-homepage-locked small { margin-left: 0; } .cms-achievement-item { align-items: flex-start; flex-direction: column; } }
+/* Homepage-only rollout of the shared tactile form language. */
+.cms-homepage-page .cms-page-head h1,.cms-editorial-page .cms-page-head h1,.cms-hero-page .cms-page-head h1 { font-size:clamp(28px,3vw,36px); line-height:1.2; }
+.cms-homepage-page .cms-hero-section { padding:28px; }
+.cms-homepage-page .cms-hero-field label,.cms-achievement-editor .cms-hero-field label { font-size:15px; font-weight:700; }
+.cms-homepage-page .cms-hero-field label span,.cms-achievement-editor .cms-hero-field label span { color:var(--muted); font-size:13px; font-weight:400; }
+.cms-homepage-page .cms-hero-help small { font-size:13px; }
+.cms-homepage-extra .cms-section-heading { margin-bottom:24px; }
+.cms-homepage-extra .cms-section-heading p { max-width:70ch; font-size:15px; line-height:1.6; margin:8px 0 0; }
+.cms-homepage-extra .cms-homepage-pending { padding:12px 16px; margin:0 0 28px; background:#f7f8f2; border-color:#d8dccf; color:#59604e; font-size:14px; line-height:1.6; }
+.cms-placement-heading { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; margin:0 0 16px; }
+.cms-placement-heading h3,.cms-placement-selected>h3,.cms-craft-heading h3 { margin:0; font-size:18px; font-weight:750; }
+.cms-selection-count { padding:7px 12px; background:#f2f3ed; border-radius:10px; font-size:14px; font-weight:700; }
+.cms-homepage-extra .cms-homepage-search { max-width:none; min-width:0; min-height:50px; padding:10px 14px; gap:12px; border:2px solid var(--line-strong); border-radius:12px; background:#fff; }
+.cms-homepage-search:focus-within { outline:2px solid #916a00; outline-offset:2px; }
+.cms-homepage-search svg { flex:none; color:var(--muted); }
+.cms-homepage-extra .cms-homepage-options { display:grid; overflow:auto; align-content:start; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; margin:20px 0 28px; max-height:440px; padding:3px; }
+.cms-homepage-extra .cms-homepage-options button { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:14px; padding:18px; text-align:left; min-height:90px; border:2px solid var(--line-strong); border-bottom-width:4px; border-radius:14px; }
+.cms-homepage-options button:hover:not(:disabled) { border-color:#858b80; }
+.cms-homepage-options button:focus-visible,.cms-news-modes label:focus-within { outline:3px solid #916a00; outline-offset:3px; }
+.cms-homepage-extra .cms-homepage-options button.chosen { border-color:#b49520; background:#fff9df; }
+.cms-choice-icon { display:grid; place-items:center; width:40px; height:40px; flex:none; border:1px solid var(--line); background:#f7f8f3; border-radius:12px; }
+.cms-choice-icon svg { width:24px; height:24px; flex:none; }
+.cms-homepage-extra .cms-homepage-options .cms-choice-label { display:block; min-width:0; overflow:visible; white-space:normal; }
+.cms-choice-label strong { display:block; font-size:14px; line-height:1.5; overflow-wrap:anywhere; }
+.cms-homepage-options .cms-choice-label small { margin-top:5px; font-size:13px; line-height:1.5; }
+.cms-choice-state { align-self:center; font-size:13px; font-weight:700; }
+.cms-choice-state svg { color:#8c7010; }
+.cms-homepage-extra .cms-homepage-options img { width:64px; height:64px; object-fit:cover; border-radius:10px; }
+.cms-placement-selected { border-top:2px solid var(--line); padding-top:24px; margin-top:24px; }
+.cms-homepage-extra .cms-placement-empty { padding:20px; margin:16px 0; border:1px dashed var(--line-strong); border-radius:12px; background:#fafbf7; font-size:14px; line-height:1.6; }
+.cms-selected-copy { display:flex; align-items:center; gap:12px; min-width:0; flex:1; }
+.cms-selected-copy svg { flex:none; }
+.cms-selected-copy strong { overflow-wrap:anywhere; font-size:14px; line-height:1.5; }
+.cms-selected-copy small { display:block; margin-top:5px; font-size:13px; color:var(--muted); }
+.cms-selection-index { display:grid; place-items:center; width:30px; height:30px; flex:none; border:1px solid var(--line-strong); border-radius:9px; font-size:13px; font-weight:700; }
+.cms-homepage-extra .cms-placement-link { margin-top:24px; width:fit-content; text-decoration:none; }
+.cms-craft-placement { display:grid; gap:20px; margin-top:28px; border:2px solid var(--line); border-radius:16px; padding:22px; }
+.cms-craft-heading { display:flex; align-items:center; gap:16px; }
+.cms-craft-heading>img { width:48px; height:48px; flex:none; object-fit:contain; }
+.cms-craft-heading p { margin:7px 0 0; font-size:14px; line-height:1.6; }
+.cms-craft-placement .cms-hero-field>small { display:block; margin-top:8px; font-size:13px; color:var(--muted); }
+.cms-homepage-extra .cms-news-modes { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; margin:0 0 28px; padding:0; }
+.cms-news-modes legend { margin-bottom:16px; font-size:15px; font-weight:700; }
+.cms-homepage-extra .cms-news-modes label { display:grid; grid-template-columns:auto 1fr; align-content:start; align-items:start; gap:12px; min-width:0; padding:20px; border:2px solid var(--line-strong); border-bottom-width:4px; border-radius:14px; cursor:pointer; }
+.cms-news-modes label input { accent-color:#916a00; width:20px; height:20px; margin:2px 0 0; }
+.cms-news-modes label>svg { display:none; }
+.cms-news-modes label strong { font-size:15px; line-height:1.5; }
+.cms-news-modes label small { display:block; margin-top:8px; color:var(--muted); font-size:14px; line-height:1.6; }
+.cms-news-modes label.chosen { border-color:#b49520; background:#fff9df; }
+.cms-news-modes label.disabled { background:#f0f1ed; color:#73796c; cursor:not-allowed; }
+.cms-homepage-filters .cms-homepage-search { flex:1; }
+.cms-homepage-extra .cms-achievement-item { padding:18px 20px; border:2px solid var(--line); border-radius:14px; }
+.cms-achievement-item>div:first-child { min-width:0; }
+.cms-achievement-item h3 { font-size:17px; line-height:1.5; overflow-wrap:anywhere; }
+.cms-achievement-actions .cms-button { min-height:42px; padding:8px 12px; font-size:14px; }
+.cms .cms-modal.cms-achievement-editor { width:min(860px,100%); padding:28px; }
+.cms-achievement-editor form { display:grid; gap:24px; margin-top:24px; }
+.cms-achievement-form-section { display:grid; gap:16px; }
+.cms-achievement-form-section h3 { margin:0; font-size:18px; font-weight:750; }
+.cms-achievement-editor .cms-hero-field label { display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:5px; }
+.cms-achievement-editor .cms-hero-field>small { margin-top:8px; font-size:13px; color:var(--muted); }
+.cms-achievement-editor .cms-achievement-form-actions { padding-top:20px; border-top:1px solid var(--line); }
+.cms-nav-disabled-note { display:block; margin-top:4px; font-size:11px; font-weight:400; }
+@media(max-width:1050px){.cms-homepage-extra .cms-news-modes{grid-template-columns:1fr}.cms-homepage-extra .cms-homepage-options{grid-template-columns:1fr}.cms-homepage-extra .cms-achievement-item{flex-wrap:wrap}.cms-achievement-actions{flex-wrap:wrap}}
+@media(max-width:700px){.cms-homepage-page .cms-hero-section{padding:20px}.cms-homepage-extra .cms-homepage-options button{padding:16px;gap:12px}.cms .cms-modal.cms-achievement-editor{padding:20px}.cms-achievement-editor .cms-hero-grid.two{grid-template-columns:1fr}.cms-homepage-extra .cms-homepage-filters{align-items:stretch;flex-direction:column}.cms-homepage-filters select{width:100%}.cms-homepage-page input,.cms-homepage-page select,.cms-achievement-editor input,.cms-achievement-editor select{font-size:16px}.cms-craft-placement{padding:16px}.cms-selected-copy{align-items:flex-start}.cms-homepage-extra .cms-achievement-item{align-items:stretch}.cms-achievement-actions .cms-button{flex:1}}
+
+.cms-homepage-options button:disabled { opacity:.55; cursor:not-allowed; }
+.cms-homepage-filters { display:flex; flex-wrap:wrap; gap:16px; align-items:center; }
+.cms-homepage-search { display:flex; align-items:center; }
+.cms-homepage-extra .cms-homepage-filters select { min-height:50px; padding:10px 14px; border:2px solid var(--line-strong); border-radius:12px; background:#fff; font:inherit; font-size:14px; }
+.cms-achievement-actions { display:flex; flex-wrap:wrap; gap:8px; align-items:center; flex:none; }
+.cms-achievement-editor .cms-hero-grid { margin-top:0; gap:20px 24px; }
+.cms-achievement-editor textarea { min-height:140px; line-height:1.6; width:100%; padding:14px; border:2px solid var(--line-strong); border-radius:12px; font:inherit; }
+
+@media(max-width:700px){.cms-homepage-extra .cms-homepage-filters select{font-size:16px}}

@@ -1,3 +1,5 @@
+import {useSecondaryContent,footerEmail} from '../public/secondaryPages';
+import {usePublicContent} from '../public/client';
 import { useEffect, useRef, useState, type MouseEvent, type PropsWithChildren } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { ArrowDown, ArrowDownRight, ArrowUpRight, Check, Copy, Download, Mail, MoveRight } from 'lucide-react';
@@ -46,6 +48,9 @@ const SectionHeading: React.FC<{ eyebrow: string; title: string; description?: s
 );
 
 export const MediaKitPage = () => {
+  const content=useSecondaryContent('media-kit');
+  const {site}=usePublicContent();
+  const email=footerEmail(site?.site?.public_email);
   const reduceMotion = Boolean(useReducedMotion());
   const [copiedColor, setCopiedColor] = useState<string | null>(null);
   const [copyStatus, setCopyStatus] = useState('');
@@ -99,7 +104,7 @@ export const MediaKitPage = () => {
               </h1>
               <p className="mt-7 max-w-xl text-lg font-semibold leading-snug text-white sm:text-2xl">Creative Inside, Impact Outside.</p>
               <p className="mt-4 max-w-xl text-base leading-relaxed text-white/70 sm:text-lg">
-                Uni-Inside Studio brings ideas to life through multimedia production and creative technology, while Uni-Inside Craft turns ideas into custom 3D-printed creations.
+                {content.description}
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <a href="#brand" onClick={scrollTo('brand')} className="group inline-flex min-h-12 items-center gap-3 rounded-full bg-[#f9d02d] px-5 py-3 text-sm font-extrabold text-[#202121] transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#202121] motion-reduce:transition-none">
@@ -108,7 +113,7 @@ export const MediaKitPage = () => {
                 <a href="#downloads" onClick={scrollTo('downloads')} className="group inline-flex min-h-12 items-center gap-3 rounded-full border border-white/50 px-5 py-3 text-sm font-bold text-white transition-colors hover:border-[#f9d02d] hover:text-[#f9d02d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f9d02d] focus-visible:ring-offset-2 focus-visible:ring-offset-[#202121] motion-reduce:transition-none">
                   Download Logos <Download size={16} aria-hidden="true" />
                 </a>
-                <a href="mailto:uninsidemed@gmail.com" className="inline-flex min-h-12 items-center gap-3 rounded-full px-4 py-3 text-sm font-bold text-white/70 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f9d02d] motion-reduce:transition-none">
+                <a href={`mailto:${email}`} className="inline-flex min-h-12 items-center gap-3 rounded-full px-4 py-3 text-sm font-bold text-white/70 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f9d02d] motion-reduce:transition-none">
                   Contact Uni-Inside <ArrowUpRight size={16} aria-hidden="true" />
                 </a>
               </div>
@@ -336,7 +341,7 @@ export const MediaKitPage = () => {
             <h2 className="mt-3 text-[clamp(2.4rem,5.5vw,5rem)] font-black leading-[0.95] tracking-[-0.06em] text-[#202121]">Have an idea to bring inside?</h2>
             <p className="mt-5 max-w-2xl text-base leading-relaxed text-[#202121]/75 sm:text-lg">For media inquiries, collaborations, or brand questions, get in touch with the Uni-Inside team.</p>
           </div>
-          <a href="mailto:uninsidemed@gmail.com" className="group inline-flex min-h-14 w-fit shrink-0 items-center gap-3 rounded-full bg-[#202121] px-6 py-4 text-sm font-extrabold text-white transition-colors hover:bg-white hover:text-[#202121] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#202121] focus-visible:ring-offset-2 focus-visible:ring-offset-[#f9d02d] motion-reduce:transition-none">
+          <a href={`mailto:${email}`} className="group inline-flex min-h-14 w-fit shrink-0 items-center gap-3 rounded-full bg-[#202121] px-6 py-4 text-sm font-extrabold text-white transition-colors hover:bg-white hover:text-[#202121] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#202121] focus-visible:ring-offset-2 focus-visible:ring-offset-[#f9d02d] motion-reduce:transition-none">
             <Mail size={17} aria-hidden="true" /> uninsidemed@gmail.com <ArrowUpRight size={16} className="transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 motion-reduce:transition-none" aria-hidden="true" />
           </a>
         </div>

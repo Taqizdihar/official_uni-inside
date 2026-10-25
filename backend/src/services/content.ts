@@ -119,6 +119,7 @@ export async function create(db: Pool, name: string, raw: unknown, actor: Actor,
 export async function update(db: Pool, name: string, key: string, raw: unknown, actor: Actor, requestId: string, mediaRoot = 'uni-inside') {
   const spec = getResource(name);
   checkPermission(actor, permissionFor(spec,'update'));
+  if(name==='page-settings')throw new HttpError(409,'LEGACY_ROUTE_DISABLED','Gunakan editor Halaman Lanjutan untuk mengubah pengaturan halaman.');
   if(protectedAboutTeamResource(name,key))throw new HttpError(409,'LEGACY_ROUTE_DISABLED','Gunakan editor Our Team atau About Us untuk mengubah konten ini.');
   const data = parseBody(spec, raw);
   if(name==='achievements'&&Object.hasOwn(data,'sort_order'))throw new HttpError(400,'VALIDATION_ERROR','Gunakan pengurutan Achievement khusus.');

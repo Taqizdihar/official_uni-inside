@@ -12,6 +12,7 @@ import {SocialMediaPage} from './pages/SocialMediaPage';
 import {FooterSettingsPage} from './pages/FooterSettingsPage';
 import {HeroSettingsPage} from './pages/HeroSettingsPage';
 import {HomepageSectionPage} from './pages/HomepageSectionPage';
+import {SecondaryPageSettings} from './pages/SecondaryPageSettings';
 import {AboutSettingsPage} from './pages/AboutSettingsPage';
 import {TeamSettingsPage} from './pages/TeamSettingsPage';
 import {categoryResourceFor,categoryUrl} from './categories/model';
@@ -25,11 +26,14 @@ function Guest({children}:{children:React.ReactNode}){const {user,loading}=useAu
 function UserManagementRoute(){const {user,has}=useAuth();return user&&['super_admin','administrator'].includes(user.role_code)&&has('users.view')?<UsersPage/>:<div className="cms-notice cms-notice-error" role="alert">Anda tidak memiliki akses ke Manajemen Pengguna.</div>;}
 function LegacyCategoryRedirect({action,resource:fixedResource}:{action?:'create'|'edit';resource?:string}){const {resource,key}=useParams();const tab=categoryResourceFor(fixedResource??resource??'');const id=key?Number(key):undefined;return tab?<Navigate to={categoryUrl(tab,action,id!==undefined&&Number.isSafeInteger(id)&&id>0?id:undefined)} replace/>:<Navigate to="/admin/content/categories" replace/>;}
 function collectionHomepage(resource?:string){return resource==='team-members'?'/admin/homepage/team-section-settings':resource==='partners'?'/admin/homepage/about-settings':null;}
-function CategoryOrResourceLanding(){const {resource}=useParams();const target=collectionHomepage(resource);return target?<Navigate to={target} replace/>:categoryResourceFor(resource??'')?<LegacyCategoryRedirect/>:<ResourceLandingPage/>;}
-function ContentResourceEditor({create=false}:{create?:boolean}){const {resource}=useParams();const target=collectionHomepage(resource);return target?<Navigate to={target} replace/>:<ResourceEditorPage create={create}/>;}
-function homepageRedirect(resource?:string,key?:string){if(['hero-settings','hero-trust-signals','hero-workspaces','hero-hotspots'].includes(resource??''))return '/admin/homepage/hero-settings';if(['about-settings','about-workspaces','about-principles'].includes(resource??'')||resource==='homepage-sections'&&key==='partners')return '/admin/homepage/about-settings';if(resource==='team-section-settings')return '/admin/homepage/team-section-settings';if(resource==='achievement-section-settings')return '/admin/homepage/achievements';if(resource==='contact-section-settings')return '/admin/homepage/contact';if(resource==='homepage-sections'&&['products','services','news'].includes(key??''))return `/admin/homepage/${key}`;return null;}
+function CategoryOrResourceLanding(){const {resource}=useParams();if(resource==='page-settings')return <Navigate to="/admin/secondary/products" replace/>;const target=collectionHomepage(resource);return target?<Navigate to={target} replace/>:categoryResourceFor(resource??'')?<LegacyCategoryRedirect/>:<ResourceLandingPage/>;}
+function ContentResourceEditor({create=false}:{create?:boolean}){const {resource,key}=useParams();if(resource==='page-settings')return <Navigate to={secondaryLegacyPath(key)} replace/>;const target=collectionHomepage(resource);return target?<Navigate to={target} replace/>:<ResourceEditorPage create={create}/>;}
+function homepageRedirect(resource?:string,key?:string){if(resource==='page-settings')return secondaryLegacyPath(key);if(['hero-settings','hero-trust-signals','hero-workspaces','hero-hotspots'].includes(resource??''))return '/admin/homepage/hero-settings';if(['about-settings','about-workspaces','about-principles'].includes(resource??'')||resource==='homepage-sections'&&key==='partners')return '/admin/homepage/about-settings';if(resource==='team-section-settings')return '/admin/homepage/team-section-settings';if(resource==='achievement-section-settings')return '/admin/homepage/achievements';if(resource==='contact-section-settings')return '/admin/homepage/contact';if(resource==='homepage-sections'&&['products','services','news'].includes(key??''))return `/admin/homepage/${key}`;return null;}
 function HeroOrResourceLanding(){const {resource}=useParams();const target=homepageRedirect(resource);return target?<Navigate to={target} replace/>:<ResourceLandingPage/>;}
 function HeroOrResourceEditor(){const {resource,key}=useParams();const target=homepageRedirect(resource,key);return target?<Navigate to={target} replace/>:<ResourceEditorPage/>;}
+function secondaryLegacyPath(key?:string){return `/admin/secondary/${key==='media_kit'?'media-kit':['products','services','news','projects'].includes(key??'')?key:'products'}`;}
+function SiteEditor(){const {resource,key}=useParams();return resource==='page-settings'?<Navigate to={secondaryLegacyPath(key)} replace/>:<ResourceEditorPage/>;}
+function SiteLanding(){const {resource}=useParams();return resource==='page-settings'?<Navigate to="/admin/secondary/products" replace/>:<ResourceLandingPage/>;}
 export default function AdminApp(){return <div className="cms" lang="id"><AuthProvider><Routes>
   <Route path="/admin">
   <Route path="login" element={<Guest><LoginPage/></Guest>}/>
@@ -54,9 +58,10 @@ export default function AdminApp(){return <div className="cms" lang="id"><AuthPr
     <Route path="site/footer" element={<FooterSettingsPage/>}/>
     <Route path="site/site-settings" element={<Navigate to="/admin/site/footer" replace/>}/>
     <Route path="site/site-settings/:key" element={<Navigate to="/admin/site/footer" replace/>}/>
-    <Route path="site/:resource" element={<ResourceLandingPage/>}/>
-    <Route path="site/:resource/new" element={<ResourceEditorPage create/>}/>
-    <Route path="site/:resource/:key" element={<ResourceEditorPage/>}/>
+    <Route path="secondary/:page" element={<SecondaryPageSettings/>}/>
+    <Route path="site/:resource" element={<SiteLanding/>}/>
+    <Route path="site/:resource/new" element={<SiteEditor/>}/>
+    <Route path="site/:resource/:key" element={<SiteEditor/>}/>
     <Route path="content/categories" element={<CategoryManagementPage/>}/>
     <Route path="content/:resource" element={<CategoryOrResourceLanding/>}/>
     <Route path="content/product-categories/new" element={<LegacyCategoryRedirect resource="product-categories" action="create"/>}/>

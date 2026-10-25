@@ -3,6 +3,7 @@ import { ArrowRight, ArrowUpRight, Search } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { BackToLandingLink, StaticPageLayout } from '../components/StaticPageLayout';
 import craftLogo from '../assets/global/Uni-Inside Craft White.avif';
+import {useSecondaryContent} from '../public/secondaryPages';
 import { usePublicList } from '../public/client';
 import { CraftImage } from './CraftImage';
 import { canShowCraftPreview, craftPreviewItems, formatProductPrice, productTypeLabel, useCraftPreviewNoIndex, type CraftProduct } from './craftProduct';
@@ -36,6 +37,7 @@ function ProductCard({ product, index, preview }: { product: CraftProduct; index
 }
 
 function Catalogue({ products, loading, error, retry, preview }: CatalogueProps) {
+  const content=useSecondaryContent('products');
   const [query, setQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | 'ready_made' | 'custom'>('all');
   const [sort, setSort] = useState<'default' | 'name'>('default');
@@ -55,8 +57,8 @@ function Catalogue({ products, loading, error, retry, preview }: CatalogueProps)
       <div className="mt-6 grid items-center gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,.85fr)] lg:gap-14">
         <div className={styles.reveal}>
           <div className="flex items-center gap-4 text-xs font-bold uppercase tracking-[.18em] text-[#f9d02d]"><img src={craftLogo} alt="Uni-Inside Craft" width="54" height="60" className="h-12 w-auto object-contain" /><span className="h-px w-10 bg-[#f9d02d]/70" aria-hidden="true" /><span>Uni-Inside Craft / 3D objects</span></div>
-          <h1 className="mt-4 max-w-[11ch] text-[clamp(3.2rem,5.1vw,5.9rem)] font-black leading-[.94] tracking-[-.07em]">Objects made <span className="text-[#f9d02d]">to be held.</span></h1>
-          <p className="mt-4 max-w-[58ch] text-base leading-relaxed text-white/75 sm:text-lg">Explore ready-made pieces and custom 3D-printed creations from our workshop. Each published object has its own details and a direct path to the maker or store.</p>
+          <h1 className="mt-4 max-w-[11ch] text-[clamp(3.2rem,5.1vw,5.9rem)] font-black leading-[.94] tracking-[-.07em]">{preview?'Objects made':content.heading} <span className="text-[#f9d02d]">to be held.</span></h1>
+          <p className="mt-4 max-w-[58ch] text-base leading-relaxed text-white/75 sm:text-lg">{preview?'Explore ready-made pieces and custom 3D-printed creations from our workshop. Each published object has its own details and a direct path to the maker or store.':content.description}</p>
         </div>
         <div className={`relative hidden h-[280px] overflow-hidden border border-white/15 bg-[#303230] lg:block ${styles.revealLate}`}>
           <span className="absolute left-5 top-5 z-10 text-[10px] font-bold uppercase tracking-[.2em] text-white/65">The object / 01</span><div className="absolute inset-x-7 bottom-14 top-12 border border-white/10" aria-hidden="true" />
@@ -81,7 +83,7 @@ function Catalogue({ products, loading, error, retry, preview }: CatalogueProps)
         : <div className="grid gap-x-7 gap-y-14 pt-6 sm:grid-cols-2 lg:grid-cols-3">{visibleProducts.map((product, index) => <ProductCard key={product.id ?? product.slug ?? index} product={product} index={index} preview={preview} />)}</div>}
     </div></section>
 
-    <section className="bg-[#202121] px-6 py-14 text-white sm:px-10 lg:px-12 lg:py-20"><div className="mx-auto grid max-w-[1480px] gap-8 lg:grid-cols-[1fr_auto] lg:items-end"><div><p className="text-xs font-extrabold uppercase tracking-[.18em] text-[#f9d02d]">A thought becomes an object</p><h2 className="mt-3 max-w-[18ch] text-[clamp(2rem,4vw,4rem)] font-black leading-[1.05] tracking-[-.055em]">Have something particular in mind?</h2><p className="mt-5 max-w-[63ch] text-base leading-relaxed text-white/70">Tell us about your idea for a custom 3D-printed piece. We can discuss the shape, purpose, and next steps together.</p></div><Link to="/#contact-us" className="inline-flex w-fit items-center gap-3 bg-[#f9d02d] px-6 py-4 text-sm font-extrabold text-[#202121] transition-colors hover:bg-[#ffe054] active:scale-[.98] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-white motion-reduce:transition-none">Start a conversation <ArrowUpRight size={18} aria-hidden="true" /></Link></div></section>
+    <section className="bg-[#202121] px-6 py-14 text-white sm:px-10 lg:px-12 lg:py-20"><div className="mx-auto grid max-w-[1480px] gap-8 lg:grid-cols-[1fr_auto] lg:items-end"><div><p className="text-xs font-extrabold uppercase tracking-[.18em] text-[#f9d02d]">A thought becomes an object</p><h2 className="mt-3 max-w-[18ch] text-[clamp(2rem,4vw,4rem)] font-black leading-[1.05] tracking-[-.055em]">Have something particular in mind?</h2><p className="mt-5 max-w-[63ch] text-base leading-relaxed text-white/70">Tell us about your idea for a custom 3D-printed piece. We can discuss the shape, purpose, and next steps together.</p></div><Link to={content.cta_url} className="inline-flex w-fit items-center gap-3 bg-[#f9d02d] px-6 py-4 text-sm font-extrabold text-[#202121] transition-colors hover:bg-[#ffe054] active:scale-[.98] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-white motion-reduce:transition-none">{content.cta_label} <ArrowUpRight size={18} aria-hidden="true" /></Link></div></section>
   </StaticPageLayout>;
 }
 

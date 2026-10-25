@@ -22,6 +22,7 @@ const labels:Record<string,string>={products:'Produk',services:'Layanan',news:'A
 const singular:Record<string,string>={products:'Produk',services:'Layanan',news:'Artikel'};
 const fixedLabels:Record<string,string>={media_kit:'Media Kit',products:'Produk',services:'Layanan',news:'Artikel',partners:'Mitra',studio:'Studio',craft:'Craft'};
 const special:Record<string,string>={
+  '/admin/secondary/products':'Products — Halaman Lanjutan','/admin/secondary/services':'Services — Halaman Lanjutan','/admin/secondary/news':'News — Halaman Lanjutan','/admin/secondary/media-kit':'Media Kit','/admin/secondary/projects':'Projects — Belum diaktifkan',
   '/admin/dashboard':'Dashboard','/admin/analytics':'Analitik','/admin/media':'Manajemen Aset',
   '/admin/users':'Manajemen Pengguna','/admin/roles':'Role dan Akses',
   '/admin/audit':'Riwayat Aktivitas','/admin/profile':'Profil Saya','/admin/content/categories':'Manajemen Kategori',

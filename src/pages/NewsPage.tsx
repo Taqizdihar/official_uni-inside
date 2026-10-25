@@ -1,3 +1,4 @@
+import {useSecondaryContent} from '../public/secondaryPages';
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowDown, ArrowRight, ArrowUpRight, Newspaper } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
@@ -95,6 +96,7 @@ function NewsContent({ articles, firstPage, categories, categoryId, onCategory, 
   articles: NewsArticle[] | null; firstPage: NewsArticle[] | null; categories: NewsCategory[]; categoryId: number | null; onCategory: (id: number | null) => void;
   loading: boolean; loadingMore: boolean; error: boolean; moreError: boolean; hasMore: boolean; onMore: () => void; onRetry: () => void; preview: boolean;
 }) {
+  const content=useSecondaryContent('news');
   const featured = useMemo(() => { const ordered = newestFirst(firstPage ?? []); return ordered.find((item) => item.is_featured === true || Number(item.is_featured) === 1) ?? ordered[0]; }, [firstPage]);
   const activeItems = newestFirst(articles ?? []);
   const withoutFeatured = activeItems.filter((item) => String(item.id) !== String(featured?.id));
@@ -104,7 +106,7 @@ function NewsContent({ articles, firstPage, categories, categoryId, onCategory, 
   const archive = withoutFeatured.filter((item) => !latestIds.has(String(item.id)));
   const visibleCategories = preview ? categories.filter((item) => previewNews.some((article) => article.category_id === item.id)) : categories;
   return <StaticPageLayout activePage="NEWS">
-    <section className="bg-[#f0f0f0] px-6 pb-9 pt-[134px] sm:px-10 lg:px-12"><div className="mx-auto max-w-[1480px]"><div className="flex flex-wrap items-center gap-4"><BackToLandingLink />{preview && <span role="status" className="border border-[#202121] bg-[#f9d02d] px-3 py-2 text-xs font-extrabold uppercase tracking-[.12em] text-[#202121]">Design Preview — Sample Content</span>}</div><div className={`mt-9 flex flex-wrap items-end justify-between gap-5 ${styles.enter}`}><div><p className="text-xs font-extrabold uppercase tracking-[.19em] text-[#202121]/50">Uni-Inside / News</p><h1 className="mt-3 text-[clamp(3rem,5.6vw,6rem)] font-black leading-[.94] tracking-[-.07em] text-[#202121]">Stories from the studio.</h1></div><p className="max-w-sm text-base leading-relaxed text-[#202121]/65">News, ideas, and updates collected in one place.</p></div></div></section>
+    <section className="bg-[#f0f0f0] px-6 pb-9 pt-[134px] sm:px-10 lg:px-12"><div className="mx-auto max-w-[1480px]"><div className="flex flex-wrap items-center gap-4"><BackToLandingLink />{preview && <span role="status" className="border border-[#202121] bg-[#f9d02d] px-3 py-2 text-xs font-extrabold uppercase tracking-[.12em] text-[#202121]">Design Preview — Sample Content</span>}</div><div className={`mt-9 flex flex-wrap items-end justify-between gap-5 ${styles.enter}`}><div><p className="text-xs font-extrabold uppercase tracking-[.19em] text-[#202121]/50">Uni-Inside / News</p><h1 className="mt-3 text-[clamp(3rem,5.6vw,6rem)] font-black leading-[.94] tracking-[-.07em] text-[#202121]">{preview?'Stories from the studio.':content.heading}</h1></div><p className="max-w-sm text-base leading-relaxed text-[#202121]/65">{preview?'News, ideas, and updates collected in one place.':content.description}</p></div></div></section>
     <div className="bg-[#f0f0f0] px-6 pb-20 sm:px-10 lg:px-12"><div className="mx-auto max-w-[1480px]">
       {featured && <FeaturedStory article={featured} categories={categories} flagged={featured.is_featured === true || Number(featured.is_featured) === 1} preview={preview} />}
       {loading && !featured && <div role="status" aria-label="Loading published news" className="grid gap-8 bg-[#202121] p-8 lg:grid-cols-2"><div className="space-y-5 py-10"><div className="h-4 w-1/3 bg-white/15 motion-safe:animate-pulse" /><div className="h-16 w-3/4 bg-white/15 motion-safe:animate-pulse" /><div className="h-5 w-full bg-white/15 motion-safe:animate-pulse" /></div><div className="aspect-[1.5] bg-white/10 motion-safe:animate-pulse" /><span className="sr-only">Loading published news…</span></div>}
