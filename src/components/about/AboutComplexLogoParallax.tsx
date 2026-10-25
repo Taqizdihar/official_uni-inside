@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { motion, useMotionValue, useReducedMotion, useSpring, useTransform, type MotionValue } from 'motion/react';
+import { motion, useMotionValue, useSpring, useTransform, type MotionValue } from 'motion/react';
 import styles from './AboutComplexLogoParallax.module.css';
 
 import composite from '../../assets/about-us/complex-logo/complex-logo-composite.avif';
@@ -28,7 +28,6 @@ type ComplexLogoLayer = {
   zIndex: number;
   depth: number;
   motionGroup: MotionGroup;
-  exploded: { x: number; y: number; z: number; scale: number; pivotX: number; pivotY: number };
 };
 
 /**
@@ -36,26 +35,24 @@ type ComplexLogoLayer = {
  * Camera arm 14 and crop 15 share one motion group, with the camera operator
  * and badge intentionally stacked between them. Tablet pieces 09 and 10 also
  * share one motion group, with the Uni symbol between their z positions.
- * Exploded offsets use percentages of the shared canvas. Pivots sit on each
- * visible cutout; the two split-photo pairs keep matching transforms.
  */
 const COMPLEX_LOGO_LAYERS: ComplexLogoLayer[] = [
-  { id: 'drone', src: drone, zIndex: 1, depth: -0.4, motionGroup: 'far', exploded: { x: 15, y: -2, z: 30, scale: 0.82, pivotX: 42, pivotY: 9 } },
-  { id: 'broadcast-arcs', src: broadcastArcs, zIndex: 2, depth: 0.2, motionGroup: 'core', exploded: { x: 0, y: -9, z: 20, scale: 0.78, pivotX: 23, pivotY: 29 } },
-  { id: 'selfie-stick', src: selfieStick, zIndex: 3, depth: 0.45, motionGroup: 'middle', exploded: { x: 11, y: -2, z: 70, scale: 0.88, pivotX: 68, pivotY: 27 } },
-  { id: 'tablet-arm-extension', src: tabletArmExtension, zIndex: 4, depth: 0.75, motionGroup: 'tablet', exploded: { x: -7, y: 6, z: 70, scale: 0.85, pivotX: 30, pivotY: 57 } },
-  { id: 'photo-camera-arm-full', src: photoCameraArm, zIndex: 5, depth: 0.95, motionGroup: 'camera', exploded: { x: -1, y: -5, z: 95, scale: 0.85, pivotX: 66, pivotY: 87 } },
-  { id: 'vintage-microphone', src: vintageMicrophone, zIndex: 6, depth: 0.45, motionGroup: 'middle', exploded: { x: -6, y: 6, z: 60, scale: 0.88, pivotX: 90, pivotY: 72 } },
-  { id: 'megaphone-hand', src: megaphoneHand, zIndex: 7, depth: 0.45, motionGroup: 'middle', exploded: { x: -13, y: -1, z: 75, scale: 0.88, pivotX: 26, pivotY: 32 } },
-  { id: 'uni-symbol', src: uniSymbol, zIndex: 8, depth: 0.2, motionGroup: 'core', exploded: { x: -7, y: -17, z: 40, scale: 0.65, pivotX: 39, pivotY: 50 } },
-  { id: 'seated-creator', src: seatedCreator, zIndex: 9, depth: 0.65, motionGroup: 'foreground', exploded: { x: 4, y: -8, z: 65, scale: 0.82, pivotX: 47, pivotY: 27 } },
-  { id: 'headset', src: headset, zIndex: 10, depth: 0.65, motionGroup: 'foreground', exploded: { x: 7, y: 4, z: 85, scale: 0.9, pivotX: 8, pivotY: 49 } },
-  { id: 'tablet-main', src: tabletMain, zIndex: 11, depth: 0.75, motionGroup: 'tablet', exploded: { x: -7, y: 6, z: 70, scale: 0.85, pivotX: 30, pivotY: 57 } },
-  { id: '3d-printer', src: printer, zIndex: 12, depth: 0.8, motionGroup: 'foreground', exploded: { x: 9, y: 0, z: 65, scale: 0.86, pivotX: 52, pivotY: 55 } },
-  { id: 'video-camera-operator', src: videoCameraOperator, zIndex: 13, depth: 0.8, motionGroup: 'foreground', exploded: { x: 2, y: -6, z: 80, scale: 0.84, pivotX: 76, pivotY: 50 } },
-  { id: 'clapperboard', src: clapperboard, zIndex: 14, depth: 0.8, motionGroup: 'foreground', exploded: { x: -1, y: 5, z: 100, scale: 0.85, pivotX: 22, pivotY: 76 } },
-  { id: 'inside-badge', src: insideBadge, zIndex: 15, depth: 0.2, motionGroup: 'core', exploded: { x: -9, y: -12, z: 55, scale: 0.6, pivotX: 61, pivotY: 78 } },
-  { id: 'photo-camera-foreground-crop', src: photoCameraForeground, zIndex: 16, depth: 0.95, motionGroup: 'camera', exploded: { x: -1, y: -5, z: 95, scale: 0.85, pivotX: 66, pivotY: 87 } },
+  { id: 'drone', src: drone, zIndex: 1, depth: -0.4, motionGroup: 'far' },
+  { id: 'broadcast-arcs', src: broadcastArcs, zIndex: 2, depth: 0.2, motionGroup: 'core' },
+  { id: 'selfie-stick', src: selfieStick, zIndex: 3, depth: 0.45, motionGroup: 'middle' },
+  { id: 'tablet-arm-extension', src: tabletArmExtension, zIndex: 4, depth: 0.75, motionGroup: 'tablet' },
+  { id: 'photo-camera-arm-full', src: photoCameraArm, zIndex: 5, depth: 0.95, motionGroup: 'camera' },
+  { id: 'vintage-microphone', src: vintageMicrophone, zIndex: 6, depth: 0.45, motionGroup: 'middle' },
+  { id: 'megaphone-hand', src: megaphoneHand, zIndex: 7, depth: 0.45, motionGroup: 'middle' },
+  { id: 'uni-symbol', src: uniSymbol, zIndex: 8, depth: 0.2, motionGroup: 'core' },
+  { id: 'seated-creator', src: seatedCreator, zIndex: 9, depth: 0.65, motionGroup: 'foreground' },
+  { id: 'headset', src: headset, zIndex: 10, depth: 0.65, motionGroup: 'foreground' },
+  { id: 'tablet-main', src: tabletMain, zIndex: 11, depth: 0.75, motionGroup: 'tablet' },
+  { id: '3d-printer', src: printer, zIndex: 12, depth: 0.8, motionGroup: 'foreground' },
+  { id: 'video-camera-operator', src: videoCameraOperator, zIndex: 13, depth: 0.8, motionGroup: 'foreground' },
+  { id: 'clapperboard', src: clapperboard, zIndex: 14, depth: 0.8, motionGroup: 'foreground' },
+  { id: 'inside-badge', src: insideBadge, zIndex: 15, depth: 0.2, motionGroup: 'core' },
+  { id: 'photo-camera-foreground-crop', src: photoCameraForeground, zIndex: 16, depth: 0.95, motionGroup: 'camera' },
 ];
 
 type AboutComplexLogoParallaxProps = {
@@ -84,9 +81,8 @@ const useDepthMotion = (x: MotionValue<number>, y: MotionValue<number>, depth: n
   y: useTransform(y, [-1, 1], [-depth * 8, depth * 8]),
 });
 
-const InteractiveComplexLogo: React.FC<{ active: boolean; trackingAllowed: boolean }> = ({ active, trackingAllowed }) => {
+const InteractiveComplexLogo: React.FC<{ active: boolean }> = ({ active }) => {
   const frameRef = useRef<HTMLDivElement>(null);
-  const reducedMotion = useReducedMotion();
   const pointerX = useMotionValue(0);
   const pointerY = useMotionValue(0);
   const springX = useSpring(pointerX, { stiffness: 170, damping: 26, mass: 0.35 });
@@ -107,7 +103,6 @@ const InteractiveComplexLogo: React.FC<{ active: boolean; trackingAllowed: boole
 
   const [layerState, setLayerState] = useState<'idle' | 'loading' | 'ready' | 'failed'>('idle');
   const [logoVisible, setLogoVisible] = useState(false);
-  const [assembled, setAssembled] = useState(false);
   const [pageVisible, setPageVisible] = useState(() => typeof document === 'undefined' || document.visibilityState === 'visible');
   const [windowFocused, setWindowFocused] = useState(() => typeof document === 'undefined' || typeof document.hasFocus !== 'function' || document.hasFocus());
   const lastPointer = useRef<{ x: number; y: number } | null>(null);
@@ -156,15 +151,6 @@ const InteractiveComplexLogo: React.FC<{ active: boolean; trackingAllowed: boole
   }, [active]);
 
   useEffect(() => {
-    if (!logoVisible || !pageVisible || layerState !== 'ready') {
-      setAssembled(false);
-      return;
-    }
-    const timer = window.setTimeout(() => setAssembled(true), 1750);
-    return () => window.clearTimeout(timer);
-  }, [logoVisible, pageVisible, layerState]);
-
-  useEffect(() => {
     if (!active || !logoVisible) return;
 
     const updatePageVisibility = () => {
@@ -200,8 +186,6 @@ const InteractiveComplexLogo: React.FC<{ active: boolean; trackingAllowed: boole
   }, [active, logoVisible, pointerX, pointerY]);
 
   const trackingEnabled = active
-    && trackingAllowed
-    && assembled
     && layerState === 'ready'
     && logoVisible
     && pageVisible
@@ -269,7 +253,6 @@ const InteractiveComplexLogo: React.FC<{ active: boolean; trackingAllowed: boole
       role="img"
       aria-label="Uni-Inside Studio complex logo"
       data-parallax-active={trackingEnabled ? 'true' : 'false'}
-      data-logo-assembly={layerState === 'ready' ? assembled ? 'assembled' : 'exploded' : 'loading'}
     >
       <motion.img
         className={`${styles.image} ${styles.fallback}`}
@@ -282,58 +265,42 @@ const InteractiveComplexLogo: React.FC<{ active: boolean; trackingAllowed: boole
         decoding="async"
         draggable={false}
         initial={false}
-        animate={{ opacity: showLayers ? 0 : 1 }}
-        transition={{ duration: 0 }}
+        animate={{ opacity: layerState === 'ready' ? 0 : 1 }}
+        transition={{ duration: 0.2, ease: 'easeOut' }}
       />
       {showLayers && (
         <motion.div
           className={styles.layerStack}
           aria-hidden="true"
           initial={false}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0 }}
+          animate={{ opacity: layerState === 'ready' ? 1 : 0 }}
+          transition={{ duration: 0.2, ease: 'easeOut' }}
           style={{ pointerEvents: 'none' }}
         >
           {COMPLEX_LOGO_LAYERS.map((layer) => {
             const movement = sharedMotion[layer.motionGroup];
             return (
-              <motion.div
+              <motion.img
                 key={layer.id}
                 data-complex-logo-layer={layer.id}
                 className={styles.layer}
+                src={layer.src}
+                alt=""
                 aria-hidden="true"
-                initial={false}
-                animate={{
-                  x: assembled ? '0%' : `${layer.exploded.x}%`,
-                  y: assembled ? '0%' : `${layer.exploded.y}%`,
-                  z: assembled ? 0 : layer.exploded.z,
-                  rotateX: assembled ? 0 : 48,
-                  rotateY: assembled ? 0 : -24,
-                  rotateZ: assembled ? 0 : -14,
-                  scale: assembled ? 1 : layer.exploded.scale,
-                  filter: assembled ? 'drop-shadow(0px 0px 0px rgba(0,0,0,0))' : 'drop-shadow(5px 8px 4px rgba(0,0,0,0.27))',
-                }}
-                transition={{ duration: assembled && !reducedMotion ? 1.25 : 0, ease: [0.2, 0.8, 0.2, 1] }}
+                width={1080}
+                height={1080}
+                loading="eager"
+                decoding="async"
+                draggable={false}
+                onError={() => setLayerState('failed')}
                 style={{
+                  x: movement.x,
+                  y: movement.y,
                   zIndex: layer.zIndex,
-                  transformOrigin: `${layer.exploded.pivotX}% ${layer.exploded.pivotY}%`,
-                  transformStyle: 'preserve-3d',
+                  willChange: trackingEnabled ? 'transform' : 'auto',
                 }}
                 data-depth={layer.depth}
-              >
-                <motion.img
-                  className={styles.layer}
-                  src={layer.src}
-                  alt=""
-                  width={1080}
-                  height={1080}
-                  loading="eager"
-                  decoding="async"
-                  draggable={false}
-                  onError={() => setLayerState('failed')}
-                  style={{ x: movement.x, y: movement.y, willChange: trackingEnabled ? 'transform' : 'auto' }}
-                />
-              </motion.div>
+              />
             );
           })}
         </motion.div>
@@ -344,6 +311,7 @@ const InteractiveComplexLogo: React.FC<{ active: boolean; trackingAllowed: boole
 
 const ParallaxCapabilityGate: React.FC<{ active: boolean }> = ({ active }) => {
   const [canUseParallax, setCanUseParallax] = useState(false);
+  const [wasActivated, setWasActivated] = useState(false);
 
   useEffect(() => {
     if (typeof window.matchMedia !== 'function') return;
@@ -354,7 +322,12 @@ const ParallaxCapabilityGate: React.FC<{ active: boolean }> = ({ active }) => {
     return () => capability.removeEventListener('change', update);
   }, []);
 
-  return <InteractiveComplexLogo active={active} trackingAllowed={canUseParallax} />;
+  useEffect(() => {
+    if (canUseParallax && active) setWasActivated(true);
+  }, [active, canUseParallax]);
+
+  if (!canUseParallax || !wasActivated) return <StaticComplexLogo />;
+  return <InteractiveComplexLogo active={active} />;
 };
 
 export const AboutComplexLogoParallax: React.FC<AboutComplexLogoParallaxProps> = ({ active, interactive = true }) => {

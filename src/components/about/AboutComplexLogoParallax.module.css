@@ -29,9 +29,6 @@
 
 .layerStack {
   z-index: 2;
-  perspective: 900px;
-  perspective-origin: 50% 42%;
-  transform-style: preserve-3d;
 }
 
 .layer {
