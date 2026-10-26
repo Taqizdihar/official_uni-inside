@@ -20,6 +20,7 @@ function fakePool(initial:Record<string,number>={instagram:0,tiktok:0}){
     if(sql.includes('COUNT(*) AS total FROM social_links'))return [[{total:counts[Number(values[0])===2?'tiktok':'instagram']??0}],[]];
     if(sql.startsWith('INSERT INTO social_links')){const key=Number(values[0])===2?'tiktok':'instagram';counts[key]=(counts[key]??0)+1;return [{insertId:next++,affectedRows:1},[]];}
     if(sql.includes('FROM social_links a JOIN social_platforms p'))return [[{id:values[0],canonical_code:'instagram',label:'Instagram - Akun Utama',url:'https://www.instagram.com/uniinside.id/',is_active:1}],[]];
+    if(sql.includes('information_schema.COLUMNS'))return [[{TABLE_NAME:'product_purchase_links'}],[]];
     if(sql.includes('FROM product_purchase_links WHERE social_link_id=?'))return [[{total:1}],[]];
     return [{affectedRows:1},[]];
   }};

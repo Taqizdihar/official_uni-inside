@@ -342,12 +342,24 @@ components:
         address_text: { type: [string, 'null'], maxLength: 500 }
     FooterSocialPlacement:
       type: object
-      description: Future contract only. No live Footer placement endpoint or storage exists yet.
+      description: Guarded V2 placement contract, active only after the schema and feature flag are verified.
       additionalProperties: false
       required: [social_link_id, position]
       properties:
         social_link_id: { type: integer, minimum: 1 }
         position: { type: integer, minimum: 1, maximum: 10 }
+    FooterV2Input:
+      type: object
+      additionalProperties: false
+      required: [footer_description, public_email, public_phone, address_text, socialLinkIds, google_maps_embed_url, expectedVersion]
+      properties:
+        footer_description: { type: [string, 'null'], maxLength: 1000 }
+        public_email: { type: [string, 'null'], format: email, maxLength: 254 }
+        public_phone: { type: [string, 'null'], maxLength: 50 }
+        address_text: { type: [string, 'null'], maxLength: 500 }
+        socialLinkIds: { type: array, maxItems: 10, uniqueItems: true, items: { type: integer, minimum: 1 } }
+        google_maps_embed_url: { type: string, maxLength: 1000 }
+        expectedVersion: { type: string, pattern: '^[a-f0-9]{64}$' }
     FooterMapsEmbed:
       type: string
       format: uri
@@ -1002,20 +1014,20 @@ paths:
       responses: { '201': { description: Persisted article and gallery }, '400': { description: Invalid input or incomplete publication }, '403': { description: Missing permission } }
   /admin/footer:
     get:
-      summary: Read the four persistent Footer settings and independent pending capabilities
-      description: Requires settings.view. Footer social placement and Maps embed capabilities remain disabled; this route never queries pending V2 tables.
+      summary: Read Footer settings and guarded V2 placement readiness
+      description: Requires settings.view. V2 account placement and Maps data are returned only when FOOTER_V2_ENABLED and the verified schema are ready; otherwise the four existing fields remain available.
       security: [{ sessionCookie: [] }]
       responses:
-        '200': { description: 'data.settings contains only the four Footer fields; data.capabilities reports base settings available and advanced controls pending' }
+        '200': { description: 'data.settings and data.capabilities describe active Footer fields; V2 adds socialLinkIds, mapUrl, and version' }
         '403': { description: Missing settings.view permission }
     patch:
-      summary: Save only the four existing Footer settings fields
-      description: Requires settings.update and CSRF. Unknown fields are rejected. Does not persist social placement IDs or a Maps URL. Existing audit and revision records are written.
+      summary: Save approved Footer settings and ready V2 controls
+      description: Requires settings.update and CSRF. The legacy route accepts only four fields while disabled. When V2 is ready, one transaction saves those fields, ordered account IDs, and a validated Maps URL with audit and revision records.
       security: [{ sessionCookie: [] }]
       parameters: [{ $ref: '#/components/parameters/Csrf' }]
-      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/FooterSettingsInput' } } } }
+      requestBody: { required: true, content: { application/json: { schema: { oneOf: [{ $ref: '#/components/schemas/FooterSettingsInput' }, { $ref: '#/components/schemas/FooterV2Input' }] } } } }
       responses:
-        '200': { description: The four persisted Footer settings and capability state }
+        '200': { description: Persisted Footer values and capability state }
         '400': { description: Invalid or unknown field }
         '403': { description: Missing permission or CSRF token }
   /admin/homepage/hero:
@@ -1034,7 +1046,7 @@ paths:
   /admin/homepage/about:
     get:
       summary: Read the dedicated five-part About Us editor
-      description: Requires homepage.view. Returns supported edit, version token, separate read-only pending defaults, false capabilities, and managedPartners activation state. No pending storage is queried.
+      description: Requires homepage.view. Returns existing fixed About fields and fallback editorial defaults. Optional V2 editorial content has a separate guarded endpoint.
       security: [{ sessionCookie: [] }]
       responses: { '200': { description: "Supported content and readiness" }, '403': { description: "Missing permission" }, '503': { description: "Incomplete fixed slots" } }
     patch:
@@ -1044,6 +1056,39 @@ paths:
       parameters: [{ $ref: '#/components/parameters/Csrf' }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AboutSaveInput' } } } }
       responses: { '200': { description: "Actual supported saved values" }, '400': { description: "Invalid field or fixed identity" }, '403': { description: "Missing permission or CSRF" }, '409': { description: "Content changed since load" } }
+  /admin/homepage/about/editorial:
+    get:
+      summary: Read guarded V2 About editorial fields and ordered lists
+      description: Returns enabled false and existing defaults until the schema, backfill, and ABOUT_EDITORIAL_V2_ENABLED gate are ready. Requires homepage.view.
+      security: [{ sessionCookie: [] }]
+      responses: { '200': { description: "Editorial draft, version token, and enabled state" }, '403': { description: Missing permission } }
+    patch:
+      summary: Save About editorial text, tags, mission points, and collaborator types
+      description: Requires homepage.update and CSRF. Fixed Mission slots remain 1–3. Writes and audit/revision records share a transaction.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      responses: { '200': { description: Saved editorial content }, '400': { description: Invalid field or list }, '409': { description: Stale version }, '503': { description: V2 content unavailable } }
+  /admin/homepage/contact/placements:
+    get:
+      summary: Read guarded Contact social order and Craft URL
+      security: [{ sessionCookie: [] }]
+      responses: { '200': { description: Placement draft and capability state } }
+    patch:
+      summary: Save at most eight active Contact accounts and safe Craft URL
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      responses: { '200': { description: Saved account IDs and version }, '400': { description: Invalid account or URL }, '409': { description: Stale version }, '503': { description: V2 storage unavailable } }
+  /admin/homepage/news/selection:
+    get:
+      summary: Read guarded latest/manual Homepage News selection
+      security: [{ sessionCookie: [] }]
+      responses: { '200': { description: "Mode, article IDs, selected articles, and version" } }
+    patch:
+      summary: Save latest/manual mode and up to four eligible articles
+      description: Popular remains unavailable until ranking data is verified.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Csrf' }]
+      responses: { '200': { description: Saved mode and order }, '400': { description: Invalid or unpublished article }, '409': { description: Stale version }, '503': { description: V2 storage unavailable } }
   /admin/homepage/team:
     get:
       summary: Read Team heading and Canva helper readiness
@@ -1060,7 +1105,7 @@ paths:
   /admin/homepage/team/template:
     patch:
       summary: Reserved role-protected Canva template mutation
-      description: Only super_admin and administrator may call this route with CSRF. Storage is not active; valid administrator requests return CAPABILITY_PENDING without querying a missing column. This route never claims a save.
+      description: Only super_admin and administrator may call this route with CSRF. TEAM_TEMPLATE_ENABLED and the migrated column are required before changes can be saved.
       security: [{ sessionCookie: [] }]
       parameters: [{ $ref: '#/components/parameters/Csrf' }]
       requestBody:

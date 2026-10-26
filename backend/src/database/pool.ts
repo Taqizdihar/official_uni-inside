@@ -1,9 +1,9 @@
-import mysql, { type Pool, type PoolConnection, type RowDataPacket, type ResultSetHeader } from 'mysql2/promise';
+import mysql, { type Connection, type Pool, type PoolConnection, type RowDataPacket, type ResultSetHeader } from 'mysql2/promise';
 import type { Config } from '../config/env';
 import { databaseTlsOptions } from './tls';
 
 export type Database = Pool;
-export type Executor = Pool | PoolConnection;
+export type Executor = Pool | PoolConnection | Connection;
 export function createPool(config: Config): Pool {
   const ssl = databaseTlsOptions(config);
   return mysql.createPool({

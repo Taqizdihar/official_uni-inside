@@ -4,6 +4,7 @@ import {z} from 'zod';
 import {rows,write,transaction,type Executor} from '../database/pool';
 import {audit,revision} from '../repositories/audit';
 import {HttpError,parse} from '../utils/http';
+import {v2ColumnReady} from './v2Schema';
 import {aboutPreviewDefaults,aboutTeamPendingCapabilities,canManageTemplate,initialCardTemplateUrl,safeExternalUrl,textIssues,validateAboutEdit,type AboutEdit,type PrincipleSlot} from '../contracts/aboutTeam';
 
 const text=z.string();
@@ -51,17 +52,17 @@ export async function saveAbout(db:Pool,body:unknown,actorId:number,requestId:st
     return getAbout(conn);
   });
 }
-async function readTeam(db:Executor,lock=false){
-  const row=(await rows<RowDataPacket>(db,`SELECT heading FROM team_section_settings WHERE id=1${lock?' FOR UPDATE':''}`))[0];
+async function readTeam(db:Executor,lock=false,template=false){
+  const row=(await rows<RowDataPacket>(db,`SELECT heading${template?',card_template_url':''} FROM team_section_settings WHERE id=1${lock?' FOR UPDATE':''}`))[0];
   if(!row)throw new HttpError(503,'TEAM_INCOMPLETE','Pengaturan Our Team belum tersedia.');
-  return {heading:String(row.heading??'')};
+  return {heading:String(row.heading??''),templateUrl:template?String(row.card_template_url??initialCardTemplateUrl):initialCardTemplateUrl};
 }
-export async function getTeam(db:Executor,roleCode:string,managedTeam:boolean){const edit=await readTeam(db);return {edit,version:versionOf(edit),template:{url:initialCardTemplateUrl,enabled:false,roleMayEdit:canManageTemplate(roleCode)},managedTeam};}
-export async function saveTeam(db:Pool,body:unknown,actorId:number,roleCode:string,managedTeam:boolean,requestId:string){
+export async function getTeam(db:Executor,roleCode:string,managedTeam:boolean,templateEnabled=false){const ready=templateEnabled&&await v2ColumnReady(db,'team_section_settings','card_template_url');const value=await readTeam(db,false,ready);const edit={heading:value.heading};return {edit,version:versionOf(edit),template:{url:value.templateUrl,enabled:ready,roleMayEdit:canManageTemplate(roleCode)},managedTeam};}
+export async function saveTeam(db:Pool,body:unknown,actorId:number,roleCode:string,managedTeam:boolean,requestId:string,templateEnabled=false){
   const input=parse(z.strictObject({edit:z.strictObject({heading:text}),expectedVersion:z.string().regex(/^[a-f0-9]{64}$/)}),body);
   return transaction(db,async conn=>{
     const before=await readTeam(conn,true);
-    if(input.expectedVersion!==versionOf(before))throw new HttpError(409,'CONTENT_CHANGED','Konten telah diperbarui. Muat ulang sebelum menyimpan.');
+    if(input.expectedVersion!==versionOf({heading:before.heading}))throw new HttpError(409,'CONTENT_CHANGED','Konten telah diperbarui. Muat ulang sebelum menyimpan.');
     const errors=textIssues('heading',input.edit.heading,15,before.heading);
     if(errors.length)throw new HttpError(400,'VALIDATION_ERROR','Periksa Heading.',errors);
     if(input.edit.heading!==before.heading){
@@ -69,13 +70,24 @@ export async function saveTeam(db:Pool,body:unknown,actorId:number,roleCode:stri
       await revision(conn,{entityType:'team_section_settings:1',entityId:1,snapshot:input.edit,actorId,summary:'Updated Our Team heading'});
       await audit(conn,{actorId,action:'homepage.team.update',entityType:'team_section_settings:1',entityId:1,requestId,before,after:input.edit});
     }
-    return getTeam(conn,roleCode,managedTeam);
+    return getTeam(conn,roleCode,managedTeam,templateEnabled);
   });
 }
-export function updateTeamTemplate(body:unknown,roleCode:string):never {
+export async function updateTeamTemplate(db:Pool,body:unknown,actorId:number,roleCode:string,requestId:string,enabled=false) {
   if(!canManageTemplate(roleCode))throw new HttpError(403,'FORBIDDEN','Hanya Super Administrator dan Administrator yang dapat mengubah template.');
   const input=parse(z.strictObject({url:z.string().max(1000)}),body);
-  if(!safeExternalUrl(input.url))throw new HttpError(400,'VALIDATION_ERROR','Gunakan URL template HTTPS yang aman.');
-  throw new HttpError(503,'CAPABILITY_PENDING','Penyimpanan URL template belum diaktifkan. Tautan saat ini tetap digunakan.');
+  if(!safeExternalUrl(input.url)||!['canva.com','canva.link'].some(host=>new URL(input.url).hostname===host||new URL(input.url).hostname.endsWith(`.${host}`)))throw new HttpError(400,'VALIDATION_ERROR','Gunakan URL template Canva HTTPS yang aman.');
+  if(!enabled||!await v2ColumnReady(db,'team_section_settings','card_template_url'))throw new HttpError(503,'CAPABILITY_PENDING','Penyimpanan URL template belum diaktifkan. Tautan saat ini tetap digunakan.');
+  return transaction(db,async conn=>{
+    const before=(await rows<RowDataPacket>(conn,'SELECT card_template_url FROM team_section_settings WHERE id=1 FOR UPDATE'))[0];
+    if(!before)throw new HttpError(503,'TEAM_INCOMPLETE','Pengaturan Our Team belum tersedia.');
+    const current=String(before.card_template_url??initialCardTemplateUrl);
+    if(current!==input.url){
+      await write(conn,'UPDATE team_section_settings SET card_template_url=?,updated_by=? WHERE id=1',[input.url,actorId]);
+      await revision(conn,{entityType:'team_section_settings:1',entityId:1,snapshot:{card_template_url:input.url},actorId,summary:'Updated team card template'});
+      await audit(conn,{actorId,action:'homepage.team.template.update',entityType:'team_section_settings',entityId:1,requestId,before:{url:current},after:{url:input.url}});
+    }
+    return {url:input.url};
+  });
 }
 export function protectedAboutTeamResource(name:string,key:string){return ['about-settings','about-workspaces','about-principles','team-section-settings'].includes(name)||name==='homepage-sections'&&key==='partners';}

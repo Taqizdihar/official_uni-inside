@@ -4,6 +4,7 @@ import type {Pool} from 'mysql2/promise';
 import type {Config} from '../config/env';
 import {auth,csrf,permit} from '../middleware/auth';
 import * as content from '../services/content';
+import {getFooterV2,saveFooterV2} from '../services/footerV2';
 import {asyncRoute,parse} from '../utils/http';
 
 export const footerSettingsSchema=z.strictObject({
@@ -19,10 +20,14 @@ const capabilities={footerBaseSettings:{enabled:true},footerSocialPlacements:{en
 export function footerRoutes(config:Config,db:Pool){
   const router=Router(),signedIn=auth(config,db);
   router.get('/admin/footer',signedIn,permit('settings.view'),asyncRoute(async(_req,res)=>{
+    const v2=await getFooterV2(db,config.FOOTER_V2_ENABLED);
+    if(v2){res.set('Cache-Control','no-store').json({data:v2});return;}
     const record=await content.get(db,'site-settings','1');
     res.set('Cache-Control','no-store').json({data:{settings:present(record),capabilities}});
   }));
   router.patch('/admin/footer',signedIn,csrf(config),permit('settings.update'),asyncRoute(async(req,res)=>{
+    const v2=await getFooterV2(db,config.FOOTER_V2_ENABLED);
+    if(v2){res.set('Cache-Control','no-store').json({data:await saveFooterV2(db,req.body,req.actor!.id,req.requestId)});return;}
     const input=parse(footerSettingsSchema,req.body);
     const record=await content.update(db,'site-settings','1',input,req.actor!,req.requestId);
     res.set('Cache-Control','no-store').json({data:{settings:present(record),capabilities}});

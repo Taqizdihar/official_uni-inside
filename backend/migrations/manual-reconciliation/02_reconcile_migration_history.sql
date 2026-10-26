@@ -1,0 +1,18 @@
+-- BLOCKED — MANUAL REVIEW REQUIRED. No DML is present in this file.
+-- The exact consolidated V2 SQL and a current post-V2 structural export were
+-- not supplied. The 63/71 success message alone cannot establish equivalence
+-- to prepared 002/003/004 or justify inserting official file checksums.
+-- Run 01_verify_aiven_v2_schema.sql and preserve its results. Obtain the exact
+-- executed V2 SQL or a reviewed, equivalent object-by-object comparison first.
+-- The existing 001 row/checksum must never be overwritten.
+-- Committed prepared-file SHA-256 values, for comparison only:
+-- 002 cc55daac16f5f80fb8b764dfda8ebe9ad95283f82065394e7c04d47462f4aa94
+-- 003 84cf8bd038a170725817961da70b30b7e7417f5a4f69ae31e7a1d17ee7384b92
+-- 004 523696cd4e3689486f7c9dbf2d5d102ca4ca67388ca5df10e40ae9b4d5fcef5b
+-- A separate uncommitted 002 compatibility edit is present in this workspace;
+-- its SHA-256 differs and it is excluded from this delivery. Neither hash is
+-- authorized for V2 ledger registration without exact executed-SQL equivalence.
+-- A later reviewed registration must validate exact object definitions,
+-- expected row state, absent/known ledger versions, and duplicate protection
+-- within one transaction. It must not repeat CREATE/ALTER statements.
+SELECT 'BLOCKED — ADDITIONAL EVIDENCE REQUIRED; NO LEDGER MUTATION' AS reconciliation_status;

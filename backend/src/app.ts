@@ -7,7 +7,7 @@ import helmet from 'helmet';
 import pino from 'pino';
 import type { Pool } from 'mysql2/promise';
 import type { Config } from './config/env';
-import { schemaCheck, migrationStatus } from './database/migrations';
+import { schemaCheck, migrationStatus,preparedMigrationStatus } from './database/migrations';
 import { HttpError, asyncRoute, errorHandler } from './utils/http';
 import { authRoutes } from './routes/auth';
 import { publicContentRoutes, adminContentRoutes } from './routes/content';
@@ -17,6 +17,8 @@ import { socialMediaRoutes } from './routes/socialMedia';
 import {footerRoutes} from './routes/footer';
 import {secondaryPageRoutes} from './routes/secondaryPages';
 import {aboutTeamRoutes} from './routes/aboutTeam';
+import {contactPlacementRoutes} from './routes/contactPlacements';
+import {homepageNewsSelectionRoutes} from './routes/homepageNewsSelection';
 
 export function originAllowed(origin: string | undefined, config: Config) { return !!origin && config.origins.includes(origin); }
 export function createApp(config: Config, db: Pool) {
@@ -53,15 +55,20 @@ export function createApp(config: Config, db: Pool) {
     try {
       await db.query('SELECT 1');
       const status=await migrationStatus(db);
-      if (config.REQUIRE_LATEST_MIGRATION && status.some(item=>!item.applied || item.applied.checksum!==item.checksum)) throw new Error('Migration not ready');
+      if (config.REQUIRE_LATEST_MIGRATION && status.some(item=>item.state!=='applied'&&item.state!=='reconciled_legacy_checksum')) throw new Error('Migration not ready');
       const schema=await schemaCheck(db);
       if (!schema.ready) throw new Error('Schema not ready');
-      res.json({data:{status:'ready'}});
+      const external=await preparedMigrationStatus(db);
+      if(external.some(item=>item.state==='unknown_checksum'))throw new Error('Unknown external migration checksum');
+      const pending=external.some(item=>item.state==='external_effects_candidate_ledger_pending'||item.state==='schema_incomplete');
+      res.json({data:{status:pending?'ready_with_pending_reconciliation':'ready',migrationHistory:status.map(item=>({version:item.version,state:item.state})),externalMigrations:external.map(item=>({version:item.version,state:item.state}))}});
     } catch { res.status(503).json({error:{code:'NOT_READY',message:'Dependencies are not ready.',details:[],requestId:_req.requestId}}); }
   }));
   app.use(config.API_BASE_PATH,authRoutes(config,db));
   app.use(config.API_BASE_PATH,secondaryPageRoutes(config,db));
   app.use(config.API_BASE_PATH,aboutTeamRoutes(config,db));
+  app.use(config.API_BASE_PATH,contactPlacementRoutes(config,db));
+  app.use(config.API_BASE_PATH,homepageNewsSelectionRoutes(config,db));
   app.use(config.API_BASE_PATH,mediaRoutes(config,db));
   app.use(config.API_BASE_PATH,analyticsRoutes(config,db));
   app.use(config.API_BASE_PATH,socialMediaRoutes(config,db));

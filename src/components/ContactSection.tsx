@@ -18,6 +18,9 @@ import phonePickSound from '../assets/audio/contact-us/Phone Pick.mp3';
 import phoneGrabSound from '../assets/audio/contact-us/Phone Grab.mp3';
 import { useElementVisibility } from '../hooks/useElementVisibility';
 import { usePublicContent } from '../public/client';
+import {platformCodes,type PlatformCode} from '../admin/social/model';
+import {platformIcons} from '../admin/social/platformCatalog';
+import {validDestination} from '../admin/homepage/model';
 
 const manTalkingSounds = [manTalking1, manTalking2, manTalking3];
 
@@ -198,9 +201,9 @@ export const ContactSection = () => {
   const { homepage } = usePublicContent();
   const contact = homepage?.contact;
   const messages = useMemo(()=>homepage?.chatMessages?.length ? homepage.chatMessages.map(item=>String(item.message_text)) : chatMessages,[homepage?.chatMessages]);
-  // Contact placements have no persistent schema yet. Keep the published row
-  // stable instead of silently substituting accounts from the global registry.
-  const displaySocials = socials;
+  const placement=homepage?.contactPlacement;
+  const validCraft=Boolean(placement?.craftUrl&&validDestination(placement.craftUrl));
+  const displaySocials=placement?.accounts.length?[...placement.accounts.filter(item=>platformCodes.includes(item.platform_code as PlatformCode)).map(item=>({id:item.platform_code==='whatsapp'?'whatsapp':`account-${item.id}`,name:item.label,Icon:platformIcons[item.platform_code as PlatformCode],url:item.url})),...(validCraft?[{id:'custom',name:'Uni-Inside Craft',Icon:CustomCIcon,url:placement.craftUrl}]:[])]:socials;
   const contactRootRef = useRef<HTMLDivElement>(null);
   const { isVisible: isContactNear, isPageVisible } = useElementVisibility(contactRootRef, '700px 0px');
   const [hoveredSocial, setHoveredSocial] = useState<string | null>(null);

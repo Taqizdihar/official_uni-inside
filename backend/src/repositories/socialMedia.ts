@@ -12,7 +12,15 @@ export const accounts=(db:Executor)=>rows<AccountRow>(db,`${accountSelect} ORDER
 export async function account(db:Executor,id:number,lock=false):Promise<AccountRow|null>{return (await rows<AccountRow>(db,`${accountSelect} WHERE a.id=?${lock?' FOR UPDATE':''}`,[id]))[0]??null;}
 export async function platform(db:PoolConnection,code:string,lock=false):Promise<PlatformRow|null>{return (await rows<PlatformRow>(db,`SELECT id,platform_code,name,icon_key,sort_order FROM social_platforms WHERE platform_code=?${lock?' FOR UPDATE':''}`,[code]))[0]??null;}
 export async function countOnPlatform(db:Executor,platformId:number):Promise<number>{return Number((await rows<RowDataPacket>(db,'SELECT COUNT(*) AS total FROM social_links WHERE platform_id=?',[platformId]))[0]?.total??0);}
-export async function references(db:Executor,id:number):Promise<number>{return Number((await rows<RowDataPacket>(db,'SELECT COUNT(*) AS total FROM product_purchase_links WHERE social_link_id=?',[id]))[0]?.total??0);}
+export async function references(db:Executor,id:number):Promise<number>{
+  const present=await rows<RowDataPacket>(db,"SELECT TABLE_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND COLUMN_NAME='social_link_id' AND TABLE_NAME IN ('product_purchase_links','contact_social_placements','footer_social_placements')");
+  const tables=new Set(present.map(row=>String(row.TABLE_NAME)));
+  let count=0;
+  for(const table of ['product_purchase_links','contact_social_placements','footer_social_placements'] as const){
+    if(tables.has(table))count+=Number((await rows<RowDataPacket>(db,`SELECT COUNT(*) AS total FROM ${table} WHERE social_link_id=?`,[id]))[0]?.total??0);
+  }
+  return count;
+}
 export async function insert(db:PoolConnection,input:{platformId:number;legacyCode:string;label:string;description:string|null;url:string;active:boolean;order:number}):Promise<number>{
   const result=await write(db,'INSERT INTO social_links (platform_id,platform_code,label,description,url,icon_key,is_active,sort_order) VALUES (?,?,?,?,?,?,?,?)',
     [input.platformId,input.legacyCode,input.label,input.description,input.url,null,input.active?1:0,input.order]);

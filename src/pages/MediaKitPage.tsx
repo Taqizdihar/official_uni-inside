@@ -102,16 +102,16 @@ export const MediaKitPage = () => {
               <h1 className="mt-5 text-[clamp(3.7rem,10vw,8.25rem)] font-black leading-[0.86] tracking-[-0.075em]">
                 MEDIA<br /><span className="text-[#f9d02d]">KIT</span>
               </h1>
-              <p className="mt-7 max-w-xl text-lg font-semibold leading-snug text-white sm:text-2xl">Creative Inside, Impact Outside.</p>
+              <p className="mt-7 max-w-xl text-lg font-semibold leading-snug text-white sm:text-2xl">{content.tagline}</p>
               <p className="mt-4 max-w-xl text-base leading-relaxed text-white/70 sm:text-lg">
                 {content.description}
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <a href="#brand" onClick={scrollTo('brand')} className="group inline-flex min-h-12 items-center gap-3 rounded-full bg-[#f9d02d] px-5 py-3 text-sm font-extrabold text-[#202121] transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#202121] motion-reduce:transition-none">
-                  Explore the Brand <ArrowDownRight size={17} className="transition-transform group-hover:translate-y-0.5 group-hover:translate-x-0.5 motion-reduce:transition-none" aria-hidden="true" />
+                  {content.explore_label} <ArrowDownRight size={17} className="transition-transform group-hover:translate-y-0.5 group-hover:translate-x-0.5 motion-reduce:transition-none" aria-hidden="true" />
                 </a>
                 <a href="#downloads" onClick={scrollTo('downloads')} className="group inline-flex min-h-12 items-center gap-3 rounded-full border border-white/50 px-5 py-3 text-sm font-bold text-white transition-colors hover:border-[#f9d02d] hover:text-[#f9d02d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f9d02d] focus-visible:ring-offset-2 focus-visible:ring-offset-[#202121] motion-reduce:transition-none">
-                  Download Logos <Download size={16} aria-hidden="true" />
+                  {content.download_label} <Download size={16} aria-hidden="true" />
                 </a>
                 <a href={`mailto:${email}`} className="inline-flex min-h-12 items-center gap-3 rounded-full px-4 py-3 text-sm font-bold text-white/70 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f9d02d] motion-reduce:transition-none">
                   Contact Uni-Inside <ArrowUpRight size={16} aria-hidden="true" />
@@ -135,9 +135,9 @@ export const MediaKitPage = () => {
       <Reveal reduceMotion={reduceMotion} className="bg-[#f0f0f0] px-6 py-16 sm:px-10 sm:py-24 lg:px-12 lg:py-28">
         <div id="brand" className="mx-auto grid max-w-7xl scroll-mt-36 gap-12 lg:grid-cols-[1.15fr_0.85fr] lg:items-end lg:gap-20">
           <div>
-            <SectionHeading eyebrow="Uni-Inside at a glance" title="A shared idea, made visible." description="Uni-Inside is a Bandung-based creative technology startup with two connected workspaces: Studio for visual and digital services, and Craft for designed, 3D-printed objects." />
+            <SectionHeading eyebrow="Uni-Inside at a glance" title={content.brand_heading} description={content.brand_description} />
             <p className="mt-8 max-w-2xl border-l-[3px] border-[#f9d02d] pl-5 text-base leading-relaxed text-[#202121]/75 sm:text-lg">
-              Uni-Inside Studio brings ideas to life through multimedia production and creative technology, while Uni-Inside Craft turns ideas into custom 3D-printed creations.
+              {content.brand_support}
             </p>
           </div>
           <dl className="grid grid-cols-3 border-y border-[#202121]/25 py-5 sm:py-7">
@@ -157,7 +157,7 @@ export const MediaKitPage = () => {
 
       <Reveal reduceMotion={reduceMotion} className="bg-white px-6 py-16 sm:px-10 sm:py-24 lg:px-12 lg:py-28">
         <div className="mx-auto max-w-7xl">
-          <SectionHeading eyebrow="Two workspaces" title="Different tools. One point of view." description="Studio and Craft approach ideas through different materials and processes, connected by the same curiosity and care." />
+          <SectionHeading eyebrow="Two workspaces" title={content.workspaces_heading} description={content.workspaces_description} />
           <div className="mt-12 grid gap-6 lg:mt-16 lg:grid-cols-2 lg:gap-8">
             <article className="group grid min-w-0 overflow-hidden rounded-[1.75rem] border border-[#202121]/10 bg-[#f7f7f5] sm:grid-cols-[0.8fr_1.2fr]">
               <div className="relative flex min-h-64 items-end justify-center overflow-hidden bg-[#202121] sm:min-h-[27rem]">
@@ -169,7 +169,7 @@ export const MediaKitPage = () => {
                 <img src={studioLightLogo} alt="Uni-Inside Studio logo for light backgrounds" width="1095" height="1095" className="h-14 w-14 object-contain" />
                 <p className="mt-5 text-[10px] font-extrabold uppercase tracking-[0.18em] text-[#202121]/50">Service workspace</p>
                 <h3 className="mt-2 text-2xl font-black tracking-[-0.04em] text-[#202121] sm:text-3xl">Uni-Inside Studio</h3>
-                <p className="mt-4 text-sm leading-relaxed text-[#202121]/70 sm:text-base">Photography, videography, drone documentation, editing, company profiles, research documentation, and creative digital solutions.</p>
+                <p className="mt-4 text-sm leading-relaxed text-[#202121]/70 sm:text-base">{content.studio_description}</p>
                 <ul className="mt-5 flex flex-wrap gap-2" aria-label="Studio capabilities">
                   {['Photography', 'Video', 'Drone', 'Research documentation'].map((item) => <li key={item} className="rounded-full border border-[#202121]/15 px-3 py-1.5 text-[10px] font-bold text-[#202121]/75 sm:text-xs">{item}</li>)}
                 </ul>
@@ -190,7 +190,7 @@ export const MediaKitPage = () => {
                 <img src={craftLogo} alt="Official Uni-Inside Craft logo" width="1034" height="1160" className="h-14 w-14 object-contain" />
                 <p className="mt-5 text-[10px] font-extrabold uppercase tracking-[0.18em] text-[#202121]/50">Product workspace</p>
                 <h3 className="mt-2 text-2xl font-black tracking-[-0.04em] text-[#202121] sm:text-3xl">Uni-Inside Craft</h3>
-                <p className="mt-4 text-sm leading-relaxed text-[#202121]/70 sm:text-base">Ready-made and custom 3D-printed objects, from functional everyday pieces to character models and original designs built from scratch.</p>
+                <p className="mt-4 text-sm leading-relaxed text-[#202121]/70 sm:text-base">{content.craft_description}</p>
                 <ul className="mt-5 flex flex-wrap gap-2" aria-label="Craft capabilities">
                   {['Custom 3D printing', 'Original models', 'Ready-made objects', 'Product design'].map((item) => <li key={item} className="rounded-full border border-[#202121]/15 px-3 py-1.5 text-[10px] font-bold text-[#202121]/75 sm:text-xs">{item}</li>)}
                 </ul>
@@ -206,7 +206,7 @@ export const MediaKitPage = () => {
       <Reveal reduceMotion={reduceMotion} className="bg-[#202121] px-6 py-16 text-white sm:px-10 sm:py-24 lg:px-12 lg:py-28">
         <div className="mx-auto max-w-7xl">
           <div className="flex flex-col justify-between gap-6 sm:flex-row sm:items-end">
-            <SectionHeading dark eyebrow="Selected capabilities" title="A few ways ideas take shape." description="Capability imagery from the Studio and Craft visual libraries—not client case studies." />
+            <SectionHeading dark eyebrow="Selected capabilities" title={content.capabilities_heading} description={content.capabilities_description} />
             <span className="hidden pb-2 text-xs font-bold uppercase tracking-[0.16em] text-white/45 sm:block">Explore · Make · Share</span>
           </div>
           <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:mt-14 lg:grid-cols-3">
@@ -218,8 +218,8 @@ export const MediaKitPage = () => {
                 </figure>
                 <div className="flex items-start justify-between gap-4 py-5">
                   <div>
-                    <h3 className="text-lg font-extrabold tracking-tight sm:text-xl">{item.title}</h3>
-                    <p className="mt-2 max-w-sm text-sm leading-relaxed text-white/60">{item.detail}</p>
+                    <h3 className="text-lg font-extrabold tracking-tight sm:text-xl">{content[`capability_${index+1}_heading`]}</h3>
+                    <p className="mt-2 max-w-sm text-sm leading-relaxed text-white/60">{content[`capability_${index+1}_description`]}</p>
                   </div>
                   <ArrowUpRight className="mt-1 shrink-0 text-[#f9d02d] transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 motion-reduce:transition-none" size={19} aria-hidden="true" />
                 </div>
@@ -232,7 +232,7 @@ export const MediaKitPage = () => {
       <Reveal reduceMotion={reduceMotion} className="bg-[#f0f0f0] px-6 py-16 sm:px-10 sm:py-24 lg:px-12 lg:py-28">
         <div className="mx-auto grid max-w-7xl gap-12 lg:grid-cols-[0.92fr_1.08fr] lg:gap-20">
           <div>
-            <SectionHeading eyebrow="Visual identity" title="Color, with purpose." description="A compact palette keeps the work recognizable across screens, printed materials, and physical objects." />
+            <SectionHeading eyebrow="Visual identity" title={content.identity_heading} description={content.identity_description} />
             <div className="mt-8 flex items-start gap-3 border-t border-[#202121]/20 pt-5">
               <span className="mt-1 h-3 w-3 shrink-0 rounded-full bg-[#f9d02d]" aria-hidden="true" />
               <p className="text-sm leading-relaxed text-[#202121]/65">Copy a color value for use in a design file. Each button also announces its result to assistive technology.</p>
@@ -261,7 +261,7 @@ export const MediaKitPage = () => {
 
       <Reveal reduceMotion={reduceMotion} className="bg-white px-6 py-16 sm:px-10 sm:py-24 lg:px-12 lg:py-28">
         <div className="mx-auto grid max-w-7xl gap-12 lg:grid-cols-[0.8fr_1.2fr] lg:gap-20">
-          <SectionHeading eyebrow="Typography" title="Poppins, with a clear voice." description="Poppins is the site’s sans-serif, used for headings, body copy, and interface text. Anton appears as a supporting display style for selected trust figures." />
+          <SectionHeading eyebrow="Typography" title={content.typography_heading} description={content.typography_description} />
           <div className="overflow-hidden rounded-[1.75rem] border border-[#202121]/10 bg-[#f7f7f5] p-6 sm:p-9">
             <div className="flex items-center justify-between gap-4 border-b border-[#202121]/15 pb-4">
               <span className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#202121]/55">Primary · Poppins</span>
@@ -282,7 +282,7 @@ export const MediaKitPage = () => {
 
       <Reveal reduceMotion={reduceMotion} className="bg-[#f0f0f0] px-6 py-16 sm:px-10 sm:py-24 lg:px-12 lg:py-28">
         <div id="downloads" className="mx-auto max-w-7xl scroll-mt-36">
-          <SectionHeading eyebrow="Logo use & downloads" title="Keep the artwork clear." description="Use the supplied marks as they are: preserve their proportions, keep them unobstructed, and choose a high-contrast background. Do not recolor, stretch, rotate, or add effects." />
+          <SectionHeading eyebrow="Logo use & downloads" title={content.logos_heading} description={content.logos_description} />
           <div className="mt-12 grid gap-6 lg:mt-16 lg:grid-cols-2 lg:gap-8">
             <article className="overflow-hidden rounded-[1.75rem] border border-[#202121]/10 bg-white p-5 sm:p-7">
               <div className="flex items-center justify-between gap-4">
@@ -338,11 +338,11 @@ export const MediaKitPage = () => {
         <div className="mx-auto flex max-w-7xl flex-col gap-8 sm:flex-row sm:items-end sm:justify-between">
           <div className="max-w-3xl">
             <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#202121]/60">Media & collaborations</p>
-            <h2 className="mt-3 text-[clamp(2.4rem,5.5vw,5rem)] font-black leading-[0.95] tracking-[-0.06em] text-[#202121]">Have an idea to bring inside?</h2>
-            <p className="mt-5 max-w-2xl text-base leading-relaxed text-[#202121]/75 sm:text-lg">For media inquiries, collaborations, or brand questions, get in touch with the Uni-Inside team.</p>
+            <h2 className="mt-3 text-[clamp(2.4rem,5.5vw,5rem)] font-black leading-[0.95] tracking-[-0.06em] text-[#202121]">{content.contact_heading}</h2>
+            <p className="mt-5 max-w-2xl text-base leading-relaxed text-[#202121]/75 sm:text-lg">{content.contact_description}</p>
           </div>
           <a href={`mailto:${email}`} className="group inline-flex min-h-14 w-fit shrink-0 items-center gap-3 rounded-full bg-[#202121] px-6 py-4 text-sm font-extrabold text-white transition-colors hover:bg-white hover:text-[#202121] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#202121] focus-visible:ring-offset-2 focus-visible:ring-offset-[#f9d02d] motion-reduce:transition-none">
-            <Mail size={17} aria-hidden="true" /> uninsidemed@gmail.com <ArrowUpRight size={16} className="transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 motion-reduce:transition-none" aria-hidden="true" />
+            <Mail size={17} aria-hidden="true" /> {email} <ArrowUpRight size={16} className="transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 motion-reduce:transition-none" aria-hidden="true" />
           </a>
         </div>
       </Reveal>

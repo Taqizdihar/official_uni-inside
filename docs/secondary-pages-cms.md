@@ -1,5 +1,7 @@
 # Secondary Pages CMS and Homepage visual refinement
 
+> V2 update (26 October 2026): fixed content slots and the manual Product banner have guarded read/write/public integration behind `SECONDARY_CONTENT_SLOTS_ENABLED=false`. This document records the earlier preview phase; see [the current activation matrix](aiven-v2-integration.md). Projects remains disabled.
+
 The logo rollback restores both complex-logo files exactly from dae65a65d24f89580ba0ed7158267aefba0f41b2. A backup branch and stash retain the pre-reset state and unrelated database changes. A normal rollback commit preserves remote history; no force push is used.
 
 ## Editors and API

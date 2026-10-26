@@ -33,7 +33,7 @@ export async function updateAccount(db:Pool,id:number,raw:unknown,actor:Actor,re
     const before=await repo.account(conn,id,true);
     if(!before)throw new HttpError(404,'NOT_FOUND','Akun tidak ditemukan.');
     const code=before.canonical_code as PlatformCode;
-    if(input.is_active===false && Number(before.is_active)===1 && await repo.references(conn,id)>0)throw new HttpError(409,'ACCOUNT_REFERENCED','Akun ini masih digunakan pada produk. Ganti akun pada produk terkait sebelum menonaktifkannya.');
+    if(input.is_active===false && Number(before.is_active)===1 && await repo.references(conn,id)>0)throw new HttpError(409,'ACCOUNT_REFERENCED','Akun ini masih digunakan pada produk atau penempatan publik. Ganti akun terkait sebelum menonaktifkannya.');
     const patch={
       ...(input.label_suffix!==undefined?{label:completeLabel(code,input.label_suffix)}:{}),
       ...(input.description!==undefined?{description:input.description||null}:{}),
@@ -52,7 +52,7 @@ export async function deleteAccount(db:Pool,id:number,actor:Actor,requestId:stri
   return transaction(db,async conn=>{
     const before=await repo.account(conn,id,true);
     if(!before)throw new HttpError(404,'NOT_FOUND','Akun tidak ditemukan.');
-    if(await repo.references(conn,id)>0)throw new HttpError(409,'ACCOUNT_REFERENCED','Akun ini masih digunakan pada produk. Ganti akun pada produk terkait sebelum menghapusnya.');
+    if(await repo.references(conn,id)>0)throw new HttpError(409,'ACCOUNT_REFERENCED','Akun ini masih digunakan pada produk atau penempatan publik. Ganti akun terkait sebelum menghapusnya.');
     await repo.remove(conn,id);
     await audit(conn,{actorId:actor.id,action:'social_links.delete',entityType:'social_links',entityId:id,requestId,before:{id,label:before.label,platform_code:before.canonical_code}});
     return {id};

@@ -116,9 +116,10 @@ describe('Our Team and Canva',()=>{
     await expect(saveTeam(fixture.db,{edit:{heading:'x'.repeat(16)},expectedVersion:saved.version},7,'editor',false,'req')).rejects.toMatchObject({status:400});
     await saveTeam(fixture.db,{edit:{heading:'x'.repeat(15)},expectedVersion:saved.version},7,'editor',false,'req');expect(fixture.calls.find(call=>call.sql.startsWith('UPDATE team_section_settings'))?.sql).toBe('UPDATE team_section_settings SET heading=?,updated_by=? WHERE id=1');
   });
-  it('authorizes template changes by canonical role and keeps persistence unavailable',()=>{
-    for(const role of ['editor','author','viewer']){expect(canManageTemplate(role)).toBe(false);expect(()=>updateTeamTemplate({url:'https://canva.link/template'},role)).toThrow(expect.objectContaining({status:403}));}
-    for(const role of ['super_admin','administrator']){expect(canManageTemplate(role)).toBe(true);expect(()=>updateTeamTemplate({url:'https://canva.link/template'},role)).toThrow(expect.objectContaining({status:503}));expect(()=>updateTeamTemplate({url:'javascript:alert(1)'},role)).toThrow(expect.objectContaining({status:400}));}
+  it('authorizes template changes by canonical role and keeps persistence unavailable',async()=>{
+    const db=aboutFixture().db;
+    for(const role of ['editor','author','viewer']){expect(canManageTemplate(role)).toBe(false);await expect(updateTeamTemplate(db,{url:'https://canva.link/template'},7,role,'req')).rejects.toMatchObject({status:403});}
+    for(const role of ['super_admin','administrator']){expect(canManageTemplate(role)).toBe(true);await expect(updateTeamTemplate(db,{url:'https://canva.link/template'},7,role,'req')).rejects.toMatchObject({status:503});await expect(updateTeamTemplate(db,{url:'javascript:alert(1)'},7,role,'req')).rejects.toMatchObject({status:400});}
   });
   it('requires card details and supports only valid configured member profiles',()=>{
     expect(validateTeamMember(member)).toEqual([]);

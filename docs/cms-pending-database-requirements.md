@@ -1,5 +1,7 @@
 # CMS database capability and pending requirements
 
+> V2 integration update (26 October 2026): guarded backend/CMS/public paths for About editorial content, Contact/Footer placements, Homepage News, and secondary page slots are now prepared behind default-disabled flags. Production schema compatibility and activation remain unverified. Read [the current V2 handoff](aiven-v2-integration.md) before treating the older “pending/read-only” rows below as runtime status.
+
 This is a planning reference, not an authorization to change the schema. The separate database reconciliation work owns migration 001 checksums, missing CHECK constraints, prepared 002–004 migrations, and any Aiven execution. Its live state must be verified independently; repository files alone do not establish which migrations ran in production.
 
 | Capability | Current status | Schema requirement |

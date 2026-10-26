@@ -1,5 +1,7 @@
 # Homepage CMS V2 handoff
 
+> V2 update (26 October 2026): Contact placement/Craft and Homepage News latest/manual selection now have guarded persistence and public paths, with `CONTACT_PLACEMENTS_ENABLED=false` and `HOMEPAGE_NEWS_SELECTION_ENABLED=false` by default. Popular remains disabled. The paragraphs below describe the earlier preview state; see [the current handoff](aiven-v2-integration.md).
+
 Five sidebar destinations now open dedicated Contact Us, Achievements, News, Services, and Products pages. The fixed forms save only approved columns. The existing public ScrollStory, telephone physics, and Services carousel remain in place. Product heading artwork stays locked and renders the Crafts logo regardless of a legacy `homepage_section_settings.heading` value.
 
 | Page | Persisted fields and code-point limits | Storage |

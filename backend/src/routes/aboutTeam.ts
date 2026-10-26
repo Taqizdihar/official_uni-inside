@@ -7,14 +7,17 @@ import {asyncRoute,parse} from '../utils/http';
 import {getAbout,getTeam,saveAbout,saveTeam,updateTeamTemplate} from '../services/aboutTeam';
 import {listHomepageCollection,saveHomepageCollection,type HomepageCollection} from '../services/homepageCollections';
 import {remove} from '../services/content';
+import {getAboutEditorial,saveAboutEditorial} from '../services/aboutEditorialV2';
 
 export function aboutTeamRoutes(config:Config,db:Pool){
   const router=Router(),signedIn=auth(config,db),mutate=csrf(config);
   router.get('/admin/homepage/about',signedIn,permit('homepage.view'),asyncRoute(async(_req,res)=>{res.set('Cache-Control','no-store').json({data:{...await getAbout(db),managedPartners:config.PARTNERS_PUBLIC_ENABLED}});}));
   router.patch('/admin/homepage/about',signedIn,mutate,permit('homepage.update'),asyncRoute(async(req,res)=>{res.set('Cache-Control','no-store').json({data:{...await saveAbout(db,req.body,req.actor!.id,req.requestId),managedPartners:config.PARTNERS_PUBLIC_ENABLED}});}));
-  router.get('/admin/homepage/team',signedIn,permit('homepage.view'),asyncRoute(async(req,res)=>{res.set('Cache-Control','no-store').json({data:await getTeam(db,req.actor!.roleCode,config.TEAM_MEMBERS_PUBLIC_ENABLED)});}));
-  router.patch('/admin/homepage/team',signedIn,mutate,permit('homepage.update'),asyncRoute(async(req,res)=>{res.set('Cache-Control','no-store').json({data:await saveTeam(db,req.body,req.actor!.id,req.actor!.roleCode,config.TEAM_MEMBERS_PUBLIC_ENABLED,req.requestId)});}));
-  router.patch('/admin/homepage/team/template',signedIn,mutate,allowRoles('super_admin','administrator'),asyncRoute(async(req,res)=>{updateTeamTemplate(req.body,req.actor!.roleCode);res.end();}));
+  router.get('/admin/homepage/about/editorial',signedIn,permit('homepage.view'),asyncRoute(async(_req,res)=>{res.set('Cache-Control','no-store').json({data:await getAboutEditorial(db,config.ABOUT_EDITORIAL_V2_ENABLED)});}));
+  router.patch('/admin/homepage/about/editorial',signedIn,mutate,permit('homepage.update'),asyncRoute(async(req,res)=>{res.set('Cache-Control','no-store').json({data:await saveAboutEditorial(db,req.body,req.actor!.id,req.requestId,config.ABOUT_EDITORIAL_V2_ENABLED)});}));
+  router.get('/admin/homepage/team',signedIn,permit('homepage.view'),asyncRoute(async(req,res)=>{res.set('Cache-Control','no-store').json({data:await getTeam(db,req.actor!.roleCode,config.TEAM_MEMBERS_PUBLIC_ENABLED,config.TEAM_TEMPLATE_ENABLED)});}));
+  router.patch('/admin/homepage/team',signedIn,mutate,permit('homepage.update'),asyncRoute(async(req,res)=>{res.set('Cache-Control','no-store').json({data:await saveTeam(db,req.body,req.actor!.id,req.actor!.roleCode,config.TEAM_MEMBERS_PUBLIC_ENABLED,req.requestId,config.TEAM_TEMPLATE_ENABLED)});}));
+  router.patch('/admin/homepage/team/template',signedIn,mutate,allowRoles('super_admin','administrator'),asyncRoute(async(req,res)=>{res.set('Cache-Control','no-store').json({data:await updateTeamTemplate(db,req.body,req.actor!.id,req.actor!.roleCode,req.requestId,config.TEAM_TEMPLATE_ENABLED)});}));
   for(const [kind,path,scope] of [
     ['team-members','/admin/homepage/team/members','team'],
     ['partners','/admin/homepage/about/partners','partners'],

@@ -1,5 +1,7 @@
 # Our Team and About Us CMS
 
+> V2 update (26 October 2026): About editorial text/lists and the Canva template now have guarded persistence paths (`ABOUT_EDITORIAL_V2_ENABLED=false`, `TEAM_TEMPLATE_ENABLED=false` by default). Existing four individual Team profile fields remain in use; normalized V2 social-link storage awaits its exact schema contract. The preview-only descriptions below document the earlier state; see [the current handoff](aiven-v2-integration.md).
+
 The canonical pages are `/admin/homepage/team-section-settings` and `/admin/homepage/about-settings`. Existing sidebar entries are reused. Old fixed-slot URLs redirect to these editors; generic Team/Partner CMS URLs open the corresponding dedicated page. Generic Team/Partner APIs remain available to legitimate clients. Generic About/Team fixed writes and revision restoration cannot bypass the new restricted-field contract.
 
 ## Fixed forms and current persistence

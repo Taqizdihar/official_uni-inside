@@ -176,13 +176,31 @@ export async function mediaById(db: Executor, id: number) {
 export async function categoryReferenceCount(db: Executor, table: 'products'|'services'|'news_articles', categoryId: number) {
   return Number((await rows<RowDataPacket>(db,`SELECT COUNT(*) AS count FROM ${ident(table)} WHERE category_id=? AND deleted_at IS NULL`,[categoryId]))[0]?.count??0);
 }
-export async function publicSite(db: Executor) {
+export async function publicSite(db: Executor, useSecondarySlots=false,useFooterV2=false) {
   const site = (await rows<RowDataPacket>(db, 'SELECT site_name,tagline,public_email,public_phone,whatsapp_number,address_text,footer_description,default_meta_title,default_meta_description,default_og_media_id FROM site_settings WHERE id=1'))[0] ?? null;
   const socialLinks = await rows<RowDataPacket>(db, 'SELECT platform_code,label,url,icon_key,sort_order FROM social_links WHERE is_active=1 ORDER BY sort_order,id LIMIT 24');
   const pages = await rows<RowDataPacket>(db, 'SELECT page_key,eyebrow,heading,description,primary_cta_label,primary_cta_url,meta_title,meta_description,og_media_id FROM page_settings ORDER BY page_key');
-  return { site, socialLinks, pages };
+  if(useSecondarySlots){
+    const {secondarySlotsReady}=await import('../services/secondaryPages');
+    if(await secondarySlotsReady(db)){
+      const slots=await rows<RowDataPacket>(db,`SELECT p.page_key,s.slot_key,s.value_type,s.text_value,s.media_id,m.secure_url,m.alt_text
+        FROM secondary_page_content_slots AS s JOIN page_settings AS p ON p.id=s.page_settings_id
+        LEFT JOIN media_assets AS m ON m.id=s.media_id AND m.deleted_at IS NULL
+        WHERE p.page_key IN ('products','services','news','media_kit') ORDER BY p.page_key,s.slot_key`);
+      for(const page of pages){
+        page.slots=Object.fromEntries(slots.filter(slot=>slot.page_key===page.page_key&&['text','mode'].includes(String(slot.value_type))).map(slot=>[slot.slot_key,slot.text_value]));
+        if(page.page_key==='products'){
+          const banner=slots.find(slot=>slot.page_key==='products'&&slot.slot_key==='banner_media_id'&&slot.value_type==='media');
+          page.banner_media=banner?.secure_url?{id:Number(banner.media_id),secure_url:String(banner.secure_url),alt_text:String(banner.alt_text??'')}:null;
+        }
+      }
+    }
+  }
+  const footer=useFooterV2?await (await import('../services/footerV2')).publicFooterV2(db,true):null;
+  if(site&&footer?.mapUrl)site.google_maps_embed_url=footer.mapUrl;
+  return { site, socialLinks, pages,footerSocialPlacements:footer?.accounts??null };
 }
-export async function publicHomepageSettings(db: Executor, threeLineHero=false) {
+export async function publicHomepageSettings(db: Executor, threeLineHero=false,contactEnabled=false,aboutEditorialEnabled=false) {
   const sections = await rows<RowDataPacket>(db, 'SELECT section_key,eyebrow,heading,description,primary_cta_label,primary_cta_url,is_visible FROM homepage_section_settings ORDER BY section_key');
   const hero = (await rows<RowDataPacket>(db, `SELECT eyebrow,heading_line_1,heading_line_2,${threeLineHero?'heading_line_3,':''}description_line_1,description_line_2,intro_enabled,default_workspace FROM hero_settings WHERE id=1`))[0] ?? null;
   const heroTrustSignals = await rows<RowDataPacket>(db, 'SELECT slot,numeric_value,suffix,label,is_visible FROM hero_trust_signals ORDER BY slot');
@@ -195,5 +213,7 @@ export async function publicHomepageSettings(db: Executor, threeLineHero=false) 
   const achievements = (await rows<RowDataPacket>(db, 'SELECT eyebrow,heading,description FROM achievement_section_settings WHERE id=1'))[0] ?? null;
   const contact = (await rows<RowDataPacket>(db, 'SELECT eyebrow,heading,description,email_label,phone_label,whatsapp_cta_label FROM contact_section_settings WHERE id=1'))[0] ?? null;
   const chatMessages = await rows<RowDataPacket>(db, 'SELECT message_text,speaker,sort_order FROM contact_chat_messages WHERE is_active=1 ORDER BY sort_order,id LIMIT 16');
-  return { sections, hero, heroTrustSignals, heroWorkspaces, heroHotspots, about, aboutWorkspaces, aboutPrinciples, aboutEditorial:aboutPreviewDefaults, team, achievements, contact, chatMessages };
+  const contactPlacement=contactEnabled?await (await import('../services/contactPlacements')).publicContactPlacements(db,true):null;
+  const editorial=aboutEditorialEnabled?await (await import('../services/aboutEditorialV2')).getAboutEditorial(db,true):null;
+  return { sections, hero, heroTrustSignals, heroWorkspaces, heroHotspots, about, aboutWorkspaces, aboutPrinciples, aboutEditorial:editorial?.enabled?editorial.edit:aboutPreviewDefaults, team, achievements, contact,contactPlacement, chatMessages };
 }

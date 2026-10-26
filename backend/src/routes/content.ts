@@ -17,6 +17,7 @@ import { getHero, heroThreeLineReady, saveHero } from '../services/hero';
 import {getSection,saveSection,sectionNames} from '../services/homepageSections';
 import {linkDestinations} from '../services/linkDestinations';
 import {reorderAchievements} from '../services/achievementOrder';
+import {publicHomepageNews} from '../services/homepageNewsSelection';
 
 const heroResources = new Set(['hero-settings','hero-trust-signals','hero-workspaces','hero-hotspots']);
 
@@ -28,10 +29,12 @@ export function publicContentRoutes(db: Pool, config?: Config) {
   router.get('/news/categories', asyncRoute(async (_req,res) => {
     res.set('Cache-Control','public, max-age=60').json({ data: await repo.publicNewsCategories(db) });
   }));
-  router.get('/site', asyncRoute(async (_req,res) => { res.set('Cache-Control','public, max-age=60').json({ data: await repo.publicSite(db) }); }));
+  router.get('/site', asyncRoute(async (_req,res) => { res.set('Cache-Control','public, max-age=60').json({ data: await repo.publicSite(db,config?.SECONDARY_CONTENT_SLOTS_ENABLED,config?.FOOTER_V2_ENABLED) }); }));
   router.get('/homepage', asyncRoute(async (_req,res) => {
-    const settings = await repo.publicHomepageSettings(db,config?await heroThreeLineReady(db,config):false);
+    const settings = await repo.publicHomepageSettings(db,config?await heroThreeLineReady(db,config):false,config?.CONTACT_PLACEMENTS_ENABLED,config?.ABOUT_EDITORIAL_V2_ENABLED);
     const featured = Object.fromEntries(await Promise.all(publicNames.map(async name => [name, await repo.publicList(db,resources[name]!,name === 'products' || name === 'news' ? 6 : 12,0)])));
+    const selectedNews=await publicHomepageNews(db,config?.HOMEPAGE_NEWS_SELECTION_ENABLED);
+    if(selectedNews)featured.news=selectedNews;
     res.set('Cache-Control','public, max-age=60').json({ data: { ...settings, featured,capabilities:{managedTeam:config?.TEAM_MEMBERS_PUBLIC_ENABLED??false,managedPartners:config?.PARTNERS_PUBLIC_ENABLED??false} } });
   }));
   for (const name of publicNames) {

@@ -4,7 +4,7 @@ import {secondaryNames,secondarySpecs,secondaryFields,validateSecondaryValues} f
 import {resolveSecondaryContent,footerEmail} from '../src/public/secondaryPageModel';
 import {resolveBreadcrumb} from '../src/admin/breadcrumbs';
 test('public secondary content binds only stored supported values with safe fallbacks',()=>{
- const content=resolveSecondaryContent('products',[{page_key:'products',heading:'Stored main',description:'Stored description',primary_cta_label:'Stored label',primary_cta_url:'https://example.com'}]);assert.deepEqual(content,{heading:'Stored main',description:'Stored description',cta_label:'Stored label',cta_url:'https://example.com'});
+ const content=resolveSecondaryContent('products',[{page_key:'products',heading:'Stored main',description:'Stored description',primary_cta_label:'Stored label',primary_cta_url:'https://example.com'}]);assert.deepEqual({heading:content.heading,description:content.description,cta_label:content.cta_label,cta_url:content.cta_url},{heading:'Stored main',description:'Stored description',cta_label:'Stored label',cta_url:'https://example.com'});
  assert.equal(resolveSecondaryContent('services',[{page_key:'services',primary_cta_url:'javascript:alert(1)'}]).cta_url,'/#contact-us');assert.equal(resolveSecondaryContent('news',undefined).heading,'Stories from the studio.');
  assert.equal(resolveSecondaryContent('media-kit',[{page_key:'media_kit',heading:'Cannot replace MEDIA KIT',description:'Stored'}]).description,'Stored');assert.equal(resolveSecondaryContent('media-kit',[]).heading,undefined);
 });

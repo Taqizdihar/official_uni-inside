@@ -1,5 +1,7 @@
 # Footer CMS implementation and persistence handoff
 
+> V2 update (26 October 2026): Footer social placements and Maps URL now have guarded one-save persistence and public paths behind `FOOTER_V2_ENABLED=false`. The earlier preview-only notes below remain historical; see [the current handoff](aiven-v2-integration.md).
+
 ## Current behavior
 
 `/admin/site/footer` is the only Footer menu destination. `/admin/site/site-settings` and its former record URLs redirect to it. The page has one form and one primary **Simpan Perubahan** action. It shows six business inputs: Footer description, Social Media placements, email, phone, location, and Google Maps embed URL. Static Footer navigation links have no editor.

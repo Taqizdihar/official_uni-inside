@@ -1,5 +1,7 @@
 # Centralized Social Media CMS handoff
 
+> V2 update (26 October 2026): guarded Contact and Footer placement paths now check account references before deactivation/deletion. Production V2 schema and history are still unverified. See [the current handoff](aiven-v2-integration.md).
+
 ## Delivered behavior
 
 `/admin/site/social-links` is the single sidebar destination for **Manajemen Sosial Media**. It has horizontal keyboard-operated platform tabs, a searchable catalog of 12 platforms with explicit `react-icons` mappings, account cards, and add/edit/delete dialogs. Legacy codes such as `instagram_studio` and `instagram_craft` group under one Instagram tab. Unknown legacy codes remain visible for administrative review but cannot be used to create new accounts. Existing account IDs, URLs, and labels are never rewritten merely by viewing them. The old per-record editor route remains available from the read-only preview while the new capability is off.

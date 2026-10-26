@@ -32,7 +32,8 @@ const mockEvents = [
 export const EventsSection = forwardRef<HTMLDivElement, {}>((props, ref) => {
   const {homepage,news}=usePublicContent();
   const section=homepage?.sections?.find(item=>item.section_key==='news'&&item.is_visible!==0);
-  const events=news===null?mockEvents:news.slice(0,4).map(item=>({id:item.id,slug:item.slug,date:item.published_at?new Date(item.published_at).toLocaleDateString():'',title:String(item.title),description:String(item.excerpt||''),image:String(item.image?.secure_url||mockEvents[0].image)}));
+  const selected=homepage?.featured?.news??news;
+  const events=selected===null||selected===undefined?mockEvents:selected.slice(0,4).map(item=>({id:item.id,slug:item.slug,date:item.published_at?new Date(item.published_at).toLocaleDateString():'',title:String(item.title),description:String(item.excerpt||''),image:String(item.image?.secure_url||mockEvents[0].image)}));
 
   return (
     <div className="w-full flex flex-col px-8 lg:px-24">
@@ -88,7 +89,7 @@ export const EventsSection = forwardRef<HTMLDivElement, {}>((props, ref) => {
           </motion.div>
         ))}
       </div>
-      {news?.length===0&&<p className="text-[#202121]/70">No news published yet.</p>}
+      {selected?.length===0&&<p className="text-[#202121]/70">No news published yet.</p>}
     </div>
   );
 });

@@ -4,6 +4,9 @@ import { Link, useLocation } from 'react-router-dom';
 import logoDarkTheme from '../assets/global/Logo - Dark Theme.svg';
 import { usePublicContent } from '../public/client';
 import {PUBLIC_FOOTER_MAP_URL} from '../config/footerMap';
+import {platformCodes,type PlatformCode} from '../admin/social/model';
+import {platformIcons} from '../admin/social/platformCatalog';
+import {validMapsEmbed} from '../admin/footer/model';
 
 export const Footer = () => {
   const { site } = usePublicContent();
@@ -16,12 +19,14 @@ export const Footer = () => {
     { id: 'tiktok', Icon: FaTiktok, url: 'https://www.tiktok.com/@uniinside.studio?is_from_webapp=1&sender_device=pc' },
     { id: 'linkedin', Icon: FaLinkedinIn, url: 'https://www.linkedin.com/company/uni-inside-studio' },
   ];
-  const socialLinks = staticSocialLinks.map(item=>({ ...item,url:site?.socialLinks?.find(link=>link.platform_code===item.id)?.url||item.url }));
+  const stored=site?.footerSocialPlacements?.filter(item=>platformCodes.includes(item.platform_code as PlatformCode)&&item.url.startsWith('https://'));
+  const socialLinks = stored?.length?stored.map(item=>({id:`${item.platform_code}-${item.id}`,Icon:platformIcons[item.platform_code as PlatformCode],url:item.url,label:item.label})):staticSocialLinks.map(item=>({ ...item,url:site?.socialLinks?.find(link=>link.platform_code===item.id)?.url||item.url,label:item.id }));
   const settings = site?.site;
   const phone = String(settings?.public_phone||'+62 813-1655-6908');
   const email = String(settings?.public_email||'uninsidemed@gmail.com');
   const emailHref=`mailto:${encodeURIComponent(email)}`;
   const phoneHref=`tel:${phone.replace(/[^+\d]/g,'')}`;
+  const mapUrl=typeof settings?.google_maps_embed_url==='string'?validMapsEmbed(settings.google_maps_embed_url)??PUBLIC_FOOTER_MAP_URL:PUBLIC_FOOTER_MAP_URL;
 
   return (
     <footer className="w-full bg-[#202121] text-[#f0f0f0] z-10 relative border-t border-[#333] pt-16 pb-8">
@@ -46,7 +51,7 @@ export const Footer = () => {
                   href={social.url} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  aria-label={`Buka ${social.id} di tab baru`}
+                  aria-label={`Buka ${social.label} di tab baru`}
                   className="w-10 h-10 rounded-full bg-[#333] flex items-center justify-center text-white hover:bg-[#f9d02d] hover:text-[#202121] transition-all duration-300"
                 >
                   <social.Icon className="w-5 h-5" />
@@ -121,7 +126,7 @@ export const Footer = () => {
             <h4 className="text-white font-bold tracking-widest uppercase mb-6 text-sm">Find Us</h4>
             <div className="w-full h-[200px] rounded-2xl overflow-hidden border-2 border-[#333] shadow-lg">
               <iframe 
-                src={PUBLIC_FOOTER_MAP_URL}
+                src={mapUrl}
                 title="Peta lokasi Uni-Inside"
                 className="w-full h-full" 
                 style={{ border: 0 }} 

@@ -10,7 +10,7 @@ import {csrfToken} from '../src/middleware/auth';
 const config=loadConfig({DB_HOST:'localhost',DB_NAME:'isolated',DB_USER:'test',AUTH_TOKEN_PEPPER:'a'.repeat(40),ANALYTICS_HASH_PEPPER:'b'.repeat(40),LOG_LEVEL:'silent'});
 function fixture(fail=false,permissions=['settings.view','settings.update']){
  const state:Record<string,Record<string,unknown>>={};
- for(const name of secondaryNames)state[secondarySpecs[name].pageKey]=Object.fromEntries(supportedSecondaryFields(name).map(field=>[field.column,field.fallback]));
+ for(const [index,name] of secondaryNames.entries())state[secondarySpecs[name].pageKey]={id:index+1,...Object.fromEntries(supportedSecondaryFields(name).map(field=>[field.column,field.fallback]))};
  const calls:{sql:string;values:unknown[]}[]=[];let before=structuredClone(state);
  const execute=async(options:{sql:string},values:unknown[]=[])=>{
   const sql=options.sql;calls.push({sql,values});
@@ -18,7 +18,7 @@ function fixture(fail=false,permissions=['settings.view','settings.update']){
   if(sql.includes('FROM role_permissions'))return [permissions.map(code=>({code})),[]];
   if(sql.startsWith('UPDATE auth_sessions'))return [{affectedRows:1},[]];
   if(sql.startsWith('SELECT ')&&sql.includes('FROM page_settings'))return [[state[String(values[0]??'projects')]],[]];
-  if(sql.startsWith('UPDATE page_settings')){const columns=sql.split(' SET ')[1]!.split(',updated_by')[0]!.split(',').map(item=>item.split('=')[0]!);const key=String(values.at(-1));columns.forEach((column,index)=>{state[key]![column]=values[index];});}
+  if(sql.startsWith('UPDATE page_settings')){const columns=sql.split(' SET ')[1]!.split(',updated_by')[0]!.split(',').map(item=>item.split('=')[0]!);const key=Object.keys(state).find(item=>state[item]?.id===values.at(-1))!;columns.forEach((column,index)=>{state[key]![column]=values[index];});}
   else if(sql.includes('MAX(revision_number)'))return [[{next:1}],[]];
   else if(sql.startsWith('INSERT INTO audit_logs')){if(fail)throw new Error('Logging failed');}
   else if(!sql.startsWith('INSERT INTO content_revisions'))throw new Error(sql);
@@ -44,7 +44,7 @@ describe('Secondary page fixed contracts',()=>{
 });
 describe('Secondary persistence and gates',()=>{
  it('updates only approved existing columns and writes audit and revision atomically',async()=>{
-  const f=fixture();f.state.products!.meta_title='Preserve existing metadata';const before=await getSecondaryPage(f.db,'products');const result=await saveSecondaryPage(f.db,'products',{edit:{...before.edit,heading:'New heading'},expectedVersion:before.version},7,'req');expect(result.edit.heading).toBe('New heading');expect(f.state.products!.meta_title).toBe('Preserve existing metadata');expect(f.calls.find(call=>call.sql.startsWith('UPDATE page_settings'))?.sql).toBe('UPDATE page_settings SET heading=?,updated_by=? WHERE page_key=?');expect(f.calls.some(call=>call.sql.startsWith('INSERT INTO audit_logs'))).toBe(true);expect(f.calls.some(call=>call.sql.startsWith('INSERT INTO content_revisions'))).toBe(true);expect(f.calls.at(-1)?.sql).toBe('COMMIT');
+  const f=fixture();f.state.products!.meta_title='Preserve existing metadata';const before=await getSecondaryPage(f.db,'products');const result=await saveSecondaryPage(f.db,'products',{edit:{...before.edit,heading:'New heading'},expectedVersion:before.version},7,'req');expect(result.edit.heading).toBe('New heading');expect(f.state.products!.meta_title).toBe('Preserve existing metadata');expect(f.calls.find(call=>call.sql.startsWith('UPDATE page_settings'))?.sql).toBe('UPDATE page_settings SET heading=?,updated_by=? WHERE id=?');expect(f.calls.some(call=>call.sql.startsWith('INSERT INTO audit_logs'))).toBe(true);expect(f.calls.some(call=>call.sql.startsWith('INSERT INTO content_revisions'))).toBe(true);expect(f.calls.at(-1)?.sql).toBe('COMMIT');
  });
  it('rejects pending and SEO properties, invalid values, and stale versions',async()=>{
   const f=fixture(),before=await getSecondaryPage(f.db,'products');

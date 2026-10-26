@@ -3,7 +3,7 @@ import type {SocialAccount} from '../social/model';
 export type FooterFields={footer_description:string|null;public_email:string|null;public_phone:string|null;address_text:string|null};
 export type FooterSocialPlacement={social_link_id:number;position:number};
 export type FooterCapabilities={footerBaseSettings:{enabled:boolean};footerSocialPlacements:{enabled:boolean;reason?:string};footerMapsEmbed:{enabled:boolean;reason?:string}};
-export type FooterResponse={settings:FooterFields;capabilities:FooterCapabilities};
+export type FooterResponse={settings:FooterFields;capabilities:FooterCapabilities;socialLinkIds?:number[];mapUrl?:string;version?:string};
 export const maxFooterAccounts=10;
 export const pendingFooterCapabilities:FooterCapabilities={footerBaseSettings:{enabled:true},footerSocialPlacements:{enabled:false,reason:'DATABASE_MIGRATION_PENDING'},footerMapsEmbed:{enabled:false,reason:'DATABASE_MIGRATION_PENDING'}};
 export const emptyFooterFields:FooterFields={footer_description:null,public_email:null,public_phone:null,address_text:null};
