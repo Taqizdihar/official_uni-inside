@@ -31,6 +31,7 @@ function ProductCard({ product, index, preview }: { product: CraftProduct; index
     <div className="flex flex-1 flex-col border-t border-[#202121]/20 pt-4">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1"><h3 className="min-w-0 max-w-full break-words text-xl font-extrabold leading-tight tracking-[-.035em] text-[#202121] sm:text-2xl">{href ? <Link to={href} className="hover:underline hover:decoration-[#f9d02d] hover:decoration-4 hover:underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#202121]">{name}</Link> : name}</h3>{price && <p className="max-w-full text-sm font-bold text-[#202121]/75">{price}</p>}</div>
       {product.short_description?.trim() && <p className="mt-2 max-w-[46ch] text-sm leading-relaxed text-[#202121]/65">{product.short_description}</p>}
+      {product.price_note?.trim() && formatProductPrice(product.base_price, product.currency_code) && <p className="mt-2 max-w-[46ch] text-xs leading-relaxed text-[#202121]/55">{product.price_note}</p>}
       {href && <Link to={href} className="mt-auto inline-flex w-fit items-center gap-2 pt-5 text-xs font-extrabold uppercase tracking-[.12em] text-[#202121] underline decoration-[#202121]/25 underline-offset-4 transition-colors hover:decoration-[#202121] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#202121]">View details <ArrowUpRight size={16} aria-hidden="true" /></Link>}
     </div>
   </article>;
@@ -39,16 +40,16 @@ function ProductCard({ product, index, preview }: { product: CraftProduct; index
 function Catalogue({ products, loading, error, retry, preview }: CatalogueProps) {
   const content=useSecondaryContent('products');
   const [query, setQuery] = useState('');
-  const [typeFilter, setTypeFilter] = useState<'all' | 'ready_made' | 'custom'>('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'ready_made' | 'custom' | 'both'>('all');
   const [sort, setSort] = useState<'default' | 'name'>('default');
   const collection = products ?? [];
   const visibleProducts = useMemo(() => {
     const term = query.trim().toLocaleLowerCase('en');
-    const matching = collection.filter((product) => (typeFilter === 'all' || product.product_type === typeFilter || product.product_type === 'both') && (!term || `${product.name ?? ''} ${product.short_description ?? ''}`.toLocaleLowerCase('en').includes(term)));
+    const matching = collection.filter((product) => (typeFilter === 'all' || product.product_type === typeFilter || typeFilter !== 'both' && product.product_type === 'both') && (!term || `${product.name ?? ''} ${product.short_description ?? ''}`.toLocaleLowerCase('en').includes(term)));
     return sort === 'name' ? matching.sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '', 'en')) : matching;
   }, [collection, query, typeFilter, sort]);
   const heroProduct = collection.find((product) => product.image?.secure_url);
-  const heroImage = !preview&&content.banner_media_url?{secure_url:content.banner_media_url,alt_text:content.banner_media_alt}:heroProduct?.image ?? craftPreviewItems[1].image;
+  const heroImage = !preview && content.banner_media_url ? { secure_url: content.banner_media_url, alt_text: content.banner_media_alt } : heroProduct?.image ?? (preview ? craftPreviewItems[1].image : null);
   const isInitialLoading = !preview && loading && products === null && !error;
 
   return <StaticPageLayout activePage="PRODUCTS">
@@ -62,8 +63,8 @@ function Catalogue({ products, loading, error, retry, preview }: CatalogueProps)
         </div>
         <div className={`relative hidden h-[280px] overflow-hidden border border-white/15 bg-[#303230] lg:block ${styles.revealLate}`}>
           <span className="absolute left-5 top-5 z-10 text-[10px] font-bold uppercase tracking-[.2em] text-white/65">The object / 01</span><div className="absolute inset-x-7 bottom-14 top-12 border border-white/10" aria-hidden="true" />
-          <CraftImage src={heroImage?.secure_url} alt={heroImage?.alt_text || 'Craft object artwork'} width={'width_px' in heroImage?heroImage.width_px:undefined} height={'height_px' in heroImage?heroImage.height_px:undefined} loading="eager" className="relative z-0 h-full w-full object-contain p-9" />
-          <p className="absolute bottom-4 left-5 right-5 z-10 border-t border-white/20 pt-3 text-[11px] font-medium text-white/70">{!preview && heroProduct ? heroProduct.name : 'Illustrative workshop visual — not a published listing'}</p>
+          {heroImage ? <CraftImage src={heroImage.secure_url} alt={heroImage.alt_text || 'Craft object artwork'} width={'width_px' in heroImage ? heroImage.width_px : undefined} height={'height_px' in heroImage ? heroImage.height_px : undefined} loading="eager" className="relative z-0 h-full w-full object-contain p-9" /> : <p className="relative z-0 grid h-full place-items-center px-10 text-center text-sm text-white/60">Published objects will appear here.</p>}
+          {heroImage && <p className="absolute bottom-4 left-5 right-5 z-10 border-t border-white/20 pt-3 text-[11px] font-medium text-white/70">{preview ? 'Illustrative workshop visual — not a published listing' : content.banner_media_url ? 'From the Uni-Inside Craft collection' : heroProduct?.name}</p>}
         </div>
       </div>
     </div></section>
@@ -72,7 +73,7 @@ function Catalogue({ products, loading, error, retry, preview }: CatalogueProps)
       <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#202121]/25 pb-4"><div><p className="text-[11px] font-extrabold uppercase tracking-[.2em] text-[#202121]/55">The collection / 3D printed objects</p><h2 id="craft-catalogue-heading" className="mt-2 text-[clamp(2rem,3.4vw,3.6rem)] font-black leading-none tracking-[-.055em] text-[#202121]">{preview?'Browse the objects':content.listing_heading}</h2></div><p className="text-xs font-semibold uppercase tracking-[.12em] text-[#202121]/60" aria-live="polite">{error ? 'Collection unavailable' : isInitialLoading ? 'Checking the collection' : collection.length ? `${visibleProducts.length} of ${collection.length} ${preview ? 'sample objects loaded' : 'published objects loaded · up to 60 shown'}` : '0 published objects loaded'}</p></div>
       {!error && !isInitialLoading && collection.length > 0 && <div className="grid gap-3 border-b border-[#202121]/15 py-3 lg:grid-cols-[minmax(240px,1fr)_auto_auto] lg:items-end lg:gap-6">
         <label className="relative block max-w-md"><span className="mb-2 block text-[10px] font-extrabold uppercase tracking-[.15em] text-[#202121]/60">Search loaded objects</span><Search size={18} className="pointer-events-none absolute bottom-[13px] left-3 text-[#202121]/50" aria-hidden="true" /><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Name or description" className="w-full border border-[#202121]/25 bg-white py-2.5 pl-10 pr-3 text-sm text-[#202121] outline-none transition-colors placeholder:text-[#202121]/40 focus:border-[#202121] focus-visible:ring-2 focus-visible:ring-[#f9d02d]" /></label>
-        <div role="group" aria-label="Filter by product type"><p className="mb-2 text-[10px] font-extrabold uppercase tracking-[.15em] text-[#202121]/60">Product type</p><div className="flex flex-wrap gap-1.5">{([['all', 'All'], ['ready_made', 'Ready-made'], ['custom', 'Custom']] as const).map(([value, label]) => <button key={value} type="button" onClick={() => setTypeFilter(value)} aria-pressed={typeFilter === value} className={`border px-3 py-2 text-xs font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#202121] ${typeFilter === value ? 'border-[#202121] bg-[#202121] text-white' : 'border-[#202121]/25 bg-transparent text-[#202121] hover:border-[#202121]'}`}>{label}</button>)}</div></div>
+        <div role="group" aria-label="Filter by product type"><p className="mb-2 text-[10px] font-extrabold uppercase tracking-[.15em] text-[#202121]/60">Product type</p><div className="flex flex-wrap gap-1.5">{([['all', 'All'], ['ready_made', 'Ready-made'], ['custom', 'Custom'], ['both', 'Both']] as const).map(([value, label]) => <button key={value} type="button" onClick={() => setTypeFilter(value)} aria-pressed={typeFilter === value} className={`border px-3 py-2 text-xs font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#202121] ${typeFilter === value ? 'border-[#202121] bg-[#202121] text-white' : 'border-[#202121]/25 bg-transparent text-[#202121] hover:border-[#202121]'}`}>{label}</button>)}</div></div>
         <label className="block min-w-[150px]"><span className="mb-2 block text-[10px] font-extrabold uppercase tracking-[.15em] text-[#202121]/60">Sort loaded objects</span><select value={sort} onChange={(event) => setSort(event.target.value as 'default' | 'name')} className="w-full border border-[#202121]/25 bg-white px-3 py-2.5 text-xs font-bold text-[#202121] outline-none focus:border-[#202121] focus-visible:ring-2 focus-visible:ring-[#f9d02d]"><option value="default">Collection order</option><option value="name">Name A–Z</option></select></label>
       </div>}
 

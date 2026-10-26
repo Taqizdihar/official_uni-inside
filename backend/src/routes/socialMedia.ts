@@ -17,7 +17,7 @@ export function socialMediaRoutes(config:Config,db:Pool){
   router.get('/admin/social-media/accounts',signedIn,permit('settings.view'),asyncRoute(async(req,res)=>{await ready();res.set('Cache-Control','no-store').json({data:await social.listAccounts(db,req.actor!)});}));
   router.get('/admin/social-media/accounts/:id',signedIn,permit('settings.view'),asyncRoute(async(req,res)=>{await ready();res.set('Cache-Control','no-store').json({data:await social.getAccount(db,parse(idParam,req.params.id),req.actor!)});}));
   router.get('/admin/social-media/whatsapp-options',signedIn,asyncRoute(async(req,res)=>{
-    if(!req.actor?.permissions.has('products.create')&&!req.actor?.permissions.has('settings.view'))throw new HttpError(403,'FORBIDDEN','Anda tidak memiliki izin melihat pilihan WhatsApp.');
+    if(!req.actor?.permissions.has('products.create')&&!req.actor?.permissions.has('products.update')&&!req.actor?.permissions.has('settings.view'))throw new HttpError(403,'FORBIDDEN','Anda tidak memiliki izin melihat pilihan WhatsApp.');
     await ready();res.set('Cache-Control','no-store').json({data:await whatsappOptions(db)});
   }));
   router.post('/admin/social-media/accounts',signedIn,mutate,permit('settings.update'),asyncRoute(async(req,res)=>{await ready();res.status(201).json({data:await social.createAccount(db,req.body,req.actor!,req.requestId)});}));

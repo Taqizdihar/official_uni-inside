@@ -91,15 +91,27 @@ export function publicNewsCategories(db: Executor) {
   return rows<RowDataPacket>(db, `SELECT c.id,c.name,c.slug FROM news_categories c
     WHERE c.is_active=1 AND EXISTS (
       SELECT 1 FROM news_articles n WHERE n.category_id=c.id AND n.deleted_at IS NULL
-      AND n.status IN ('published','scheduled')
-      AND (n.status='published' OR n.scheduled_at <= UTC_TIMESTAMP(3))
+      AND n.status='published' AND (n.published_at IS NULL OR n.published_at<=UTC_TIMESTAMP(3))
     ) ORDER BY c.sort_order,c.name,c.id`);
+}
+// The editor accepts a variant's final price, while the existing column stores
+// its difference from the product base price. Keep that storage contract intact.
+export function productVariantFinalPrice(base: unknown, adjustment: unknown): number | null {
+  if (base === null || base === undefined || base === '' || adjustment === null || adjustment === undefined || adjustment === '') return null;
+  const baseAmount = Number(base), difference = Number(adjustment);
+  if (!Number.isFinite(baseAmount) || !Number.isFinite(difference)) return null;
+  const final = Math.round((baseAmount + difference) * 100) / 100;
+  return Number.isFinite(final) && final >= 0 ? final : null;
 }
 export async function publicDetail(db: Executor, spec: ResourceSpec, slug: string, socialMediaV2=false, variantMedia=false) {
   if (!spec.publicFields) throw new Error('Resource has no public projection');
   const data = (await rows<RowDataPacket>(db, `SELECT ${spec.publicFields.map(ident).join(',')} FROM ${ident(spec.table)} WHERE slug=? AND ${publicWhere(spec)} ${spec.softDelete ? 'AND deleted_at IS NULL' : ''} LIMIT 1`, [slug]))[0];
   if (!data) return null;
   const id = Number(data.id);
+  const categoryTable = {products:'product_categories',services:'service_categories',news_articles:'news_categories'}[spec.table];
+  if(categoryTable && data.category_id){
+    data.category_name=(await rows<RowDataPacket>(db,`SELECT name FROM ${ident(categoryTable)} WHERE id=? LIMIT 1`,[data.category_id]))[0]?.name??null;
+  }
   const coverId = Number(data.cover_media_id ?? 0);
   if (coverId) data.image = (await rows<RowDataPacket>(db,'SELECT secure_url,alt_text,width_px,height_px FROM media_assets WHERE id=? AND deleted_at IS NULL',[coverId]))[0] ?? null;
   const children: Record<string, RowDataPacket[]> = {};
@@ -107,23 +119,24 @@ export async function publicDetail(db: Executor, spec: ResourceSpec, slug: strin
     if(typeof data.description==='string')data.description=sanitizeProductDescription(data.description);
     children.images = await rows<RowDataPacket>(db, 'SELECT i.id,i.alt_text,i.is_cover,i.sort_order,m.secure_url,m.width_px,m.height_px FROM product_images i JOIN media_assets m ON m.id=i.media_id AND m.deleted_at IS NULL WHERE i.product_id=? ORDER BY i.sort_order,i.id LIMIT 100', [id]);
     children.features = await rows<RowDataPacket>(db, 'SELECT label,value_text,sort_order FROM product_features WHERE product_id=? ORDER BY sort_order,id LIMIT 100', [id]);
-    children.colors = await rows<RowDataPacket>(db, 'SELECT name,hex_color,sort_order FROM product_color_options WHERE product_id=? AND is_active=1 ORDER BY sort_order,id LIMIT 100', [id]);
     children.variants = variantMedia
-      ? await rows<RowDataPacket>(db, 'SELECT v.name,v.sku,v.price_adjustment,v.stock_quantity,v.sort_order,m.secure_url AS image_url,m.alt_text AS image_alt FROM product_variants v LEFT JOIN media_assets m ON m.id=v.media_id AND m.deleted_at IS NULL WHERE v.product_id=? AND v.is_active=1 ORDER BY v.sort_order,v.id LIMIT 100', [id])
-      : await rows<RowDataPacket>(db, 'SELECT name,sku,price_adjustment,stock_quantity,sort_order FROM product_variants WHERE product_id=? AND is_active=1 ORDER BY sort_order,id LIMIT 100', [id]);
+      ? await rows<RowDataPacket>(db, 'SELECT v.name,v.price_adjustment,v.stock_quantity,m.secure_url AS image_url,m.alt_text AS image_alt FROM product_variants v LEFT JOIN media_assets m ON m.id=v.media_id AND m.deleted_at IS NULL WHERE v.product_id=? AND v.is_active=1 ORDER BY v.sort_order,v.id LIMIT 100', [id])
+      : await rows<RowDataPacket>(db, 'SELECT name,price_adjustment,stock_quantity FROM product_variants WHERE product_id=? AND is_active=1 ORDER BY sort_order,id LIMIT 100', [id]);
+    children.variants = children.variants.map(variant => {
+      const { price_adjustment, ...publicVariant } = variant;
+      return { ...publicVariant, final_price: productVariantFinalPrice(data.base_price, price_adjustment) } as RowDataPacket;
+    });
     children.purchaseLinks = socialMediaV2
       ? await rows<RowDataPacket>(db, 'SELECT l.id,l.store_name,l.button_label,l.url,l.social_link_id,l.is_primary,l.sort_order,a.url AS account_url,a.is_active AS account_active FROM product_purchase_links l LEFT JOIN social_links a ON a.id=l.social_link_id WHERE l.product_id=? AND l.is_active=1 ORDER BY l.is_primary DESC,l.sort_order,l.id LIMIT 100', [id])
       : await rows<RowDataPacket>(db, 'SELECT id,store_name,button_label,url,is_primary,sort_order FROM product_purchase_links WHERE product_id=? AND is_active=1 ORDER BY is_primary DESC,sort_order,id LIMIT 100', [id]);
-    if(children.purchaseLinks.some(link=>String(link.store_name).toLowerCase().replace(/[^a-z]/g,'')==='whatsapp')){
-      const hasLegacy=children.purchaseLinks.some(link=>String(link.store_name).toLowerCase().replace(/[^a-z]/g,'')==='whatsapp'&&!link.social_link_id);
-      const whatsapp=hasLegacy?await globalWhatsApp(db):null;
-      children.purchaseLinks=children.purchaseLinks.flatMap(link=>{
-        const {social_link_id,account_url,account_active,...publicLink}=link;
-        if(String(link.store_name).toLowerCase().replace(/[^a-z]/g,'')!=='whatsapp')return [publicLink as RowDataPacket];
-        if(social_link_id)return account_active&&account_url?[{...publicLink,url:account_url} as RowDataPacket]:[];
-        return whatsapp?[{...publicLink,url:whatsapp} as RowDataPacket]:[];
-      });
-    }
+    const hasLegacyWhatsApp=children.purchaseLinks.some(link=>String(link.store_name).toLowerCase().replace(/[^a-z]/g,'')==='whatsapp'&&!link.social_link_id);
+    const whatsapp=hasLegacyWhatsApp?await globalWhatsApp(db):null;
+    children.purchaseLinks=children.purchaseLinks.flatMap(link=>{
+      const {social_link_id,account_url,account_active,...publicLink}=link;
+      if(String(link.store_name).toLowerCase().replace(/[^a-z]/g,'')!=='whatsapp')return [publicLink as RowDataPacket];
+      if(social_link_id)return account_active&&account_url?[{...publicLink,url:account_url} as RowDataPacket]:[];
+      return whatsapp?[{...publicLink,url:whatsapp} as RowDataPacket]:[];
+    }).filter(link=>validPurchaseUrl(String(link.url??'')));
   }
   if (spec.table === 'services') {
     children.images = await rows<RowDataPacket>(db, 'SELECT i.id,i.alt_text,i.is_cover,i.sort_order,m.secure_url FROM service_images i JOIN media_assets m ON m.id=i.media_id AND m.deleted_at IS NULL WHERE i.service_id=? ORDER BY i.sort_order,i.id LIMIT 100', [id]);
@@ -136,7 +149,7 @@ export async function publicDetail(db: Executor, spec: ResourceSpec, slug: strin
     children.teamMembers = await rows<RowDataPacket>(db, "SELECT t.full_name,t.slug,pt.contribution_label FROM project_team_members pt JOIN team_members t ON t.id=pt.team_member_id WHERE pt.project_id=? AND t.status='published' AND t.deleted_at IS NULL ORDER BY t.sort_order,t.id LIMIT 100", [id]);
   }
   if (spec.table === 'news_articles') {
-    children.images = await rows<RowDataPacket>(db, 'SELECT COALESCE(i.alt_text,m.alt_text) AS alt_text,COALESCE(i.caption,m.caption) AS caption,i.sort_order,m.secure_url,m.width_px,m.height_px FROM news_images i JOIN media_assets m ON m.id=i.media_id AND m.deleted_at IS NULL WHERE i.article_id=? ORDER BY i.sort_order,i.id LIMIT 100', [id]);
+    children.images = await rows<RowDataPacket>(db, 'SELECT COALESCE(i.alt_text,m.alt_text) AS alt_text,COALESCE(m.caption,i.caption) AS caption,i.sort_order,m.secure_url,m.width_px,m.height_px FROM news_images i JOIN media_assets m ON m.id=i.media_id AND m.deleted_at IS NULL WHERE i.article_id=? ORDER BY i.sort_order,i.id LIMIT 100', [id]);
     const author = await rows<RowDataPacket>(db, `SELECT COALESCE(t.full_name,u.display_name) AS author_name FROM news_articles n
       LEFT JOIN users u ON u.id=n.author_user_id AND u.deleted_at IS NULL
       LEFT JOIN team_members t ON t.id=n.author_team_member_id AND t.deleted_at IS NULL

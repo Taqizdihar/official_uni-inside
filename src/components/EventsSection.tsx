@@ -5,35 +5,11 @@ import { usePublicContent } from '../public/client';
 import {PublicCtaLink} from './PublicCtaLink';
 import styles from './EventsSection.module.css';
 
-const mockEvents = [
-  {
-    id: 1,
-    date: 'Dec 12, 2026',
-    title: 'Future Tech Summit',
-    description: 'Explore the latest innovations in AI, Web3, and Immersive Tech. Join us for a day of inspiring talks and hands-on workshops.',
-    image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?q=80&w=800&auto=format&fit=crop'
-  },
-  {
-    id: 2,
-    date: 'Nov 28, 2026',
-    title: 'Creative Code Workshop',
-    description: 'Hands-on session on building interactive 3D web experiences using modern libraries and frameworks.',
-    image: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=800&auto=format&fit=crop'
-  },
-  {
-    id: 3,
-    date: 'Oct 15, 2026',
-    title: 'Design Systems Meetup',
-    description: 'Learn how to scale your design language across platforms and teams effectively with our expert panel.',
-    image: 'https://images.unsplash.com/photo-1558655146-d09347e92766?q=80&w=800&auto=format&fit=crop'
-  }
-];
-
 export const EventsSection = forwardRef<HTMLDivElement, {}>((props, ref) => {
   const {homepage,news}=usePublicContent();
   const section=homepage?.sections?.find(item=>item.section_key==='news'&&item.is_visible!==0);
   const selected=homepage?.featured?.news??news;
-  const events=selected===null||selected===undefined?mockEvents:selected.slice(0,4).map(item=>({id:item.id,slug:item.slug,date:item.published_at?new Date(item.published_at).toLocaleDateString():'',title:String(item.title),description:String(item.excerpt||''),image:String(item.image?.secure_url||mockEvents[0].image)}));
+  const events=(selected??[]).slice(0,4).map(item=>({id:item.id,slug:item.slug,date:item.published_at?new Date(item.published_at).toLocaleDateString():'',title:String(item.title),description:String(item.excerpt||''),image:typeof item.image?.secure_url==='string'?item.image.secure_url:null}));
 
   return (
     <div className="w-full flex flex-col px-8 lg:px-24">
@@ -66,9 +42,9 @@ export const EventsSection = forwardRef<HTMLDivElement, {}>((props, ref) => {
             transition={{ duration: 0.6, delay: idx * 0.15 }}
             className="group rounded-2xl overflow-hidden bg-white shadow-xl hover:shadow-2xl transition-all duration-300 border border-gray-100"
           >
-            <Link to={'slug' in evt&&evt.slug?`/news/${evt.slug}`:'/news'} className="block h-full focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#f9d02d]">
+            <Link to={evt.slug?`/news/${encodeURIComponent(String(evt.slug))}`:'/news'} className="block h-full focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#f9d02d]">
             <div className="w-full h-36 sm:h-40 overflow-hidden relative">
-              <img src={evt.image} alt={evt.title} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+              {evt.image ? <img src={evt.image} alt={evt.title} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" /> : <div className="grid h-full w-full place-items-center bg-[#e8e8e4] text-xs font-semibold text-[#202121]/55">Story image unavailable</div>}
               <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm px-3.5 py-1.5 rounded-full shadow-sm">
                 <span className="text-[#f9d02d] font-extrabold text-xs uppercase tracking-wider">{evt.date}</span>
               </div>
@@ -89,6 +65,7 @@ export const EventsSection = forwardRef<HTMLDivElement, {}>((props, ref) => {
           </motion.div>
         ))}
       </div>
+      {!selected&&<p role="status" className="text-[#202121]/70">Checking the latest stories…</p>}
       {selected?.length===0&&<p className="text-[#202121]/70">No news published yet.</p>}
     </div>
   );

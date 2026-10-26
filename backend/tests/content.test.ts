@@ -112,7 +112,7 @@ describe('CMS content rules',()=>{
     expect(await publicNewsCategories(db)).toEqual([{id:3,name:'Studio Notes',slug:'studio-notes'}]);
     expect(query).toContain('c.is_active=1');
     expect(query).toContain('n.deleted_at IS NULL');
-    expect(query).toContain("n.status IN ('published','scheduled')");
-    expect(query).toContain('n.scheduled_at <= UTC_TIMESTAMP(3)');
+    expect(query).toContain("n.status='published'");
+    expect(query).toContain('n.published_at<=UTC_TIMESTAMP(3)');
   });
 });

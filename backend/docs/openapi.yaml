@@ -997,13 +997,13 @@ paths:
   /admin/news/author-options:
     get:
       summary: Eligible author display names for article creators
-      description: Requires news.create; returns only source, ID, and public display name.
+      description: Requires news.create or news.update; returns only source, ID, and public display name.
       security: [{ sessionCookie: [] }]
       parameters:
         - { name: source, in: query, required: true, schema: { type: string, enum: [user, team] } }
         - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
         - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 100 } }
-      responses: { '200': { description: Paginated author names }, '403': { description: Missing news.create permission } }
+      responses: { '200': { description: Paginated author names }, '403': { description: Missing news create/update permission } }
   /admin/news/create-complete:
     post:
       summary: Atomically create an article and its ordered images
@@ -1289,7 +1289,7 @@ paths:
   /admin/social-media/whatsapp-options:
     get:
       summary: Eligible WhatsApp account options for Product creation
-      description: Requires products.create or settings.view and Social Media V2 readiness. Returns only active WhatsApp account ID, label, and URL; no Social Media editing permission is granted.
+      description: Requires products.create, products.update, or settings.view and Social Media V2 readiness. Returns only active WhatsApp account ID, label, and URL; no Social Media editing permission is granted.
       security: [{ sessionCookie: [] }]
       responses: { '200': { description: Up to five eligible account options }, '403': { description: Missing permission }, '503': { description: FEATURE_UNAVAILABLE } }
   /admin/products/compose:
@@ -1307,6 +1307,38 @@ paths:
         '201': { description: 'Persisted product; status confirms draft or published' }
         '400': { description: 'Validation, unsupported variant photo, invalid selected WhatsApp account, missing global WhatsApp, or incomplete publication; no data is committed' }
         '403': { description: 'Missing permission or invalid CSRF token' }
+  /admin/product-variants/{key}/media:
+    patch:
+      summary: Update an existing product variant photo without recreating the variant
+      description: Requires products.update, CSRF, and PRODUCT_VARIANT_MEDIA_ENABLED with the verified media column. The image must belong to the Postingan library. The change is audited and revised.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Key' }, { $ref: '#/components/parameters/Csrf' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [media_id]
+              properties: { media_id: { type: [integer, 'null'], minimum: 1 } }
+      responses: { '200': { description: Updated variant }, '400': { description: Invalid media }, '403': { description: Missing permission or CSRF }, '409': { description: Variant media is not ready } }
+  /admin/product-purchase-links/{key}/whatsapp-account:
+    patch:
+      summary: Select a saved WhatsApp account for an existing purchase link
+      description: Requires products.update, CSRF, and Social Media V2 readiness. Only WhatsApp links may be assigned. The selected active account URL is copied for legacy compatibility and the reference is audited and revised.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Key' }, { $ref: '#/components/parameters/Csrf' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [social_link_id]
+              properties: { social_link_id: { type: integer, minimum: 1 } }
+      responses: { '200': { description: Updated purchase link }, '400': { description: Invalid account or non-WhatsApp link }, '403': { description: Missing permission or CSRF }, '409': { description: Social Media V2 is not ready } }
   /admin/{resource}:
     get:
       summary: Paginated CMS records; requires resource view permission

@@ -76,6 +76,25 @@ describe('HTTP behavior',()=>{
     const forbidden=await request(app).post('/api/v1/admin/products/compose').set('Origin','http://localhost:3000').set('Cookie',cookies).set('X-CSRF-Token',csrf).send({action:'draft',name:'Product'});
     expect(forbidden.status).toBe(403);expect(forbidden.body.error.code).toBe('FORBIDDEN');
   });
+  it('keeps variant-photo and WhatsApp-account edits behind CSRF and product update permission',async()=>{
+    const raw='session-token',csrf=csrfToken(config,raw),cookies=[`${config.SESSION_COOKIE_NAME}=${raw}`,`${config.CSRF_COOKIE_NAME}=${csrf}`];
+    for(const [path,body] of [['/api/v1/admin/product-variants/8/media',{media_id:3}],['/api/v1/admin/product-purchase-links/9/whatsapp-account',{social_link_id:4}]] as const){
+      const withoutCsrf=await request(app).patch(path).set('Origin','http://localhost:3000').set('Cookie',cookies).send(body);
+      expect(withoutCsrf.status).toBe(403);
+      expect(withoutCsrf.body.error.code).toBe('CSRF_INVALID');
+      const withoutPermission=await request(app).patch(path).set('Origin','http://localhost:3000').set('X-CSRF-Token',csrf).set('Cookie',cookies).send(body);
+      expect(withoutPermission.status).toBe(403);
+      expect(withoutPermission.body.error.code).toBe('FORBIDDEN');
+    }
+  });
+  it('retains historical product colors while disabling new color mutations',async()=>{
+    const raw='session-token',csrf=csrfToken(config,raw),cookies=[`${config.SESSION_COOKIE_NAME}=${raw}`,`${config.CSRF_COOKIE_NAME}=${csrf}`];
+    for(const [method,path] of [['post','/api/v1/admin/product-color-options'],['patch','/api/v1/admin/product-color-options/8'],['delete','/api/v1/admin/product-color-options/8']] as const){
+      const response=await request(app)[method](path).set('Origin','http://localhost:3000').set('X-CSRF-Token',csrf).set('Cookie',cookies).send({name:'Obsolete'});
+      expect(response.status).toBe(409);
+      expect(response.body.error.code).toBe('LEGACY_ROUTE_DISABLED');
+    }
+  });
   it('keeps category writes behind CSRF and their resource permission',async()=>{
     const raw='session-token',csrf=csrfToken(config,raw),cookies=[`${config.SESSION_COOKIE_NAME}=${raw}`,`${config.CSRF_COOKIE_NAME}=${csrf}`];
     for(const resource of ['product-categories','service-categories','news-categories']){

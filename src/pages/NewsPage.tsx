@@ -6,7 +6,7 @@ import { BackToLandingLink, StaticPageLayout } from '../components/StaticPageLay
 import { PUBLIC_API_BASE } from '../public/client';
 import { isDesignPreviewRoute, useDesignPreviewNoIndex } from '../public/designPreview';
 import { NewsImage } from './news/NewsImage';
-import { newestFirst, newsDate, newsHref, newsLabel, previewCategories, previewNews, uniqueNews, type NewsArticle, type NewsCategory } from './news/newsModel';
+import { newestFirst, newsDate, newsHref, newsListLabel, previewCategories, previewNews, uniqueNews, type NewsArticle, type NewsCategory } from './news/newsModel';
 import styles from './news/NewsEditorial.module.css';
 
 const PAGE_SIZE = 9;
@@ -62,7 +62,7 @@ function usePublishedNews() {
 function FeaturedStory({ article, categories, flagged, preview }: { article: NewsArticle; categories: NewsCategory[]; flagged: boolean; preview: boolean }) {
   const href = newsHref(article, preview);
   const date = newsDate(article.published_at);
-  const label = newsLabel(article, categories);
+  const label = newsListLabel(article, categories);
   return <section className={`grid min-w-0 overflow-hidden bg-[#202121] text-white lg:grid-cols-[minmax(0,.9fr)_minmax(0,1.1fr)] ${styles.enterLater}`} aria-labelledby="featured-story-title">
     <div className="flex min-w-0 flex-col justify-between px-6 py-9 sm:px-10 sm:py-12 lg:min-h-[465px] lg:px-12">
       <div><p className="flex items-center gap-3 text-xs font-extrabold uppercase tracking-[.18em] text-[#f9d02d]"><span className="h-px w-9 bg-[#f9d02d]" />{flagged ? 'Featured story' : 'Latest story'}</p><div className="mt-8 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-bold uppercase tracking-[.14em] text-white/55">{label && <span>{label}</span>}{label && date && <span aria-hidden="true">/</span>}{date && <time dateTime={article.published_at || undefined}>{date}</time>}</div><h2 id="featured-story-title" className="mt-4 max-w-[13ch] break-words text-[clamp(2.5rem,4.5vw,5.6rem)] font-black leading-[.98] tracking-[-.065em]">{article.title}</h2>{article.excerpt?.trim() && <p className="mt-5 max-w-[54ch] text-base leading-relaxed text-white/68 sm:text-lg">{article.excerpt}</p>}</div>
@@ -75,7 +75,7 @@ function FeaturedStory({ article, categories, flagged, preview }: { article: New
 
 function ArchiveCard({ article, categories, preview }: { article: NewsArticle; categories: NewsCategory[]; preview: boolean }) {
   const href = newsHref(article, preview);
-  const label = newsLabel(article, categories);
+  const label = newsListLabel(article, categories);
   const date = newsDate(article.published_at);
   return <article className="group min-w-0 border-t border-[#202121]/20 pt-5">
     {href ? <Link to={href} aria-label={`Read ${article.title}`} className="block focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[#202121]"><NewsImage image={article.image} alt={article.title} preview={preview} className="aspect-[1.55] [&>img]:transition-transform [&>img]:duration-500 group-hover:[&>img]:scale-[1.025] motion-reduce:[&>img]:transition-none" /></Link>
@@ -89,7 +89,7 @@ function ArchiveCard({ article, categories, preview }: { article: NewsArticle; c
 
 function LatestColumn({ articles, categories, preview, heading }: { articles: NewsArticle[]; categories: NewsCategory[]; preview: boolean; heading: string }) {
   if (!articles.length) return null;
-  return <aside className="min-w-0 border-t-4 border-[#202121] pt-5" aria-labelledby="latest-news-heading"><h2 id="latest-news-heading" className="text-2xl font-black tracking-[-.04em] text-[#202121]">{heading}</h2><div className="mt-6 space-y-6">{articles.map((article) => { const href = newsHref(article, preview); const date = newsDate(article.published_at); const label = newsLabel(article, categories); return <article key={article.id} className="grid grid-cols-[88px_1fr] gap-4 border-t border-[#202121]/15 pt-4 sm:grid-cols-[104px_1fr] xl:grid-cols-[78px_1fr]"><NewsImage image={article.image} alt={article.title} preview={preview} className="aspect-square" /><div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-[.12em] text-[#202121]/50">{label}{label && date && ' / '}{date}</p><h3 className="mt-2 break-words text-sm font-extrabold leading-snug text-[#202121] sm:text-base">{href ? <Link to={href} className="hover:underline hover:decoration-[#f9d02d] hover:underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#202121]">{article.title}</Link> : article.title}</h3></div></article>; })}</div></aside>;
+  return <aside className="min-w-0 border-t-4 border-[#202121] pt-5" aria-labelledby="latest-news-heading"><h2 id="latest-news-heading" className="text-2xl font-black tracking-[-.04em] text-[#202121]">{heading}</h2><div className="mt-6 space-y-6">{articles.map((article) => { const href = newsHref(article, preview); const date = newsDate(article.published_at); const label = newsListLabel(article, categories); return <article key={article.id} className="grid grid-cols-[88px_1fr] gap-4 border-t border-[#202121]/15 pt-4 sm:grid-cols-[104px_1fr] xl:grid-cols-[78px_1fr]"><NewsImage image={article.image} alt={article.title} preview={preview} className="aspect-square" /><div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-[.12em] text-[#202121]/50">{label}{label && date && ' / '}{date}</p><h3 className="mt-2 break-words text-sm font-extrabold leading-snug text-[#202121] sm:text-base">{href ? <Link to={href} className="hover:underline hover:decoration-[#f9d02d] hover:underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#202121]">{article.title}</Link> : article.title}</h3></div></article>; })}</div></aside>;
 }
 
 function NewsContent({ articles, firstPage, categories, categoryId, onCategory, loading, loadingMore, error, moreError, hasMore, onMore, onRetry, preview }: {
@@ -97,7 +97,7 @@ function NewsContent({ articles, firstPage, categories, categoryId, onCategory, 
   loading: boolean; loadingMore: boolean; error: boolean; moreError: boolean; hasMore: boolean; onMore: () => void; onRetry: () => void; preview: boolean;
 }) {
   const content=useSecondaryContent('news');
-  const featured = useMemo(() => { const ordered = newestFirst(firstPage ?? []); return ordered.find((item) => item.is_featured === true || Number(item.is_featured) === 1) ?? ordered[0]; }, [firstPage]);
+  const featured = useMemo(() => { const ordered = newestFirst(categoryId === null ? firstPage ?? [] : articles ?? []); return ordered.find((item) => item.is_featured === true || Number(item.is_featured) === 1) ?? ordered[0]; }, [firstPage, articles, categoryId]);
   const activeItems = newestFirst(articles ?? []);
   const withoutFeatured = activeItems.filter((item) => String(item.id) !== String(featured?.id));
   const sidebarCount = categoryId === null && withoutFeatured.length >= 6 ? 3 : categoryId === null && withoutFeatured.length >= 3 ? 1 : 0;

@@ -18,6 +18,8 @@ import {getSection,saveSection,sectionNames} from '../services/homepageSections'
 import {linkDestinations} from '../services/linkDestinations';
 import {reorderAchievements} from '../services/achievementOrder';
 import {publicHomepageNews} from '../services/homepageNewsSelection';
+import {validateMediaIds} from '../services/mediaReferences';
+import {account} from '../repositories/socialMedia';
 
 const heroResources = new Set(['hero-settings','hero-trust-signals','hero-workspaces','hero-hotspots']);
 
@@ -81,7 +83,8 @@ export function adminContentRoutes(config: Config, db: Pool) {
     const capabilities=await cmsCapabilities(db,config);
     res.status(201).json({data:await createProductForm(db,req.body,req.actor!,req.requestId,capabilities,config.CLOUDINARY_ROOT_FOLDER)});
   }));
-  router.get('/admin/news/author-options', requireAuth, permit('news.create'), asyncRoute(async (req, res) => {
+  router.get('/admin/news/author-options', requireAuth, asyncRoute(async (req, res) => {
+    if(!req.actor!.permissions.has('news.create')&&!req.actor!.permissions.has('news.update'))throw new HttpError(403,'FORBIDDEN','Anda tidak memiliki izin memilih penulis.');
     const q = parse(z.strictObject({ source: z.enum(['user', 'team']), page: z.coerce.number().int().positive().default(1), limit: z.coerce.number().int().min(1).max(100).default(100) }), req.query);
     const result = await articleAuthorOptions(db, q.source, q.limit, (q.page - 1) * q.limit);
     res.set('Cache-Control', 'no-store').json({ data: result.items, meta: { page: q.page, limit: q.limit, total: result.total, totalPages: Math.ceil(result.total / q.limit) } });
@@ -142,17 +145,58 @@ export function adminContentRoutes(config: Config, db: Pool) {
     res.set('Cache-Control','no-store').json({ data:await content.get(db,String(req.params.resource),String(req.params.key)) });
   }));
   router.post('/admin/:resource', requireAuth, requireCsrf, asyncRoute(async (req,res) => {
+    if(req.params.resource==='product-color-options')throw new HttpError(409,'LEGACY_ROUTE_DISABLED','Pilihan warna produk tidak lagi dikelola melalui CMS.');
     if(heroResources.has(String(req.params.resource)))throw new HttpError(405,'METHOD_NOT_ALLOWED','Gunakan editor Hero untuk mengubah konten Hero.');
     if(req.params.resource==='social-links'&&config.SOCIAL_MEDIA_V2_ENABLED&&(await cmsCapabilities(db,config)).socialMediaV2.enabled)throw new HttpError(409,'LEGACY_ROUTE_DISABLED','Gunakan Manajemen Sosial Media untuk mengubah akun.');
     res.status(201).json({ data:await content.create(db,String(req.params.resource),req.body,req.actor!,req.requestId,config.CLOUDINARY_ROOT_FOLDER) });
   }));
+  router.patch('/admin/product-variants/:key/media', requireAuth, requireCsrf, permit('products.update'), asyncRoute(async (req,res) => {
+    const capabilities=await cmsCapabilities(db,config);
+    if(!capabilities.productVariantMedia.enabled)throw new HttpError(409,'VARIANT_IMAGE_UNSUPPORTED','Foto varian belum tersedia pada database ini.');
+    const key=parse(z.coerce.number().int().positive(),req.params.key);
+    const input=parse(z.strictObject({media_id:z.number().int().positive().nullable()}),req.body);
+    const saved=await transaction(db,async conn=>{
+      const spec=resources['product-variants']!;
+      const before=await repo.record(conn,spec,key,true);
+      if(!before)throw new HttpError(404,'NOT_FOUND','Varian tidak ditemukan.');
+      if(input.media_id)await validateMediaIds(conn,[input.media_id],'postingan',config.CLOUDINARY_ROOT_FOLDER);
+      await repo.updateRecord(conn,spec,key,{media_id:input.media_id});
+      const after=await repo.record(conn,spec,key,true);
+      await revision(conn,{entityType:spec.table,entityId:key,snapshot:after,actorId:req.actor!.id,summary:'Updated variant image'});
+      await audit(conn,{actorId:req.actor!.id,action:'product_variants.update',entityType:spec.table,entityId:key,requestId:req.requestId,before,after});
+      return after;
+    });
+    res.json({data:saved});
+  }));
+  router.patch('/admin/product-purchase-links/:key/whatsapp-account',requireAuth,requireCsrf,permit('products.update'),asyncRoute(async(req,res)=>{
+    const capabilities=await cmsCapabilities(db,config);
+    if(!capabilities.socialMediaV2.enabled)throw new HttpError(409,'SOCIAL_MEDIA_UNSUPPORTED','Akun WhatsApp belum tersedia pada database ini.');
+    const key=parse(z.coerce.number().int().positive(),req.params.key);
+    const input=parse(z.strictObject({social_link_id:z.number().int().positive()}),req.body);
+    const saved=await transaction(db,async conn=>{
+      const spec=resources['product-purchase-links']!;
+      const before=await repo.record(conn,spec,key,true);
+      if(!before)throw new HttpError(404,'NOT_FOUND','Tautan pembelian tidak ditemukan.');
+      if(String(before.store_name).toLowerCase().replace(/[^a-z]/g,'')!=='whatsapp')throw new HttpError(400,'VALIDATION_ERROR','Hanya tautan WhatsApp yang dapat memakai akun sosial.');
+      const selected=await account(conn,input.social_link_id,true);
+      if(!selected||selected.canonical_code!=='whatsapp'||!selected.is_active)throw new HttpError(400,'INVALID_WHATSAPP_ACCOUNT','Pilih akun WhatsApp aktif.');
+      await repo.updateRecord(conn,spec,key,{social_link_id:selected.id,url:selected.url});
+      const after=await repo.record(conn,spec,key,true);
+      await revision(conn,{entityType:spec.table,entityId:key,snapshot:after,actorId:req.actor!.id,summary:'Updated WhatsApp account'});
+      await audit(conn,{actorId:req.actor!.id,action:'product_purchase_links.update',entityType:spec.table,entityId:key,requestId:req.requestId,before,after});
+      return after;
+    });
+    res.json({data:saved});
+  }));
   router.patch('/admin/:resource/:key', requireAuth, requireCsrf, asyncRoute(async (req,res) => {
+    if(req.params.resource==='product-color-options')throw new HttpError(409,'LEGACY_ROUTE_DISABLED','Pilihan warna produk tidak lagi dikelola melalui CMS.');
     if(heroResources.has(String(req.params.resource)))throw new HttpError(409,'LEGACY_ROUTE_DISABLED','Gunakan editor Hero untuk mengubah konten Hero.');
     if(req.params.resource==='contact-section-settings'||req.params.resource==='achievement-section-settings'||req.params.resource==='homepage-sections'&&['products','services','news'].includes(String(req.params.key)))throw new HttpError(409,'LEGACY_ROUTE_DISABLED','Gunakan editor bagian Homepage untuk mengubah konten.');
     if(req.params.resource==='social-links'&&config.SOCIAL_MEDIA_V2_ENABLED&&(await cmsCapabilities(db,config)).socialMediaV2.enabled)throw new HttpError(409,'LEGACY_ROUTE_DISABLED','Gunakan Manajemen Sosial Media untuk mengubah akun.');
     res.json({ data:await content.update(db,String(req.params.resource),String(req.params.key),req.body,req.actor!,req.requestId,config.CLOUDINARY_ROOT_FOLDER) });
   }));
   router.delete('/admin/:resource/:key', requireAuth, requireCsrf, asyncRoute(async (req,res) => {
+    if(req.params.resource==='product-color-options')throw new HttpError(409,'LEGACY_ROUTE_DISABLED','Pilihan warna produk tidak lagi dikelola melalui CMS.');
     if(heroResources.has(String(req.params.resource)))throw new HttpError(405,'METHOD_NOT_ALLOWED','Gunakan editor Hero untuk mengubah konten Hero.');
     if(req.params.resource==='social-links'&&config.SOCIAL_MEDIA_V2_ENABLED&&(await cmsCapabilities(db,config)).socialMediaV2.enabled)throw new HttpError(409,'LEGACY_ROUTE_DISABLED','Gunakan Manajemen Sosial Media untuk mengubah akun.');
     res.json({ data:await content.remove(db,String(req.params.resource),String(req.params.key),req.actor!,req.requestId) });

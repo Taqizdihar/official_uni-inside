@@ -6,29 +6,20 @@ import {PurchasePlatformIcon} from '../components/PurchasePlatformIcon';
 import { StaticPageLayout } from '../components/StaticPageLayout';
 import { trackEvent, usePublicContent, usePublicDetail } from '../public/client';
 import { CraftImage } from './CraftImage';
-import { canShowCraftPreview, craftPreviewDetail, craftPreviewItems, formatPriceAdjustment, formatProductPrice, productTypeLabel, safePurchaseHref, useCraftPreviewNoIndex, type CraftImage as CraftImageType, type CraftProduct } from './craftProduct';
+import { canShowCraftPreview, craftPreviewDetail, craftPreviewItems, formatProductPrice, productTypeLabel, safePurchaseHref, useCraftPreviewNoIndex, variantFinalPrice, type CraftImage as CraftImageType, type CraftProduct } from './craftProduct';
 import styles from './CraftProducts.module.css';
 
 const safeHtml=cleanProductHtml;
 
-function ProductGallery({ product }: { product: CraftProduct }) {
-  const [selected, setSelected] = useState(0);
-  const images = useMemo(() => {
-    const unique = new Set<string>();
-    return [product.image, ...(Array.isArray(product.images) ? product.images : [])].filter((image): image is CraftImageType => {
-      if (!image?.secure_url || unique.has(image.secure_url)) return false;
-      unique.add(image.secure_url);
-      return true;
-    });
-  }, [product]);
-  useEffect(() => setSelected(0), [product.id, product.slug]);
+function ProductGallery({ product, images, selected, setSelected, clearVariant }: { product: CraftProduct; images: CraftImageType[]; selected: number; setSelected: (value: number | ((current: number) => number)) => void; clearVariant: () => void }) {
   const active = images[selected] ?? images[0];
   const name = product.name?.trim() || 'Craft object';
-  const step = (direction: number) => setSelected((current) => (current + direction + images.length) % images.length);
+  const step = (direction: number) => { clearVariant(); setSelected((current) => (current + direction + images.length) % images.length); };
   const onThumbnailKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
     if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
     event.preventDefault();
     const next = (index + (event.key === 'ArrowRight' ? 1 : -1) + images.length) % images.length;
+    clearVariant();
     setSelected(next);
     (event.currentTarget.parentElement?.children[next] as HTMLElement | undefined)?.focus();
   };
@@ -44,7 +35,7 @@ function ProductGallery({ product }: { product: CraftProduct }) {
     </div>
     <div className="mt-4 flex items-start justify-between gap-4"><p className="text-xs font-semibold uppercase tracking-[.15em] text-[#202121]/60" aria-live="polite">{images.length ? `${String(selected + 1).padStart(2, '0')} / ${String(images.length).padStart(2, '0')}` : 'Image unavailable'}</p><p className="text-right text-xs text-[#202121]/55">{images.length > 1 ? 'Select a view below' : 'Object image'}</p></div>
     {images.length > 1 && <div className="mt-4 flex gap-3 overflow-x-auto pb-2" role="group" aria-label="Product image gallery">
-      {images.map((image, index) => <button key={image.secure_url} type="button" aria-label={`Show product image ${index + 1}`} aria-pressed={selected === index} onClick={() => setSelected(index)} onKeyDown={(event) => onThumbnailKeyDown(event, index)} className={`relative h-[78px] w-[78px] shrink-0 border-2 bg-[#e5e5e0] p-1 transition-colors hover:border-[#202121] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#202121] ${selected === index ? 'border-[#202121] ring-2 ring-[#f9d02d] ring-offset-2' : 'border-transparent'}`}><CraftImage src={image.secure_url} alt={image.alt_text || `${name} thumbnail ${index + 1}`} width={image.width_px} height={image.height_px} className="h-full w-full object-contain" /></button>)}
+      {images.map((image, index) => <button key={image.secure_url} type="button" aria-label={`Show product image ${index + 1}`} aria-pressed={selected === index} onClick={() => { clearVariant(); setSelected(index); }} onKeyDown={(event) => onThumbnailKeyDown(event, index)} className={`relative h-[78px] w-[78px] shrink-0 border-2 bg-[#e5e5e0] p-1 transition-colors hover:border-[#202121] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#202121] ${selected === index ? 'border-[#202121] ring-2 ring-[#f9d02d] ring-offset-2' : 'border-transparent'}`}><CraftImage src={image.secure_url} alt={image.alt_text || `${name} thumbnail ${index + 1}`} width={image.width_px} height={image.height_px} className="h-full w-full object-contain" /></button>)}
     </div>}
   </div>;
 }
@@ -56,26 +47,24 @@ function ProductPurchase({ product, preview }: { product: CraftProduct; preview:
   if (preview) return <div className="border-l-4 border-[#f9d02d] bg-white p-5 text-sm leading-relaxed text-[#202121]/75">Purchase actions are unavailable in this sample preview. Published products will show their real store or contact links here.</div>;
   if (!links.length) return <div className="border-t border-[#202121]/20 pt-6"><p className="text-sm text-[#202121]/65">Purchase links are not listed for this object.</p><Link to="/#contact-us" className="mt-4 inline-flex items-center gap-2 text-sm font-extrabold text-[#202121] underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[#202121]">Ask about this object <ArrowUpRight size={16} aria-hidden="true" /></Link></div>;
   return <div className="border-t border-[#202121]/20 pt-6"><p className="mb-3 text-[10px] font-extrabold uppercase tracking-[.15em] text-[#202121]/55">Purchase or enquire</p><div className="flex flex-wrap gap-2">
-    {links.map((link, index) => <a key={link.id} href={link.href!} target={/^https?:\/\//i.test(link.href!) ? '_blank' : undefined} rel={/^https?:\/\//i.test(link.href!) ? 'noopener noreferrer' : undefined} onClick={() => trackEvent('product_purchase_link_click', { entityType: 'product', entityId: Number(product.id), linkDestination: link.href! })} aria-label={link.button_label?.trim() || link.store_name} title={link.store_name} className={`inline-flex min-h-12 min-w-12 items-center justify-center px-3 py-3 text-sm font-extrabold transition-colors active:scale-[.98] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[#202121] motion-reduce:transition-none ${index === 0 ? 'bg-[#f9d02d] text-[#202121] hover:bg-[#ffe054]' : 'border border-[#202121]/45 bg-transparent text-[#202121] hover:border-[#202121]'}`}><PurchasePlatformIcon platform={link.store_name} size={23}/></a>)}
+    {links.map((link, index) => <a key={link.id} href={link.href!} target={/^https?:\/\//i.test(link.href!) ? '_blank' : undefined} rel={/^https?:\/\//i.test(link.href!) ? 'noopener noreferrer' : undefined} onClick={() => trackEvent('product_purchase_link_click', { entityType: 'product', entityId: Number(product.id), linkDestination: link.href! })} title={link.store_name} className={`inline-flex min-h-12 items-center justify-center gap-2 px-4 py-3 text-sm font-extrabold transition-colors active:scale-[.98] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[#202121] motion-reduce:transition-none ${index === 0 ? 'bg-[#f9d02d] text-[#202121] hover:bg-[#ffe054]' : 'border border-[#202121]/45 bg-transparent text-[#202121] hover:border-[#202121]'}`}><PurchasePlatformIcon platform={link.store_name} size={23}/><span>{link.button_label?.trim() || link.store_name}</span></a>)}
   </div></div>;
 }
 
-function ProductInformation({ product, preview }: { product: CraftProduct; preview: boolean }) {
-  const [selectedColor, setSelectedColor] = useState<number | null>(null);
-  const colors = Array.isArray(product.colors) ? product.colors.filter((color) => color?.name) : [];
+function ProductInformation({ product, preview, selectedVariant, selectVariant }: { product: CraftProduct; preview: boolean; selectedVariant: number | null; selectVariant: (index: number) => void }) {
   const variants = Array.isArray(product.variants) ? product.variants.filter((variant) => variant?.name) : [];
   const price = formatProductPrice(product.base_price, product.currency_code);
   const type = productTypeLabel(product.product_type);
   const quantity = Number(product.minimum_order_quantity);
   return <div className={`min-w-0 ${styles.revealLate}`}>
     {type && <p className="w-fit border-l-4 border-[#f9d02d] pl-3 text-xs font-extrabold uppercase tracking-[.16em] text-[#202121]/65">{type}</p>}
+    {product.category_name?.trim() && <p className="mt-3 text-xs font-bold uppercase tracking-[.14em] text-[#202121]/55">{product.category_name}</p>}
     <h1 className="mt-5 max-w-[18ch] break-words text-[clamp(2.5rem,4.5vw,5.7rem)] font-black leading-[.98] tracking-[-.065em] text-[#202121]">{product.name || 'Craft object'}</h1>
     {product.short_description?.trim() && <p className="mt-5 max-w-[58ch] text-base leading-relaxed text-[#202121]/70 sm:text-lg">{product.short_description}</p>}
     {(price || product.price_note?.trim()) && <div className="mt-7 border-y border-[#202121]/20 py-5"><p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-[#202121]/55">{price ? preview ? 'Sample base price' : 'Base price' : 'Pricing'}</p>{price && <p className="mt-1 text-[clamp(1.7rem,2.3vw,2.5rem)] font-black tracking-[-.045em] text-[#202121]">{price}</p>}{product.price_note?.trim() && <p className="mt-1 text-sm leading-relaxed text-[#202121]/65">{product.price_note}</p>}</div>}
     {(product.availability_label || product.lead_time_text || (Number.isFinite(quantity) && quantity > 0)) && <dl className="mt-5 grid gap-x-8 gap-y-4 sm:grid-cols-2">{product.availability_label && <div><dt className="text-[10px] font-extrabold uppercase tracking-[.15em] text-[#202121]/50">Availability</dt><dd className="mt-1 text-sm font-semibold text-[#202121]">{product.availability_label}</dd></div>}{product.lead_time_text && <div><dt className="text-[10px] font-extrabold uppercase tracking-[.15em] text-[#202121]/50">Lead time</dt><dd className="mt-1 text-sm font-semibold text-[#202121]">{product.lead_time_text}</dd></div>}{Number.isFinite(quantity) && quantity > 0 && <div><dt className="text-[10px] font-extrabold uppercase tracking-[.15em] text-[#202121]/50">Minimum order</dt><dd className="mt-1 text-sm font-semibold text-[#202121]">{quantity}</dd></div>}</dl>}
     <div className="mt-7"><ProductPurchase product={product} preview={preview} /></div>
-    {colors.length > 0 && <section className="mt-7"><h2 className="text-[10px] font-extrabold uppercase tracking-[.15em] text-[#202121]/55">Available colors</h2><div className="mt-3 flex flex-wrap gap-2">{colors.map((color, index) => { const validHex = /^#[\da-f]{6}$/i.test(color.hex_color ?? ''); return <button key={`${color.name}-${index}`} type="button" aria-pressed={selectedColor === index} onClick={() => setSelectedColor(index)} className={`inline-flex items-center gap-2 border px-3 py-2 text-xs font-semibold text-[#202121] transition-colors hover:border-[#202121] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#202121] ${selectedColor === index ? 'border-[#202121] bg-white' : 'border-[#202121]/20 bg-transparent'}`}><span className={`h-4 w-4 rounded-full border border-[#202121]/20 ${validHex ? '' : 'bg-[repeating-linear-gradient(45deg,#ddd,#ddd_3px,#fff_3px,#fff_6px)]'}`} style={validHex ? { backgroundColor: color.hex_color! } : undefined} aria-hidden="true" />{color.name}</button>; })}</div>{selectedColor !== null && <p className="mt-2 text-xs text-[#202121]/55">{colors[selectedColor]?.name} selected for reference. Confirm the color with the store or maker.</p>}</section>}
-    {variants.length > 0 && <section className="mt-7"><h2 className="text-[10px] font-extrabold uppercase tracking-[.15em] text-[#202121]/55">Available options</h2><ul className="mt-2 divide-y divide-[#202121]/15 border-y border-[#202121]/15">{variants.map((variant, index) => { const adjustment = formatPriceAdjustment(variant.price_adjustment, product.currency_code); return <li key={`${variant.name}-${index}`} className="flex flex-wrap justify-between gap-2 py-2.5 text-sm text-[#202121]"><span>{variant.name}</span>{adjustment && <span className="font-semibold">{adjustment}</span>}</li>; })}</ul><p className="mt-2 text-xs text-[#202121]/55">Options are for reference; final selection and price are confirmed with the store or maker.</p></section>}
+    {variants.length > 0 && <section className="mt-7"><h2 className="text-[10px] font-extrabold uppercase tracking-[.15em] text-[#202121]/55">Available options</h2><div className="mt-3 grid gap-2 sm:grid-cols-2">{variants.map((variant, index) => { const finalPrice = formatProductPrice(variantFinalPrice(product, variant), product.currency_code); const stock = variant.stock_quantity == null ? 'Stock not specified' : Number(variant.stock_quantity) === 0 ? 'Out of stock' : `${variant.stock_quantity} available`; return <button key={`${variant.name}-${index}`} type="button" aria-pressed={selectedVariant === index} onClick={() => selectVariant(index)} className={`flex min-w-0 items-center gap-3 border p-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#202121] ${selectedVariant === index ? 'border-[#202121] bg-white ring-2 ring-[#f9d02d]' : 'border-[#202121]/20 hover:border-[#202121]'}`}>{variant.image_url && <CraftImage src={variant.image_url} alt={variant.image_alt || variant.name} className="h-16 w-16 shrink-0 bg-[#e5e5e0] object-contain p-1" />}<span className="min-w-0"><span className="block break-words text-sm font-bold text-[#202121]">{variant.name}</span>{finalPrice && <span className="mt-1 block text-sm font-semibold text-[#202121]">{finalPrice}</span>}<span className="mt-1 block text-xs text-[#202121]/60">{stock}</span></span></button>; })}</div><p className="mt-2 text-xs text-[#202121]/55">Select an option to view its image. Availability and purchase are confirmed with the store or maker.</p></section>}
   </div>;
 }
 
@@ -94,12 +83,24 @@ function RelatedProducts({ current }: { current: CraftProduct }) {
 
 function ProductContent({ product, preview }: { product: CraftProduct; preview: boolean }) {
   const features = Array.isArray(product.features) ? product.features.filter((feature) => feature?.label && feature?.value_text) : [];
+  const [selectedImage, setSelectedImage] = useState(0);
+  const [selectedVariant, setSelectedVariant] = useState<number | null>(null);
+  const images = useMemo(() => {
+    const unique = new Set<string>();
+    return [product.image, ...(product.images ?? []), ...(product.variants ?? []).filter(variant => variant.image_url).map(variant => ({ secure_url: variant.image_url!, alt_text: variant.image_alt || variant.name }))].filter((image): image is CraftImageType => {
+      if (!image?.secure_url || unique.has(image.secure_url)) return false;
+      unique.add(image.secure_url);
+      return true;
+    });
+  }, [product]);
+  useEffect(() => { setSelectedImage(0); setSelectedVariant(null); }, [product.id, product.slug]);
+  const selectVariant = (index: number) => { setSelectedVariant(index); const url = product.variants?.[index]?.image_url; const imageIndex = images.findIndex(image => image.secure_url === url); if (imageIndex >= 0) setSelectedImage(imageIndex); };
   const catalogueHref = preview ? '/products?designPreview=1' : '/products';
   return <StaticPageLayout activePage="PRODUCTS">
     <section className="bg-[#f0f0f0] px-6 pb-16 pt-[150px] sm:px-10 lg:px-12 lg:pb-20"><div className="mx-auto max-w-[1480px]">
       {preview && <div className="mb-6 w-fit border border-[#202121] bg-[#f9d02d] px-3 py-2 text-xs font-extrabold uppercase tracking-[.12em] text-[#202121]" role="status">Design Preview — Sample Content</div>}
       <nav aria-label="Breadcrumb" className="mb-9 flex flex-wrap items-center gap-2 text-xs font-bold uppercase tracking-[.1em] text-[#202121]/55"><Link to="/" className="hover:text-[#202121] hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#202121]">Home</Link><span aria-hidden="true">/</span><Link to={catalogueHref} className="hover:text-[#202121] hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#202121]">Products</Link><span aria-hidden="true">/</span><span className="max-w-full truncate text-[#202121]" aria-current="page">{product.name || 'Craft object'}</span></nav>
-      <div className="grid gap-9 lg:grid-cols-[minmax(0,1.08fr)_minmax(0,.92fr)] lg:gap-14 xl:gap-20"><ProductGallery product={product} /><ProductInformation product={product} preview={preview} /></div>
+      <div className="grid gap-9 lg:grid-cols-[minmax(0,1.08fr)_minmax(0,.92fr)] lg:gap-14 xl:gap-20"><ProductGallery product={product} images={images} selected={selectedImage} setSelected={setSelectedImage} clearVariant={() => setSelectedVariant(null)} /><ProductInformation product={product} preview={preview} selectedVariant={selectedVariant} selectVariant={selectVariant} /></div>
     </div></section>
     {(product.description?.trim() || features.length > 0) && <section className="bg-white px-6 py-16 sm:px-10 lg:px-12 lg:py-20"><div className="mx-auto grid max-w-[1480px] gap-12 lg:grid-cols-2 lg:gap-20">{product.description?.trim() && <div><p className="text-xs font-extrabold uppercase tracking-[.18em] text-[#202121]/55">The object / story</p><h2 className="mt-3 text-3xl font-black tracking-tight text-[#202121] sm:text-4xl">A closer look</h2><div className={`mt-6 ${styles.richText}`} dangerouslySetInnerHTML={{ __html: safeHtml(product.description) }} /></div>}{features.length > 0 && <div><p className="text-xs font-extrabold uppercase tracking-[.18em] text-[#202121]/55">Details / from the maker</p><h2 className="mt-3 text-3xl font-black tracking-tight text-[#202121] sm:text-4xl">Specifications</h2><dl className="mt-6 border-t border-[#202121]/20">{features.map((feature, index) => <div key={`${feature.label}-${index}`} className="grid gap-2 border-b border-[#202121]/15 py-4 sm:grid-cols-[minmax(130px,.4fr)_1fr]"><dt className="text-sm font-bold text-[#202121]">{feature.label}</dt><dd className="text-sm leading-relaxed text-[#202121]/70">{feature.value_text}</dd></div>)}</dl></div>}</div></section>}
     {!preview && <RelatedProducts current={product} />}

@@ -14,6 +14,7 @@ export type NewsArticle = {
   published_at?: string | null;
   is_featured?: boolean | number;
   category_id?: number | null;
+  category_name?: string | null;
   content_type?: 'news' | 'article' | 'update' | 'event' | null;
   reading_time_minutes?: number | null;
   author_name?: string | null;
@@ -29,9 +30,14 @@ export const newsDate = (value?: string | null) => {
   return Number.isNaN(date.getTime()) ? null : new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'short', day: 'numeric' }).format(date);
 };
 export const readingTime = (value?: number | null) => Number.isInteger(Number(value)) && Number(value) > 0 ? `${value} min read` : null;
-export const newsCategory = (article: NewsArticle, categories: NewsCategory[]) => categories.find((category) => category.id === Number(article.category_id)) ?? null;
+export const newsCategory = (article: NewsArticle, categories: NewsCategory[]) => categories.find((category) => category.id === Number(article.category_id)) ?? (article.category_name ? { id: Number(article.category_id), name: article.category_name, slug: '' } : null);
 export const newsFormat = (value?: NewsArticle['content_type']) => value ? ({ news: 'News', article: 'Article', update: 'Update', event: 'Event' })[value] : null;
 export const newsLabel = (article: NewsArticle, categories: NewsCategory[]) => newsCategory(article, categories)?.name || newsFormat(article.content_type);
+export const newsListLabel = (article: NewsArticle, categories: NewsCategory[]) => {
+  const category = newsCategory(article, categories)?.name;
+  const format = newsFormat(article.content_type);
+  return category && format && category.toLowerCase() !== format.toLowerCase() ? `${category} / ${format}` : category || format;
+};
 export const newsHref = (article: NewsArticle, preview: boolean) => preview
   ? `/news/design-preview?designPreview=1&sample=${article.id}`
   : article.slug ? `/news/${encodeURIComponent(article.slug)}` : null;

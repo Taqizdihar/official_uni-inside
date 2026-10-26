@@ -107,4 +107,16 @@ describe('article creation', () => {
     expect(result).toMatchObject({ author_name: 'Penulis Studio', reading_time_minutes: 8, images: [{ sort_order: 0 }, { sort_order: 1 }] });
     expect(result).not.toHaveProperty('email');
   });
+  it('refreshes gallery caption provenance when an editor replaces an image',async()=>{
+    let image:{id:number;article_id:number;media_id:number;alt_text:string;caption:string|null}={id:15,article_id:42,media_id:11,alt_text:'Old image',caption:'Old caption'};
+    const conn={beginTransaction:async()=>{},commit:async()=>{},rollback:async()=>{},release:()=>{},execute:async(options:{sql:string},values:unknown[]=[])=>{
+      if(options.sql.includes('FROM media_assets'))return [[{id:12,alt_text:'New image',caption:null}],[]];
+      if(options.sql.includes('FROM `news_images`'))return [[{...image}],[]];
+      if(options.sql.startsWith('UPDATE `news_images`')){image={...image,media_id:Number(values[0]),caption:values[1] as string|null,alt_text:String(values[2])};return [{affectedRows:1},[]];}
+      if(options.sql.includes('MAX(revision_number)'))return [[{next:1}],[]];
+      return [{affectedRows:1},[]];
+    }};
+    await update({getConnection:async()=>conn} as unknown as Pool,'news-images','15',{media_id:12},{id:7,permissions:new Set(['news.update'])},'request');
+    expect(image).toMatchObject({media_id:12,caption:null,alt_text:'New image'});
+  });
 });

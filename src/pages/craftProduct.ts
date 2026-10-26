@@ -4,6 +4,7 @@ import charmLoops from '../assets/our-products/3D Printer Products/Products - 2.
 import charmMusic from '../assets/our-products/3D Printer Products/Products - 3.png';
 import charmCube from '../assets/our-products/3D Printer Products/Products - 7.png';
 import charmColour from '../assets/our-products/3D Printer Products/Products - 10.png';
+export { variantFinalPrice } from './productPricing';
 
 export type CraftImage = {
   secure_url: string;
@@ -17,6 +18,7 @@ export type CraftProduct = {
   slug?: string;
   name?: string;
   product_type?: string | null;
+  category_name?: string | null;
   short_description?: string | null;
   description?: string | null;
   image?: CraftImage | null;
@@ -28,8 +30,7 @@ export type CraftProduct = {
   lead_time_text?: string | null;
   minimum_order_quantity?: number | null;
   features?: { label: string; value_text: string }[] | null;
-  colors?: { name: string; hex_color?: string | null }[] | null;
-  variants?: { name: string; price_adjustment?: number | string | null }[] | null;
+  variants?: { name: string; final_price?: number | string | null; price_adjustment?: number | string | null; stock_quantity?: number | null; image_url?: string | null; image_alt?: string | null }[] | null;
   purchaseLinks?: { id: number; store_name: string; button_label?: string | null; url: string; is_primary?: boolean | number }[] | null;
   meta_title?: string | null;
   meta_description?: string | null;
@@ -51,24 +52,22 @@ export const formatProductPrice = (amount: number | string | null | undefined, c
     return new Intl.NumberFormat(currency === 'IDR' ? 'id-ID' : 'en-US', {
       style: 'currency',
       currency,
-      maximumFractionDigits: currency === 'IDR' ? 0 : 2,
+      minimumFractionDigits: value % 1 === 0 ? 0 : 2,
+      maximumFractionDigits: 2,
     }).format(value);
   } catch {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(value);
   }
 };
 
-export const formatPriceAdjustment = (amount: number | string | null | undefined, currencyCode?: string | null) => {
-  const value = Number(amount);
-  if (amount === null || amount === undefined || !Number.isFinite(value) || value === 0) return null;
-  const formatted = formatProductPrice(Math.abs(value), currencyCode);
-  return formatted ? `${value > 0 ? '+' : '−'}${formatted}` : null;
-};
-
 export const safePurchaseHref = (value: unknown) => {
   if (typeof value !== 'string') return null;
   const href = value.trim();
-  return /^https?:\/\//i.test(href) || /^\/(?!\/)/.test(href) ? href : null;
+  if (/^\/(?!\/)/.test(href) && !/[\u0000-\u001f\\]/.test(href)) return href;
+  try {
+    const url = new URL(href);
+    return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password ? href : null;
+  } catch { return null; }
 };
 
 export const canShowCraftPreview = (search: string) =>
@@ -111,14 +110,9 @@ export const craftPreviewDetail: CraftProduct = {
     { label: 'Format', value_text: 'Illustrative small-object study' },
     { label: 'Personalisation', value_text: 'Example option for layout review' },
   ],
-  colors: [
-    { name: 'Warm ivory', hex_color: '#F5DCAD' },
-    { name: 'Studio yellow', hex_color: '#F9D02D' },
-    { name: 'Finish on request', hex_color: null },
-  ],
   variants: [
-    { name: 'Single concept', price_adjustment: 0 },
-    { name: 'Two-piece concept', price_adjustment: 25000 },
+    { name: 'Single concept', final_price: 125000, stock_quantity: null },
+    { name: 'Two-piece concept', final_price: 150000, stock_quantity: 3, image_url: charmMusic, image_alt: 'Illustrative music charm artwork' },
   ],
   purchaseLinks: [],
 };

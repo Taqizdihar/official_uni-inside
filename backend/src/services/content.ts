@@ -1,5 +1,6 @@
 import type { Pool, PoolConnection } from 'mysql2/promise';
-import { transaction } from '../database/pool';
+import type { RowDataPacket } from 'mysql2/promise';
+import { rows, transaction, write } from '../database/pool';
 import * as content from '../repositories/content';
 import { audit, revision } from '../repositories/audit';
 import { fixedKeyAllowed, inputSchema, resources, slugify, type ResourceSpec } from '../schemas/resources';
@@ -98,6 +99,7 @@ export async function create(db: Pool, name: string, raw: unknown, actor: Actor,
   }
   const autoSlug = Boolean(spec.fields.slug && spec.titleField && !data.slug);
   if (name === 'services') validateServiceCtaPair(data);
+  if (name === 'news' && data.author_user_id && data.author_team_member_id) throw new HttpError(400,'VALIDATION_ERROR','Pilih satu sumber penulis.');
   for (const field of spec.required ?? []) if (!data[field]) throw new HttpError(400, 'VALIDATION_ERROR', `Please provide ${field}.`);
   if (autoSlug) data.slug = slugify(String(data[spec.titleField!]));
   if (autoSlug && !data.slug) throw new HttpError(400, 'VALIDATION_ERROR', 'Use a title that produces a valid URL slug.');
@@ -126,9 +128,14 @@ export async function update(db: Pool, name: string, key: string, raw: unknown, 
   const resolvedKey = recordKey(name, spec, key);
   return transaction(db, async conn => {
     const section=mediaSectionForPermission(spec.permission);
-    if(section)await validateMediaIds(conn,Object.entries(data).filter(([key])=>key==='media_id'||key.endsWith('_media_id')).map(([,value])=>Number(value)).filter(Boolean),section,mediaRoot);
+    const verifiedMedia=section?await validateMediaIds(conn,Object.entries(data).filter(([key])=>key==='media_id'||key.endsWith('_media_id')).map(([,value])=>Number(value)).filter(Boolean),section,mediaRoot):[];
     const before = await content.record(conn, spec, resolvedKey, true);
     if (!before) throw new HttpError(404, 'NOT_FOUND', 'Content record not found.');
+    if(name==='news-images'&&data.media_id&&Number(data.media_id)!==Number(before.media_id)){
+      const chosen=verifiedMedia.find(item=>Number(item.id)===Number(data.media_id));
+      data.caption=chosen?.caption??null;
+      if(data.alt_text===undefined)data.alt_text=chosen?.alt_text??null;
+    }
     if (spec.fields.status && ['published','scheduled','archived'].includes(String(before.status)) && !actor.permissions.has(`${spec.permission}.publish`)) throw new HttpError(403,'FORBIDDEN','Only a publisher can edit a non-draft record.');
     if (spec.childOf && data[spec.childOf.foreignKey] != null && Number(data[spec.childOf.foreignKey]) !== Number(before[spec.childOf.foreignKey])) throw new HttpError(400, 'VALIDATION_ERROR', 'A child record cannot be moved to a different parent.');
     if (name === 'product-purchase-links' && data.is_active === 0 && Number(before.is_active) === 1) {
@@ -145,11 +152,28 @@ export async function update(db: Pool, name: string, key: string, raw: unknown, 
       if (owner && Number(owner.id) !== Number(resolvedKey)) throw new HttpError(409, 'FEATURED_SLOT_TAKEN', 'This featured service slot is already assigned.');
     }
     const proposed = { ...before, ...data } as Record<string, unknown>;
+    if (name === 'news' && (data.author_user_id !== undefined || data.author_team_member_id !== undefined) && proposed.author_user_id && proposed.author_team_member_id) throw new HttpError(400,'VALIDATION_ERROR','Pilih satu sumber penulis.');
     if(name==='achievements'&&(!String(proposed.description??'').trim()||!proposed.year_label&&!proposed.achievement_date))throw new HttpError(400,'VALIDATION_ERROR','Isi deskripsi dan tahun atau tanggal Achievement.');
     if (name === 'services' && (data.primary_cta_label !== undefined || data.primary_cta_url !== undefined)) validateServiceCtaPair(proposed);
     if (proposed.status === 'published' || proposed.status === 'scheduled') await validatePublish(conn, name, proposed, Number(resolvedKey),mediaRoot);
     if (data.status === 'published' && before.status !== 'published'&&['products','services','projects','news_articles'].includes(spec.table)) data.published_at = new Date().toISOString().slice(0,23).replace('T',' ');
     if (name === 'news' && data.body != null && data.reading_time_minutes === null) data.reading_time_minutes = suggestedNewsMinutes(String(data.body));
+    if (name === 'products' && Object.hasOwn(data,'base_price') && (data.base_price == null ? before.base_price != null : before.base_price == null || Number(data.base_price)!==Number(before.base_price))) {
+      const variants=await rows<RowDataPacket>(conn,'SELECT * FROM product_variants WHERE product_id=? ORDER BY id FOR UPDATE',[resolvedKey]);
+      if (variants.length) {
+        const oldBase=before.base_price == null ? NaN : Number(before.base_price);
+        const newBase=data.base_price == null ? NaN : Number(data.base_price);
+        if(!Number.isFinite(oldBase)||!Number.isFinite(newBase))throw new HttpError(400,'VALIDATION_ERROR','Harga dasar harus tetap ada saat produk memiliki varian.');
+        for(const variant of variants){
+          const next=Math.round((oldBase+Number(variant.price_adjustment)-newBase)*100)/100;
+          if(!Number.isFinite(next)||Math.abs(next)>999_999_999)throw new HttpError(400,'VALIDATION_ERROR','Harga dasar baru membuat selisih varian melampaui batas.');
+          await write(conn,'UPDATE product_variants SET price_adjustment=? WHERE id=?',[next,variant.id]);
+          const afterVariant={...variant,price_adjustment:next};
+          await revision(conn,{entityType:'product_variants',entityId:Number(variant.id),snapshot:afterVariant,actorId:actor.id,summary:'Preserved final price after base price update'});
+          await audit(conn,{actorId:actor.id,action:'product_variants.update',entityType:'product_variants',entityId:Number(variant.id),requestId,before:variant,after:afterVariant});
+        }
+      }
+    }
     if (authorColumns.has(spec.table) || spec.kind === 'fixed') data.updated_by = actor.id;
     await content.updateRecord(conn, spec, resolvedKey, data);
     const after = await content.record(conn, spec, resolvedKey);

@@ -2,9 +2,9 @@ import {describe,it,expect} from 'vitest';
 import type {Pool} from 'mysql2/promise';
 import {createProductForm,productFormInput} from '../src/services/productCreate';
 import {productSummary,sanitizeProductDescription} from '../src/utils/productDescription';
-import {parseBody} from '../src/services/content';
+import {parseBody,update} from '../src/services/content';
 import {resources} from '../src/schemas/resources';
-import {publicDetail} from '../src/repositories/content';
+import {publicDetail,productVariantFinalPrice} from '../src/repositories/content';
 const basic={action:'draft',product_type:'ready_made',name:'Lampu Studio',description:'<p>Desain <u>personal</u> &amp; rapi.</p>',currency_code:'IDR'};
 function database(failChild=false,missingWhatsapp=false){
   const state={committed:false,rolledBack:false,records:[] as {table:string;data:Record<string,unknown>}[],calls:[] as string[],product:{} as Record<string,unknown>};
@@ -25,6 +25,44 @@ function database(failChild=false,missingWhatsapp=false){
   return {db:{getConnection:async()=>conn} as unknown as Pool,state};
 }
 describe('product creation form',()=>{
+  it('projects CMS final variant prices without exposing legacy color options',async()=>{
+    expect(productVariantFinalPrice('50000.00','25000.00')).toBe(75000);
+    expect(productVariantFinalPrice('50000.00','0.00')).toBe(50000);
+    expect(productVariantFinalPrice('50000.00','-12500.25')).toBe(37499.75);
+    expect(productVariantFinalPrice(null,'20')).toBeNull();
+    expect(productVariantFinalPrice('bad','20')).toBeNull();
+    expect(productVariantFinalPrice('10','-20')).toBeNull();
+    const calls:string[]=[];
+    const db={execute:async(options:{sql:string})=>{
+      calls.push(options.sql);
+      if(options.sql.includes('FROM `products`'))return [[{id:7,base_price:'50000.00',cover_media_id:null}],[]];
+      if(options.sql.includes('FROM product_variants v'))return [[{name:'Large',price_adjustment:'25000.00',stock_quantity:0,image_url:'https://example.test/large.jpg',image_alt:'Large variant'}],[]];
+      return [[],[]];
+    }} as unknown as Pool;
+    const detail=await publicDetail(db,resources.products!,'example',false,true);
+    expect(detail?.variants).toMatchObject([{name:'Large',final_price:75000,stock_quantity:0,image_url:'https://example.test/large.jpg'}]);
+    expect(detail?.variants?.[0]).not.toHaveProperty('price_adjustment');
+    expect(detail).not.toHaveProperty('colors');
+    expect(calls.some(sql=>sql.includes('product_color_options'))).toBe(false);
+  });
+  it('preserves existing final variant prices when an editor changes the base price',async()=>{
+    let product={id:7,status:'draft',base_price:'50000.00'};
+    let variant={id:8,product_id:7,name:'Large',price_adjustment:'25000.00',is_active:1};
+    let committed=false;
+    const conn={beginTransaction:async()=>{},commit:async()=>{committed=true;},rollback:async()=>{},release:()=>{},execute:async(options:{sql:string},values:unknown[]=[])=>{
+      const sql=options.sql;
+      if(sql.includes('FROM `products`'))return [[{...product}],[]];
+      if(sql.includes('FROM product_variants WHERE product_id='))return [[{...variant}],[]];
+      if(sql.startsWith('UPDATE product_variants SET price_adjustment=')){variant={...variant,price_adjustment:String(values[0])};return [{affectedRows:1},[]];}
+      if(sql.startsWith('UPDATE `products`')){product={...product,base_price:String(values[0])};return [{affectedRows:1},[]];}
+      if(sql.includes('MAX(revision_number)'))return [[{next:1}],[]];
+      return [{affectedRows:1},[]];
+    }};
+    await update({getConnection:async()=>conn} as unknown as Pool,'products','7',{base_price:60000},{id:3,permissions:new Set(['products.update'])},'request');
+    expect(committed).toBe(true);
+    expect(variant.price_adjustment).toBe('15000');
+    expect(productVariantFinalPrice(product.base_price,variant.price_adjustment)).toBe(75000);
+  });
   it('sanitizes full rich text, derives plain compatibility text, and keeps legacy formatting',()=>{
     const clean=sanitizeProductDescription('<h2>Judul</h2><p><b>Tebal</b> <u>garis</u> &amp; aman<img src="bad"/><iframe>embed</iframe><script>alert(1)</script></p>');
     expect(clean).toContain('<h2>Judul</h2>');expect(clean).toContain('<strong>Tebal</strong>');expect(clean).toContain('<u>garis</u>');expect(clean).not.toMatch(/img|iframe|script/);
@@ -34,6 +72,7 @@ describe('product creation form',()=>{
     expect(productSummary('<p>'+ 'a'.repeat(600)+'</p>')).toHaveLength(500);
     expect(parseBody(resources.products!,{description:'<p>A &amp; B</p>'})).toMatchObject({short_description:'A & B'});
     expect(parseBody(resources.products!,{description:'<p>New</p>',short_description:'Legacy summary'})).toMatchObject({short_description:'Legacy summary'});
+    expect(()=>parseBody(resources.products!,{minimum_order_quantity:0})).toThrow();
   });
   it('validates normalized fields without silently dropping schema gaps',()=>{
     expect(()=>productFormInput({...basic,variants:[{name:'A',price:10,stock_quantity:1,is_active:true,media_id:1}]})).toThrow(/Foto varian/);

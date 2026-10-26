@@ -8,6 +8,7 @@ export type StudioService = {
   id?: number | string;
   slug?: string;
   name?: string;
+  category_name?: string | null;
   short_description?: string | null;
   description?: string | null;
   image?: StudioImage | null;

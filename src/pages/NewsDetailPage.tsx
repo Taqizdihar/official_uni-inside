@@ -5,7 +5,7 @@ import { StaticPageLayout } from '../components/StaticPageLayout';
 import { PUBLIC_API_BASE, trackEvent, usePublicContent, usePublicDetail } from '../public/client';
 import { isDesignPreviewRoute, useDesignPreviewNoIndex } from '../public/designPreview';
 import { NewsImage } from './news/NewsImage';
-import { newestFirst, newsDate, newsHref, newsLabel, previewCategories, previewNews, readingTime, safeNewsHtml, uniqueNews, type NewsArticle, type NewsCategory } from './news/newsModel';
+import { newestFirst, newsCategory, newsDate, newsFormat, newsHref, newsLabel, previewCategories, previewNews, readingTime, safeNewsHtml, uniqueNews, type NewsArticle, type NewsCategory } from './news/newsModel';
 import styles from './news/NewsEditorial.module.css';
 
 function usePublishedCategories() {
@@ -42,6 +42,8 @@ function RelatedStories({ articles, categories, preview }: { articles: NewsArtic
 function ArticleView({ article, categories, related, preview }: { article: NewsArticle; categories: NewsCategory[]; related: NewsArticle[]; preview: boolean }) {
   const date = newsDate(article.published_at);
   const label = newsLabel(article, categories);
+  const category = newsCategory(article, categories)?.name;
+  const format = newsFormat(article.content_type);
   const duration = readingTime(article.reading_time_minutes);
   const author = article.author_name?.trim();
   const gallery = (article.images ?? []).filter((image, index, images) => image.secure_url && image.secure_url !== article.image?.secure_url && images.findIndex((candidate) => candidate.secure_url === image.secure_url) === index);
@@ -52,7 +54,7 @@ function ArticleView({ article, categories, related, preview }: { article: NewsA
         {preview && <p role="status" className="mb-7 w-fit border border-[#202121] bg-[#f9d02d] px-3 py-2 text-xs font-extrabold uppercase tracking-[.12em] text-[#202121]">Design Preview — Sample Content</p>}
         <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-bold uppercase tracking-[.12em] text-[#202121]/55"><Link to="/" className="hover:text-[#202121] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#202121]">Home</Link><span aria-hidden="true">/</span><Link to={preview ? '/news?designPreview=1' : '/news'} className="hover:text-[#202121] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#202121]">News</Link><span aria-hidden="true">/</span><span className="max-w-full truncate text-[#202121]" aria-current="page">{article.title}</span></nav>
         <header className={`mt-12 max-w-[1060px] ${styles.enter}`}>
-          {label && <p className="flex items-center gap-3 text-xs font-extrabold uppercase tracking-[.18em] text-[#202121]/60"><span className="h-px w-10 bg-[#d5aa12]" />{label}</p>}
+          {(label || format) && <p className="flex items-center gap-3 text-xs font-extrabold uppercase tracking-[.18em] text-[#202121]/60"><span className="h-px w-10 bg-[#d5aa12]" />{category || label}{format && category && <><span aria-hidden="true">/</span><span>{format}</span></>}</p>}
           <h1 className="mt-5 break-words text-[clamp(3.1rem,7.5vw,7.4rem)] font-black leading-[.95] tracking-[-.07em] text-[#202121]">{article.title}</h1>
           {article.excerpt?.trim() && <p className="mt-7 max-w-[800px] text-[clamp(1.2rem,2vw,1.65rem)] leading-[1.5] text-[#202121]/70">{article.excerpt}</p>}
           {(date || author || duration) && <div className="mt-8 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-[#202121]/25 pt-5 text-xs font-bold uppercase tracking-[.14em] text-[#202121]/55">{date && <time dateTime={article.published_at || undefined}>{date}</time>}{date && (author || duration) && <span aria-hidden="true">/</span>}{author && <span>By {author}</span>}{author && duration && <span aria-hidden="true">/</span>}{duration && <span>{duration}</span>}</div>}
