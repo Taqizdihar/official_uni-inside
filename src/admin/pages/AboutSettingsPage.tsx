@@ -12,7 +12,7 @@ const formId='cms-about-fixed-form';
 export function AboutSettingsPage(){
   const {has}=useAuth(),canView=has('homepage.view'),canEdit=has('homepage.update');
   const editor=useFixedEditor<AboutEdit,AboutResponse>('/admin/homepage/about',canView,canEdit,validateAboutEdit);
-  const editorial=useFixedEditor<AboutPreview,{edit:AboutPreview;version:string|null;enabled:boolean;reason:'FEATURE_DISABLED'|'DATABASE_MIGRATION_PENDING'|'REFERENCE_DATA_PENDING'|null}>('/admin/homepage/about/editorial',canView,canEdit,validateAboutPreview);
+  const editorial=useFixedEditor<AboutPreview,{edit:AboutPreview;version:string|null;enabled:boolean;initialized:boolean;reason:'FEATURE_DISABLED'|'DATABASE_MIGRATION_PENDING'|'REFERENCE_DATA_PENDING'|null}>('/admin/homepage/about/editorial',canView,canEdit,validateAboutPreview);
   const [discard,setDiscard]=useState(false),[recordDirty,setRecordDirty]=useState(false),{toast,element}=useToast();
   useEditorialUnsaved(editor.dirty||editorial.dirty||recordDirty);
   if(!canView)return <div className="cms-notice cms-notice-error" role="alert">Anda tidak memiliki izin melihat About Us.</div>;
@@ -23,6 +23,7 @@ export function AboutSettingsPage(){
   return <div className="cms-page cms-editorial-page"><div className="cms-page-head"><div><h1>About Us</h1><p>Lima bagian cerita Uni-Inside, dalam satu editor yang terstruktur.</p></div></div>
     {editor.error&&<><Notice error={editor.error}/><button type="button" className="cms-button secondary" onClick={editor.reload}>Coba lagi</button></>}
     {editor.loading?<Loading/>:saved&&draft&&pending&&!editor.error&&<>
+      {editorial.saved?.enabled&&!editorial.saved.initialized&&<div className="cms-editorial-readonly" role="status">Konten tambahan siap diedit. Isi semua kolom wajib dan simpan untuk pertama kali; website tetap menampilkan konten yang ada sampai itu selesai.</div>}
       <form id={formId} noValidate onSubmit={async event=>{event.preventDefault();const base=editor.dirty?await editor.save():true;const more=editorialReady&&editorial.dirty?await editorial.save():true;if(base&&more)toast('Konten About Us berhasil disimpan.');}}/>
       {!canEdit&&<div className="cms-editorial-readonly">Mode baca. Anda dapat melihat konten, tetapi tidak mengubah pengaturan bagian ini.</div>}
       <div className="cms-editorial-sections">

@@ -40,6 +40,24 @@ services:
         value: 'true'
       - key: REQUIRE_LATEST_MIGRATION
         value: 'true'
+      - key: SECONDARY_CONTENT_SLOTS_ENABLED
+        value: 'true'
+      - key: SOCIAL_MEDIA_V2_ENABLED
+        value: 'true'
+      - key: PRODUCT_VARIANT_MEDIA_ENABLED
+        value: 'true'
+      - key: HERO_THREE_LINE_ENABLED
+        value: 'true'
+      - key: ABOUT_EDITORIAL_V2_ENABLED
+        value: 'true'
+      - key: HOMEPAGE_NEWS_SELECTION_ENABLED
+        value: 'true'
+      - key: CONTACT_PLACEMENTS_ENABLED
+        value: 'true'
+      - key: FOOTER_V2_ENABLED
+        value: 'true'
+      - key: TEAM_TEMPLATE_ENABLED
+        value: 'true'
       - key: AUTH_TOKEN_PEPPER
         sync: false
       - key: ANALYTICS_HASH_PEPPER

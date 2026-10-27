@@ -13,6 +13,15 @@ const config = () => loadConfig({ DB_HOST:'127.0.0.1',DB_NAME:'uni-inside',DB_US
 const caPem=rootCertificates[0]!;
 const productionConfig=(overrides:Record<string,string>={})=>loadConfig({NODE_ENV:'production',HOST:'0.0.0.0',API_BASE_PATH:'/api/v1',PUBLIC_FRONTEND_URL:'https://uni-inside.pages.dev',ADMIN_FRONTEND_URL:'https://uni-inside.pages.dev/admin',CORS_ALLOWED_ORIGINS:'https://uni-inside.pages.dev',TRUST_PROXY:'true',DB_HOST:'db.example.invalid',DB_NAME:'uni-inside',DB_USER:'app',DB_PASSWORD:'test-password',DB_SSL_MODE:'required',DB_SSL_CA_BASE64:Buffer.from(caPem).toString('base64'),DB_SSL_REJECT_UNAUTHORIZED:'true',SESSION_COOKIE_SECURE:'true',SESSION_COOKIE_SAME_SITE:'none',AUTH_TOKEN_PEPPER:'a'.repeat(40),ANALYTICS_HASH_PEPPER:'b'.repeat(40),...overrides});
 describe('security boundaries',()=>{
+  it('activates verified V2 CMS editors in production while preserving explicit rollback flags',()=>{
+    const production=productionConfig();
+    for(const key of ['SOCIAL_MEDIA_V2_ENABLED','PRODUCT_VARIANT_MEDIA_ENABLED','HERO_THREE_LINE_ENABLED','SECONDARY_CONTENT_SLOTS_ENABLED','CONTACT_PLACEMENTS_ENABLED','FOOTER_V2_ENABLED','TEAM_TEMPLATE_ENABLED','HOMEPAGE_NEWS_SELECTION_ENABLED','ABOUT_EDITORIAL_V2_ENABLED'] as const)expect(production[key]).toBe(true);
+    expect(productionConfig({SECONDARY_CONTENT_SLOTS_ENABLED:'false'}).SECONDARY_CONTENT_SLOTS_ENABLED).toBe(false);
+    expect(production.SECONDARY_PROJECTS_ENABLED).toBe(false);
+    expect(production.TEAM_MEMBERS_PUBLIC_ENABLED).toBe(false);
+    expect(production.PARTNERS_PUBLIC_ENABLED).toBe(false);
+    expect(config().SECONDARY_CONTENT_SLOTS_ENABLED).toBe(false);
+  });
   it('validates deployment settings without printing secret values',()=>{
     expect(()=>loadConfig({NODE_ENV:'production',DB_HOST:'x',DB_NAME:'uni-inside',DB_USER:'root',AUTH_TOKEN_PEPPER:'secret',ANALYTICS_HASH_PEPPER:'b'.repeat(40)})).toThrow(/AUTH_TOKEN_PEPPER/);
     expect(()=>loadConfig({DB_HOST:'x',DB_NAME:'uni-inside',DB_USER:'root',AUTH_TOKEN_PEPPER:'a'.repeat(40),ANALYTICS_HASH_PEPPER:'b'.repeat(40),CLOUDINARY_ROOT_FOLDER:'../outside'})).toThrow(/CLOUDINARY_ROOT_FOLDER/);

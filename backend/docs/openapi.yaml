@@ -283,7 +283,7 @@ components:
       type: object
       additionalProperties: false
       required: [headingLine1, headingLine2, descriptionLine1, descriptionLine2, trustSignals, workspaces, callouts]
-      description: 'One fixed Hero form. headingLine1 has the fixed Ideas prefix plus at most nine editable Unicode code points, including spaces. headingLine3 is accepted only when HERO_THREE_LINE_ENABLED, the column exists, and the reviewed prefix/third-line backfill is present. Unchanged legacy text may exceed a new visual limit.'
+      description: 'One fixed Hero form. headingLine1 has the fixed Ideas prefix plus at most nine editable Unicode code points, including spaces. headingLine3 is editable when HERO_THREE_LINE_ENABLED and its column exists; an empty, unchanged third line remains unpublished until saved. Unchanged legacy text may exceed a new visual limit.'
       properties:
         headingLine1: { type: string, maxLength: 14, pattern: '^Ideas' }
         headingLine2: { type: string, maxLength: 18 }
@@ -1059,7 +1059,7 @@ paths:
   /admin/homepage/about/editorial:
     get:
       summary: Read guarded V2 About editorial fields and ordered lists
-      description: Returns enabled false and existing defaults until the schema, backfill, and ABOUT_EDITORIAL_V2_ENABLED gate are ready. Requires homepage.view.
+      description: Returns enabled true when the V2 schema and ABOUT_EDITORIAL_V2_ENABLED gate are ready. Missing editorial data is returned as an editable uninitialized draft; public content keeps its existing fallback until a complete validated save. Requires homepage.view.
       security: [{ sessionCookie: [] }]
       responses: { '200': { description: "Editorial draft, version token, and enabled state" }, '403': { description: Missing permission } }
     patch:

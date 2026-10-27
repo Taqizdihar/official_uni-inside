@@ -23,9 +23,8 @@ export async function secondarySlotsReady(db:Executor):Promise<boolean>{
  if(!has('PRIMARY KEY','id')||!has('FOREIGN KEY','page_settings_id','page_settings')||!has('FOREIGN KEY','media_id','media_assets')||!has('FOREIGN KEY','updated_by','users'))return false;
  const unique=await rows<RowDataPacket>(db,"SELECT INDEX_NAME,GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX) AS columns_in_index FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='secondary_page_content_slots' AND NON_UNIQUE=0 GROUP BY INDEX_NAME");
  if(!unique.some(row=>row.columns_in_index==='page_settings_id,slot_key'))return false;
- const checks=await rows<RowDataPacket>(db,"SELECT ck.CHECK_CLAUSE FROM information_schema.TABLE_CONSTRAINTS AS tc JOIN information_schema.CHECK_CONSTRAINTS AS ck ON ck.CONSTRAINT_SCHEMA=tc.CONSTRAINT_SCHEMA AND ck.CONSTRAINT_NAME=tc.CONSTRAINT_NAME WHERE tc.CONSTRAINT_SCHEMA=DATABASE() AND tc.TABLE_NAME='secondary_page_content_slots' AND tc.CONSTRAINT_TYPE='CHECK'");
- const clauses=checks.map(row=>String(row.CHECK_CLAUSE).toLowerCase()).join(' ');
- return ['value_type','text_value','media_id',"'text'","'mode'","'media'",'is not null','is null'].every(part=>clauses.includes(part));
+ const checks=await rows<RowDataPacket>(db,"SELECT CONSTRAINT_NAME,ENFORCED FROM information_schema.TABLE_CONSTRAINTS WHERE CONSTRAINT_SCHEMA=DATABASE() AND TABLE_NAME='secondary_page_content_slots' AND CONSTRAINT_TYPE='CHECK'");
+ return ['chk_secondary_slot_mode','chk_secondary_slot_type'].every(name=>checks.some(row=>row.CONSTRAINT_NAME===name&&row.ENFORCED==='YES'));
 }
 
 async function read(db:Executor,name:SecondaryName,slots:boolean,lock=false){

@@ -57,10 +57,14 @@ describe('Hero editor contract',()=>{
     const db={execute:()=>{throw new Error('Unexpected query');}} as unknown as Pool;
     expect(await heroThreeLineReady(db,config)).toBe(false);
   });
-  it('checks the column and approved backfill when the gate is enabled',async()=>{
+  it('opens an unseeded third line when the column and flag are ready',async()=>{
     const enabled={...config,HERO_THREE_LINE_ENABLED:true};let queries=0;
-    const db={execute:async(options:{sql:string})=>{queries++;return options.sql.includes('information_schema')?[[{total:1}],[]]:[[{heading_line_1:'Ideas 3D',heading_line_3:'Made tangible'}],[]];}} as unknown as Pool;
-    expect(await heroThreeLineReady(db,enabled)).toBe(true);expect(queries).toBe(2);
+    const db={execute:async()=>{queries++;return [[{total:1}],[]];}} as unknown as Pool;
+    expect(await heroThreeLineReady(db,enabled)).toBe(true);expect(queries).toBe(1);
+    const blank={...current,headingLine3:''};
+    expect(validateHeroEdit({...blank,headingLine2:'New second line'},blank,true)).toEqual([]);
+    expect(validateHeroEdit({...blank,headingLine3:'Made tangible'},blank,true)).toEqual([]);
+    expect(validateHeroEdit({...blank,headingLine3:'x'.repeat(19)},blank,true)).toContainEqual(expect.objectContaining({path:'headingLine3'}));
   });
   it('saves an Ideas-prefixed first line and the complete numeric callout together',async()=>{
     const statements:string[]=[];let firstLine=current.headingLine1,label='SHOOTING HOURS',numeric:number|null=50,suffix:string|null='+';

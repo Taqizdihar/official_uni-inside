@@ -27,7 +27,7 @@ export function validateHero(next:HeroEdit,old:HeroEdit,ready:boolean){
   else if(next.headingLine1!==old.headingLine1&&characters(next.headingLine1.slice(5))>9)errors.headingLine1='Maksimal 9 karakter setelah Ideas.';
   else if(next.headingLine1!==old.headingLine1&&/[<>\r\n]/u.test(next.headingLine1))errors.headingLine1='Gunakan teks biasa tanpa markup atau baris baru.';
   check('headingLine2',next.headingLine2,old.headingLine2,18,true);
-  if(ready)check('headingLine3',next.headingLine3??'',old.headingLine3??'',18,true);
+  if(ready&&(next.headingLine3??'')!==(old.headingLine3??''))check('headingLine3',next.headingLine3??'',old.headingLine3??'',18,true);
   check('descriptionLine1',next.descriptionLine1,old.descriptionLine1,50,true);
   check('descriptionLine2',next.descriptionLine2,old.descriptionLine2,50,false);
   next.trustSignals.forEach((item,i)=>{const prior=old.trustSignals[i];check(`trustSignals.${i}.label`,item.label,prior.label,14,true);if(item.numericValue===null||item.numericValue<0||!Number.isSafeInteger(item.numericValue))errors[`trustSignals.${i}.numericValue`]='Gunakan bilangan bulat tanpa nilai negatif.';else if(item.numericValue!==prior.numericValue&&item.numericValue>9999999)errors[`trustSignals.${i}.numericValue`]='Maksimal 9.999.999 untuk tampilan Hero.';if(item.suffix!==prior.suffix&&item.suffix!=null){if(characters(item.suffix)>16)errors[`trustSignals.${i}.suffix`]='Maksimal 16 karakter.';else if(/[<>\r\n]/u.test(item.suffix))errors[`trustSignals.${i}.suffix`]='Gunakan teks biasa.';}});

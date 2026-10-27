@@ -228,5 +228,5 @@ export async function publicHomepageSettings(db: Executor, threeLineHero=false,c
   const chatMessages = await rows<RowDataPacket>(db, 'SELECT message_text,speaker,sort_order FROM contact_chat_messages WHERE is_active=1 ORDER BY sort_order,id LIMIT 16');
   const contactPlacement=contactEnabled?await (await import('../services/contactPlacements')).publicContactPlacements(db,true):null;
   const editorial=aboutEditorialEnabled?await (await import('../services/aboutEditorialV2')).getAboutEditorial(db,true):null;
-  return { sections, hero, heroTrustSignals, heroWorkspaces, heroHotspots, about, aboutWorkspaces, aboutPrinciples, aboutEditorial:editorial?.enabled?editorial.edit:aboutPreviewDefaults, team, achievements, contact,contactPlacement, chatMessages };
+  return { sections, hero, heroTrustSignals, heroWorkspaces, heroHotspots, about, aboutWorkspaces, aboutPrinciples, aboutEditorial:editorial?.enabled&&editorial.initialized?editorial.edit:aboutPreviewDefaults, team, achievements, contact,contactPlacement, chatMessages };
 }

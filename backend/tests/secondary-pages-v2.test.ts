@@ -16,7 +16,7 @@ function fixture(withMediaForeignKey=true,withCheck=true,name:SecondaryName='pro
   if(sql.includes('information_schema.COLUMNS'))return [columns,[]];
   if(sql.includes('information_schema.KEY_COLUMN_USAGE'))return [constraints,[]];
   if(sql.includes('information_schema.STATISTICS'))return [[{columns_in_index:'page_settings_id,slot_key'}],[]];
-  if(sql.includes('information_schema.CHECK_CONSTRAINTS'))return [withCheck?[{CHECK_CLAUSE:"(value_type='media' AND media_id IS NOT NULL AND text_value IS NULL) OR (value_type IN ('text','mode') AND text_value IS NOT NULL AND media_id IS NULL)"}]:[],[]];
+  if(sql.includes("CONSTRAINT_TYPE='CHECK'"))return [withCheck?[{CONSTRAINT_NAME:'chk_secondary_slot_mode',ENFORCED:'YES'},{CONSTRAINT_NAME:'chk_secondary_slot_type',ENFORCED:'YES'}]:[],[]];
   if(sql.includes('FROM site_settings'))return [[{site_name:'Uni-Inside'}],[]];
   if(sql.includes('FROM social_links'))return [[],[]];
   if(sql.includes('FROM page_settings ORDER BY'))return [[{page_key:pageKey,...page}],[]];
