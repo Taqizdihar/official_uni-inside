@@ -44,3 +44,5 @@ The prepared optional services require explicit flags **and** structural checks 
 - No optional backfill SQL is executable from the available evidence. Existing live editorial content must be reviewed before drafting any owner-run update.
 
 The older CMS feature documents describe the pre-V2 preview phase. This handoff records the guarded integration added afterward; it does not certify production activation.
+
+For the current field-by-field readiness matrix, Secondary Page slot verification, and staged Render activation steps, use [the V2 CMS activation checklist](v2-cms-activation-checklist.md).

@@ -27,7 +27,7 @@ async function read(db:Executor,shape:Shape,lock=false){
 }
 export async function getHomepageNewsSelection(db:Executor,enabled=false){
  const shape=enabled?await homepageNewsSchema(db):null;
- if(!shape)return {enabled:false,reason:'DATABASE_MIGRATION_PENDING',mode:'latest',articleIds:[],version:null,popularEnabled:false};
+ if(!shape)return {enabled:false,reason:enabled?'DATABASE_MIGRATION_PENDING':'FEATURE_DISABLED',mode:'latest',articleIds:[],version:null,popularEnabled:false};
  let value:Awaited<ReturnType<typeof read>>;
  try{value=await read(db,shape);}catch(error){if(error instanceof HttpError&&error.code==='NEWS_SELECTION_INCOMPLETE')return {enabled:false,reason:'REFERENCE_DATA_PENDING',mode:'latest',articleIds:[],version:null,popularEnabled:false};throw error;}
  const selectedArticles=value.articleIds.length?await rows<RowDataPacket>(db,`SELECT id,title,status,published_at FROM news_articles WHERE id IN (${value.articleIds.map(()=>'?').join(',')}) AND status='published' AND deleted_at IS NULL AND (published_at IS NULL OR published_at<=UTC_TIMESTAMP(3))`,value.articleIds):[];

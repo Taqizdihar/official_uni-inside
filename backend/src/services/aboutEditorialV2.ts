@@ -30,8 +30,9 @@ async function read(db:Executor,lock=false):Promise<AboutPreview>{
  return edit;
 }
 export async function getAboutEditorial(db:Executor,enabled=false){
- if(!await aboutEditorialReady(db,enabled))return {enabled:false,edit:aboutPreviewDefaults,version:null};
- try{const edit=await read(db);return {enabled:true,edit,version:version(edit)};}catch(error){if(error instanceof HttpError&&error.code==='ABOUT_EDITORIAL_INCOMPLETE')return {enabled:false,edit:aboutPreviewDefaults,version:null};throw error;}
+ if(!enabled)return {enabled:false,reason:'FEATURE_DISABLED',edit:aboutPreviewDefaults,version:null};
+ if(!await aboutEditorialReady(db,true))return {enabled:false,reason:'DATABASE_MIGRATION_PENDING',edit:aboutPreviewDefaults,version:null};
+ try{const edit=await read(db);return {enabled:true,reason:null,edit,version:version(edit)};}catch(error){if(error instanceof HttpError&&error.code==='ABOUT_EDITORIAL_INCOMPLETE')return {enabled:false,reason:'REFERENCE_DATA_PENDING',edit:aboutPreviewDefaults,version:null};throw error;}
 }
 export async function saveAboutEditorial(db:Pool,body:unknown,actorId:number,requestId:string,enabled=false){
  if(!await aboutEditorialReady(db,enabled))throw new HttpError(503,'CAPABILITY_PENDING','Konten tambahan About Us belum siap.');

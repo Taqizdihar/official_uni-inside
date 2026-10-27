@@ -9,7 +9,7 @@ import {useFixedEditor,useEditorialUnsaved} from '../about-team/useFixedEditor';
 import {secondaryFields,secondaryNames,secondarySpecs,validateSecondaryValues,type SecondaryName} from '../../../backend/src/contracts/secondaryPages';
 import './about-team.css';
 import '../secondary/secondary.css';
-type Response={edit:Record<string,string>;version:string;enabled:boolean;pending:Record<string,string>;reason?:string;capabilities:{contentSlots:boolean;manualBanner:boolean;projects:boolean}};
+type Response={edit:Record<string,string>;version:string;enabled:boolean;pending:Record<string,string>;reason?:string;capabilities:{contentSlots:boolean;contentSlotsReason:'FEATURE_DISABLED'|'DATABASE_MIGRATION_PENDING'|null;manualBanner:boolean;projects:boolean}};
 export function SecondaryPageSettings(){
  const {page}=useParams();
  return secondaryNames.includes(page as SecondaryName)?<SecondaryEditor key={page} name={page as SecondaryName}/>:<div className="cms-notice cms-notice-error">Halaman tidak ditemukan.</div>;
@@ -41,7 +41,7 @@ export function SecondaryEditor({name}:{name:SecondaryName}){
       {field.fixedTarget&&<small className="cms-secondary-fixed">Tujuan tetap: {field.fixedTarget}</small>}
      </div>)}</div>
      {name==='products'&&index===0&&<div className="cms-secondary-banner"><h3>Gambar banner</h3><div className="cms-secondary-banner-modes"><label><input type="radio" name="banner-mode" checked={!slots||editor.draft!.banner_mode!=='manual'} onChange={()=>editor.change(old=>({...old,banner_mode:'automatic'}))} disabled={disabled||!slots}/>Otomatis</label><label><input type="radio" name="banner-mode" checked={slots&&editor.draft!.banner_mode==='manual'} onChange={()=>editor.change(old=>({...old,banner_mode:'manual'}))} disabled={disabled||!slots}/>Pilih Gambar</label></div><p>{slots?'Mode manual memakai gambar dari Manajemen Aset · Halaman Lanjutan.':'Gambar mengikuti produk terbit. Pilihan manual menunggu penyimpanan referensi gambar.'}</p><MediaPicker scope="projects" value={slots&&editor.draft!.banner_media_id?Number(editor.draft!.banner_media_id):null} onChange={value=>editor.change(old=>({...old,banner_media_id:value?String(value):''}))} allowUpload={false} disabled={disabled||!slots||editor.draft!.banner_mode!=='manual'} formats={['jpg','jpeg','png','webp','avif']}/>{editor.issues.banner_media_id&&<small className="cms-field-error" role="alert">{editor.issues.banner_media_id}</small>}<small>Referensi manual memakai aset Halaman Lanjutan dan mempertahankan rasio gambar.</small></div>}
-     {panel.fields.some(field=>!field.column)&&!slots&&<PendingEditorial>Isian abu-abu menunggu aktivasi penyimpanan. Isian aktif dapat disimpan melalui tombol di bawah.</PendingEditorial>}
+     {panel.fields.some(field=>!field.column)&&!slots&&<PendingEditorial>{editor.saved.capabilities.contentSlotsReason==='DATABASE_MIGRATION_PENDING'?'Struktur penyimpanan konten tambahan belum sesuai. Isian aktif tetap dapat disimpan.':'Konten tambahan belum diaktifkan pada backend. Isian aktif tetap dapat disimpan.'}</PendingEditorial>}
      {name==='media-kit'&&index===0&&<p className="cms-secondary-fixed">Alamat email mengikuti pengaturan Footer; tidak diisi ulang di sini.</p>}
     </EditorialPanel>)}</div>
     <Notice error={editor.saveError}/>{editor.saveError&&<button type="button" className="cms-button secondary" onClick={()=>{if(editor.dirty){setReloadRequested(true);setDiscard(true);}else editor.reload();}}>Muat ulang konten</button>}

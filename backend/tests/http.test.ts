@@ -76,6 +76,14 @@ describe('HTTP behavior',()=>{
     const forbidden=await request(app).post('/api/v1/admin/products/compose').set('Origin','http://localhost:3000').set('Cookie',cookies).set('X-CSRF-Token',csrf).send({action:'draft',name:'Product'});
     expect(forbidden.status).toBe(403);expect(forbidden.body.error.code).toBe('FORBIDDEN');
   });
+  it('keeps Secondary Pages V2 writes behind CSRF and settings.update',async()=>{
+    const raw='session-token',token=csrfToken(config,raw),cookies=[`${config.SESSION_COOKIE_NAME}=${raw}`,`${config.CSRF_COOKIE_NAME}=${token}`];
+    const path='/api/v1/admin/secondary-pages/products';
+    const noCsrf=await request(app).patch(path).set('Origin','http://localhost:3000').set('Cookie',cookies).send({});
+    expect(noCsrf.status).toBe(403);expect(noCsrf.body.error.code).toBe('CSRF_INVALID');
+    const forbidden=await request(app).patch(path).set('Origin','http://localhost:3000').set('Cookie',cookies).set('X-CSRF-Token',token).send({});
+    expect(forbidden.status).toBe(403);expect(forbidden.body.error.code).toBe('FORBIDDEN');
+  });
   it('keeps variant-photo and WhatsApp-account edits behind CSRF and product update permission',async()=>{
     const raw='session-token',csrf=csrfToken(config,raw),cookies=[`${config.SESSION_COOKIE_NAME}=${raw}`,`${config.CSRF_COOKIE_NAME}=${csrf}`];
     for(const [path,body] of [['/api/v1/admin/product-variants/8/media',{media_id:3}],['/api/v1/admin/product-purchase-links/9/whatsapp-account',{social_link_id:4}]] as const){

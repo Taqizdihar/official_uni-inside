@@ -25,7 +25,7 @@ async function read(db:Executor,lock=false){
  return {socialLinkIds:placements.map(item=>Number(item.social_link_id)),craftUrl:String(settings.craft_url??''),placements};
 }
 export async function getContactPlacements(db:Executor,enabled=false){
- if(!enabled||!await contactPlacementsReady(db))return {enabled:false,reason:'DATABASE_MIGRATION_PENDING',socialLinkIds:[],craftUrl:'',version:null};
+ if(!enabled||!await contactPlacementsReady(db))return {enabled:false,reason:enabled?'DATABASE_MIGRATION_PENDING':'FEATURE_DISABLED',socialLinkIds:[],craftUrl:'',version:null};
  let value:Awaited<ReturnType<typeof read>>;
  try{value=await read(db);}catch(error){if(error instanceof HttpError&&error.code==='CONTACT_INCOMPLETE')return {enabled:false,reason:'REFERENCE_DATA_PENDING',socialLinkIds:[],craftUrl:'',version:null};throw error;}
  if(value.placements.some(item=>{if(Number(item.is_active)!==1||!platformCodes.includes(String(item.platform_code) as PlatformCode))return true;try{accountUrl(String(item.url),item.platform_code as PlatformCode);return false;}catch{return true;}}))return {enabled:false,reason:'REFERENCE_DATA_PENDING',socialLinkIds:value.socialLinkIds,craftUrl:value.craftUrl,version:null};

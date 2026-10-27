@@ -20,9 +20,12 @@ export async function secondarySlotsReady(db:Executor):Promise<boolean>{
  if(!['text','media','mode'].every(value=>valuesType.includes(`'${value}'`)))return false;
  const constraints=await rows<RowDataPacket>(db,"SELECT c.CONSTRAINT_TYPE,k.COLUMN_NAME,k.REFERENCED_TABLE_NAME FROM information_schema.KEY_COLUMN_USAGE AS k JOIN information_schema.TABLE_CONSTRAINTS AS c USING (CONSTRAINT_SCHEMA,TABLE_NAME,CONSTRAINT_NAME) WHERE k.TABLE_SCHEMA=DATABASE() AND k.TABLE_NAME='secondary_page_content_slots'");
  const has=(type:string,column:string,target?:string)=>constraints.some(row=>row.CONSTRAINT_TYPE===type&&row.COLUMN_NAME===column&&(!target||row.REFERENCED_TABLE_NAME===target));
- if(!has('PRIMARY KEY','id')||!has('FOREIGN KEY','page_settings_id','page_settings')||!has('FOREIGN KEY','media_id','media_assets'))return false;
+ if(!has('PRIMARY KEY','id')||!has('FOREIGN KEY','page_settings_id','page_settings')||!has('FOREIGN KEY','media_id','media_assets')||!has('FOREIGN KEY','updated_by','users'))return false;
  const unique=await rows<RowDataPacket>(db,"SELECT INDEX_NAME,GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX) AS columns_in_index FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='secondary_page_content_slots' AND NON_UNIQUE=0 GROUP BY INDEX_NAME");
- return unique.some(row=>row.columns_in_index==='page_settings_id,slot_key');
+ if(!unique.some(row=>row.columns_in_index==='page_settings_id,slot_key'))return false;
+ const checks=await rows<RowDataPacket>(db,"SELECT ck.CHECK_CLAUSE FROM information_schema.TABLE_CONSTRAINTS AS tc JOIN information_schema.CHECK_CONSTRAINTS AS ck ON ck.CONSTRAINT_SCHEMA=tc.CONSTRAINT_SCHEMA AND ck.CONSTRAINT_NAME=tc.CONSTRAINT_NAME WHERE tc.CONSTRAINT_SCHEMA=DATABASE() AND tc.TABLE_NAME='secondary_page_content_slots' AND tc.CONSTRAINT_TYPE='CHECK'");
+ const clauses=checks.map(row=>String(row.CHECK_CLAUSE).toLowerCase()).join(' ');
+ return ['value_type','text_value','media_id',"'text'","'mode'","'media'",'is not null','is null'].every(part=>clauses.includes(part));
 }
 
 async function read(db:Executor,name:SecondaryName,slots:boolean,lock=false){
@@ -45,7 +48,7 @@ async function read(db:Executor,name:SecondaryName,slots:boolean,lock=false){
  }
  return {id:Number(row.id),edit};
 }
-function response(name:SecondaryName,edit:Record<string,string>,enabled:boolean,slots=false){return {edit,version:version(edit),enabled,capabilities:{contentSlots:slots,manualBanner:slots&&name==='products',projects:enabled&&name==='projects'},pending:Object.fromEntries(secondaryFields(name).filter(field=>!field.column&&!slots).map(field=>[field.key,field.fallback]))};}
+function response(name:SecondaryName,edit:Record<string,string>,enabled:boolean,slots=false,slotReason:'FEATURE_DISABLED'|'DATABASE_MIGRATION_PENDING'|null='FEATURE_DISABLED'){return {edit,version:version(edit),enabled,capabilities:{contentSlots:slots,contentSlotsReason:slots?null:slotReason,manualBanner:slots&&name==='products',projects:enabled&&name==='projects'},pending:Object.fromEntries(secondaryFields(name).filter(field=>!field.column&&!slots).map(field=>[field.key,field.fallback]))};}
 export async function getSecondaryPage(db:Executor,name:SecondaryName,projectsEnabled=false,slotsEnabled=false){
  if(name==='projects'&&!projectsEnabled)return {...response(name,defaults(name),false),reason:'Projects belum diaktifkan.'};
  if(name==='projects'){
@@ -53,11 +56,12 @@ export async function getSecondaryPage(db:Executor,name:SecondaryName,projectsEn
   if(!ready)return {...response(name,defaults(name),false),reason:'Singleton Projects belum tersedia.'};
  }
  const slots=name!=='projects'&&slotsEnabled&&await secondarySlotsReady(db);
- return response(name,(await read(db,name,slots)).edit,true,slots);
+ return response(name,(await read(db,name,slots)).edit,true,slots,slotsEnabled?'DATABASE_MIGRATION_PENDING':'FEATURE_DISABLED');
 }
 
 async function setSlot(db:Executor,pageId:number,key:string,type:'text'|'mode'|'media',value:string,actorId:number){
  const media=type==='media'?(value?Number(value):null):null;
+ if(type==='media'&&(!Number.isSafeInteger(media)||!media||media<1))throw new HttpError(400,'INVALID_MEDIA','Pilih gambar banner yang tersedia.');
  const text=type==='media'?null:value;
  await write(db,`INSERT INTO secondary_page_content_slots (page_settings_id,slot_key,value_type,text_value,media_id,updated_by)
  VALUES (?,?,?,?,?,?) ON DUPLICATE KEY UPDATE value_type=VALUES(value_type),text_value=VALUES(text_value),media_id=VALUES(media_id),updated_by=VALUES(updated_by)`,[pageId,key,type,text,media,actorId]);
@@ -77,7 +81,7 @@ export async function saveSecondaryPage(db:Pool,name:SecondaryName,body:unknown,
   if(issues.length)throw new HttpError(400,'VALIDATION_ERROR','Periksa kolom yang ditandai.',issues);
   const changed=fields.filter(field=>input.edit[field.key]!==before.edit[field.key]);
   const columns=changed.filter(field=>field.column),slotFields=changed.filter(field=>!field.column);
-  if(name==='products'&&slots&&input.edit.banner_media_id&&input.edit.banner_media_id!==before.edit.banner_media_id){
+  if(name==='products'&&slots&&input.edit.banner_media_id&&(input.edit.banner_mode==='manual'||input.edit.banner_media_id!==before.edit.banner_media_id)){
    const media=(await validateMediaIds(conn,[Number(input.edit.banner_media_id)],'lanjutan',mediaRoot))[0];
    if(!media||!['jpg','jpeg','png','webp','avif'].includes(String(media.format).toLowerCase()))throw new HttpError(400,'INVALID_MEDIA','Pilih gambar raster dari Halaman Lanjutan.');
   }
@@ -85,12 +89,15 @@ export async function saveSecondaryPage(db:Pool,name:SecondaryName,body:unknown,
   for(const field of slotFields)await setSlot(conn,before.id,field.key,'text',input.edit[field.key]!,actorId);
   if(slots&&name==='products'){
    if(input.edit.banner_mode!==before.edit.banner_mode)await setSlot(conn,before.id,'banner_mode','mode',input.edit.banner_mode!,actorId);
-   if(input.edit.banner_media_id!==before.edit.banner_media_id)await setSlot(conn,before.id,'banner_media_id','media',input.edit.banner_media_id!,actorId);
+   if(input.edit.banner_media_id!==before.edit.banner_media_id){
+    if(input.edit.banner_media_id)await setSlot(conn,before.id,'banner_media_id','media',input.edit.banner_media_id,actorId);
+    else await write(conn,"DELETE FROM secondary_page_content_slots WHERE page_settings_id=? AND slot_key='banner_media_id'",[before.id]);
+   }
   }
   if(changed.length||slots&&name==='products'&&(input.edit.banner_mode!==before.edit.banner_mode||input.edit.banner_media_id!==before.edit.banner_media_id)){
    await revision(conn,{entityType:`page_settings:${secondarySpecs[name].pageKey}`,entityId:before.id,snapshot:input.edit,actorId,summary:'Updated secondary page'});
    await audit(conn,{actorId,action:`secondary.${name}.update`,entityType:'page_settings',entityId:before.id,requestId,before:before.edit,after:input.edit});
   }
-  return response(name,(await read(conn,name,slots)).edit,true,slots);
+  return response(name,(await read(conn,name,slots)).edit,true,slots,slotsEnabled?'DATABASE_MIGRATION_PENDING':'FEATURE_DISABLED');
  });
 }
