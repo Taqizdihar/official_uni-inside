@@ -5,8 +5,6 @@ import {LoginPage,TokenPage,ResetRequestPage} from './pages/AuthPages';
 import {DashboardPage,AnalyticsPage} from './pages/OverviewPages';
 import {ResourceLandingPage,ResourceEditorPage} from './pages/ResourcePages';
 import {MediaPage} from './pages/MediaPage';
-import {ServiceCreatePage} from './pages/ServiceCreatePage';
-import {ArticleCreatePage} from './pages/ArticleCreatePage';
 import {CategoryManagementPage} from './pages/CategoryManagementPage';
 import {SocialMediaPage} from './pages/SocialMediaPage';
 import {FooterSettingsPage} from './pages/FooterSettingsPage';
@@ -70,8 +68,6 @@ export default function AdminApp(){return <div className="cms" lang="id"><AuthPr
     <Route path="content/product-categories/:key" element={<LegacyCategoryRedirect resource="product-categories" action="edit"/>}/>
     <Route path="content/service-categories/:key" element={<LegacyCategoryRedirect resource="service-categories" action="edit"/>}/>
     <Route path="content/news-categories/:key" element={<LegacyCategoryRedirect resource="news-categories" action="edit"/>}/>
-    <Route path="content/services/new" element={<ServiceCreatePage/>}/>
-    <Route path="content/news/new" element={<ArticleCreatePage/>}/>
     <Route path="content/:resource/new" element={<ContentResourceEditor create/>}/>
     <Route path="content/:resource/:key" element={<ContentResourceEditor/>}/>
     <Route path="media" element={<MediaPage/>}/>

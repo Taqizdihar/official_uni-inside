@@ -1307,6 +1307,46 @@ paths:
         '201': { description: 'Persisted product; status confirms draft or published' }
         '400': { description: 'Validation, unsupported variant photo, invalid selected WhatsApp account, missing global WhatsApp, or incomplete publication; no data is committed' }
         '403': { description: 'Missing permission or invalid CSRF token' }
+  /admin/products/{key}/complete:
+    get:
+      summary: Load the existing Product and its ordered images, features, variants, and purchase links
+      description: Requires products.view. Existing child IDs and supported variant media are returned for the unified Create/Edit form.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Key' }]
+      responses: { '200': { description: Complete Product edit model }, '403': { description: Missing view permission }, '404': { description: Product not found } }
+    put:
+      summary: Update a Product and its child records in one transaction
+      description: Requires products.update and CSRF; publishing a draft additionally requires products.publish. Existing child IDs are checked against this Product; omitted active purchase links are deactivated. Stored SEO columns are preserved.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Key' }, { $ref: '#/components/parameters/Csrf' }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object } } } }
+      responses: { '200': { description: Updated Product }, '400': { description: Invalid content or media }, '403': { description: Missing permission or CSRF }, '409': { description: Stale child ID or unavailable media } }
+  /admin/services/{key}/complete:
+    get:
+      summary: Load the existing Service and its ordered images, information, and process steps
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Key' }]
+      responses: { '200': { description: Complete Service edit model }, '403': { description: Missing view permission }, '404': { description: Service not found } }
+    put:
+      summary: Update a Service and its child records in one transaction
+      description: Requires services.update and CSRF; publishing a draft additionally requires services.publish. Existing child IDs are checked against this Service.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Key' }, { $ref: '#/components/parameters/Csrf' }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object } } } }
+      responses: { '200': { description: Updated Service }, '400': { description: Invalid content or media }, '403': { description: Missing permission or CSRF }, '409': { description: Stale child ID or unavailable media } }
+  /admin/news/{key}/complete:
+    get:
+      summary: Load the existing Article and its ordered gallery
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Key' }]
+      responses: { '200': { description: Complete Article edit model }, '403': { description: Missing view permission }, '404': { description: Article not found } }
+    put:
+      summary: Update an Article and its gallery in one transaction
+      description: Requires news.update and CSRF; publishing a draft additionally requires news.publish. Existing media order and captions are preserved when unchanged.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/Key' }, { $ref: '#/components/parameters/Csrf' }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object } } } }
+      responses: { '200': { description: Updated Article }, '400': { description: Invalid content or media }, '403': { description: Missing permission or CSRF }, '409': { description: Unavailable media } }
   /admin/product-variants/{key}/media:
     patch:
       summary: Update an existing product variant photo without recreating the variant

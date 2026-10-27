@@ -32,3 +32,13 @@ test('multi-slot fixed resources select an existing editor while dynamic collect
   assert.equal(catalog.products.kind,'dynamic');
   assert.equal(catalog['hero-hotspots'].kind,'fixed');
 });
+
+test('active CMS resource definitions contain no manual SEO or social-preview inputs',()=>{
+  for(const [name,resource] of Object.entries(catalog)){
+    assert.equal(resource.fields.some(field=>/^(meta_title|meta_description|default_meta_title|default_meta_description|social_image_media_id|og_image_media_id)$/.test(field.key)),false,`${name} exposes an SEO field`);
+  }
+  const routes=readFileSync('src/admin/AdminApp.tsx','utf8');
+  assert.doesNotMatch(routes,/<Route path="content\/(services|news)\/new"/);
+  const navigation=readFileSync('src/admin/layouts/CmsLayout.tsx','utf8');
+  assert.doesNotMatch(navigation,/destination\('Uni-Tools'|resource\('uni-tools'/);
+});

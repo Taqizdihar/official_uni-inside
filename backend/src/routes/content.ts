@@ -20,6 +20,7 @@ import {reorderAchievements} from '../services/achievementOrder';
 import {publicHomepageNews} from '../services/homepageNewsSelection';
 import {validateMediaIds} from '../services/mediaReferences';
 import {account} from '../repositories/socialMedia';
+import {getPostEditor,savePostEditor} from '../services/postEditor';
 
 const heroResources = new Set(['hero-settings','hero-trust-signals','hero-workspaces','hero-hotspots']);
 
@@ -58,6 +59,17 @@ export function publicContentRoutes(db: Pool, config?: Config) {
 export function adminContentRoutes(config: Config, db: Pool) {
   const router = Router();
   const requireAuth = auth(config,db); const requireCsrf = csrf(config);
+  for(const kind of ['products','services','news'] as const){
+    router.get(`/admin/${kind}/:key/complete`,requireAuth,permit(`${kind}.view`),asyncRoute(async(req,res)=>{
+      const key=parse(z.coerce.number().int().positive(),req.params.key);
+      const caps=kind==='products'?await cmsCapabilities(db,config):undefined;
+      res.set('Cache-Control','no-store').json({data:await getPostEditor(db,kind,key,caps)});
+    }));
+    router.put(`/admin/${kind}/:key/complete`,requireAuth,requireCsrf,permit(`${kind}.update`),asyncRoute(async(req,res)=>{
+      const key=parse(z.coerce.number().int().positive(),req.params.key);
+      res.set('Cache-Control','no-store').json({data:await savePostEditor(db,kind,key,req.body,req.actor!,req.requestId,await cmsCapabilities(db,config),config.CLOUDINARY_ROOT_FOLDER)});
+    }));
+  }
   router.get('/admin/homepage/hero',requireAuth,permit('homepage.view'),asyncRoute(async(_req,res)=>{
     res.set('Cache-Control','no-store').json({data:await getHero(db,config)});
   }));

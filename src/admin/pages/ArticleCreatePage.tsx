@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, ArrowUp, ArrowDown, Check, GripVertical, ImagePl
 import { api, type ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthProvider';
 import { Loading, Notice } from '../components/Ui';
+import {ArchivePostButton} from '../components/ArchivePostButton';
 import { mediaUrl } from '../components/MediaPicker';
 import { ProductMediaDialog } from '../products/ProductMediaDialog';
 import type { Photo } from '../products/model';
@@ -20,8 +21,9 @@ const contentTypes = [
   ['news', 'Berita'], ['article', 'Artikel'], ['update', 'Pembaruan'], ['event', 'Acara'],
 ] as const;
 
-export function ArticleCreatePage() {
+export function ArticleCreatePage({id}:{id?:number}={}) {
   const { user, has } = useAuth();
+  const [loaded,setLoaded]=useState(!id);
   const [title, setTitle] = useState('');
   const [contentType, setContentType] = useState<(typeof contentTypes)[number][0]>('article');
   const [categoryId, setCategoryId] = useState('');
@@ -60,10 +62,12 @@ export function ArticleCreatePage() {
   const safeBody = body ? safeNewsHtml(body) : '';
   const canPublish = has('news.update') && has('news.publish');
 
+  useEffect(()=>{if(!id||!has('news.view')||!has('news.update'))return;const controller=new AbortController();setLoaded(false);api<{record:Record<string,unknown>;cover:Photo|null;images:{media:Photo|null}[]}>(`/admin/news/${id}/complete`,{signal:controller.signal}).then(({data})=>{if(controller.signal.aborted)return;const post=data.record;setTitle(String(post.title??''));setContentType(String(post.content_type??'article') as (typeof contentTypes)[number][0]);setCategoryId(String(post.category_id??''));setExcerpt(String(post.excerpt??''));setBody(String(post.body??''));setCover(data.cover);setGallery(data.images.map(row=>row.media).filter((item):item is Photo=>Boolean(item)&&item.id!==data.cover?.id));setAuthorValue(post.author_user_id?`user:${post.author_user_id}`:post.author_team_member_id?`team:${post.author_team_member_id}`:'');authorInitialized.current=true;setReadingOverride(post.reading_time_minutes!=null);setManualMinutes(String(post.reading_time_minutes??''));setDirty(false);setLoaded(true);}).catch(cause=>{if(!controller.signal.aborted)setError(cause);});return()=>controller.abort();},[id,has]);
   useEffect(() => { setEditorDirty(dirty); return () => setEditorDirty(false); }, [dirty]);
+  useEffect(() => { if (dirty) setSaved(null); }, [dirty]);
   useBeforeUnload(event => { if (dirty) { event.preventDefault(); event.returnValue = ''; } });
   useEffect(() => {
-    if (!has('news.create')) return;
+    if (!has(id?'news.update':'news.create')) return;
     const controller = new AbortController();
     setCategoryLoading(true); setCategoryError(null);
     (async () => {
@@ -79,9 +83,9 @@ export function ArticleCreatePage() {
       finally { if (!controller.signal.aborted) setCategoryLoading(false); }
     })();
     return () => controller.abort();
-  }, [has, retryOptions]);
+  }, [has, retryOptions,id]);
   useEffect(() => {
-    if (!has('news.create')) return;
+    if (!has(id?'news.update':'news.create')) return;
     const controller = new AbortController();
     setAuthorLoading(true); setAuthorError(null);
     const load = async (source: 'user' | 'team') => {
@@ -98,7 +102,7 @@ export function ArticleCreatePage() {
       .catch(cause => { if (!controller.signal.aborted) setAuthorError(cause); })
       .finally(() => { if (!controller.signal.aborted) setAuthorLoading(false); });
     return () => controller.abort();
-  }, [has, retryOptions]);
+  }, [has, retryOptions,id]);
   useEffect(() => {
     if (!authorLoading && !authorError && !authorInitialized.current) {
       const mine = authors.find(option => option.source === 'user' && option.id === user?.id);
@@ -116,7 +120,8 @@ export function ArticleCreatePage() {
     return () => observer.disconnect();
   }, [body]);
 
-  if (!has('news.view') || !has('news.create')) return <div className="cms-page cms-notice cms-notice-error">Anda tidak memiliki izin untuk menambah artikel.</div>;
+  if (!has('news.view') || !has(id?'news.update':'news.create')) return <div className="cms-page cms-notice cms-notice-error">Anda tidak memiliki izin untuk menambah artikel.</div>;
+  if(!loaded)return <div className="cms-page">{!error&&<p role="status">Memuat artikel…</p>}<Notice error={error}/></div>;
   const change = (callback: () => void) => { callback(); setDirty(true); };
   const moveImage = (from: number, to: number) => change(() => setGallery(current => moveArticleImage(current, from, to)));
   const dragStart = (event: PointerEvent<HTMLButtonElement>, index: number) => {
@@ -138,7 +143,7 @@ export function ArticleCreatePage() {
     requestAnimationFrame(() => { feedback.current?.scrollIntoView({ behavior: 'instant', block: 'nearest' }); feedback.current?.focus(); });
   };
   async function save(action: 'draft' | 'publish') {
-    if (saving.current || saved) return;
+    if (saving.current || (!id&&saved)) return;
     setError(null); setErrors({});
     try {
       if (readingOverride && manualMinutes.trim() && !validReadingMinutes(manualMinutes)) {
@@ -154,8 +159,8 @@ export function ArticleCreatePage() {
         reading_time_minutes: readingOverride && manualMinutes.trim() ? Number(manualMinutes) : null,
       };
       saving.current = true; setBusy(true);
-      const result = await api<{ id: number; status: string }>('/admin/news/create-complete', { method: 'POST', body: JSON.stringify(payload) });
-      if (!Number.isSafeInteger(result.data?.id) || result.data.id <= 0 || result.data.status !== (action === 'publish' ? 'published' : 'draft')) throw new Error('Server belum mengonfirmasi artikel. Periksa daftar Berita sebelum mencoba lagi.');
+      const result = await api<{ id: number; status: string }>(id?`/admin/news/${id}/complete`:'/admin/news/create-complete', { method: id?'PUT':'POST', body: JSON.stringify(payload) });
+      if (!Number.isSafeInteger(result.data?.id) || result.data.id <= 0 || result.data.status !== (action === 'publish' ? 'published' : 'draft') && !(id && action==='draft' && ['published','scheduled'].includes(result.data.status))) throw new Error('Server belum mengonfirmasi artikel. Periksa daftar Berita sebelum mencoba lagi.');
       setSaved(result.data); setDirty(false); setEditorDirty(false);
       requestAnimationFrame(() => feedback.current?.scrollIntoView({ behavior: 'instant', block: 'nearest' }));
     } catch (cause) { setFailure(cause); }
@@ -172,19 +177,19 @@ export function ArticleCreatePage() {
 
   return <div className="cms-page cms-article-create">
     <Link className="cms-article-back" to="/admin/content/news"><ArrowLeft size={17} /> Kembali ke Berita</Link>
-    <h1>Tambah Artikel</h1>
+    <h1>{id?`Edit ${title}`:'Tambah Artikel'}</h1>
     <div ref={feedback} tabIndex={-1} className="cms-article-feedback"><Notice error={error} />{saved && <div className="cms-article-success" role="status"><Check size={19} /><span>{saved.status === 'published' ? 'Artikel berhasil diterbitkan.' : 'Artikel berhasil disimpan sebagai draf.'} <Link to={`/admin/content/news/${saved.id}`}>Buka artikel</Link> · <Link to="/admin/content/news">Kembali ke daftar Berita</Link></span></div>}</div>
     {(categoryError || authorError) && <div className="cms-article-options-error"><Notice error={categoryError || authorError} /><button type="button" className="cms-button secondary" onClick={() => setRetryOptions(value => value + 1)}>Coba lagi</button></div>}
-    <fieldset disabled={busy || Boolean(saved)} className="cms-article-layout"><div className="cms-article-form">
+    <fieldset disabled={busy || (!id&&Boolean(saved))} className="cms-article-layout"><div className="cms-article-form">
       <section className="cms-article-card"><h2>Informasi Utama</h2><div className="cms-article-cover"><button type="button" className="cms-article-cover-select" onClick={() => setPicker({ kind: 'cover' })} aria-label={cover ? 'Ganti gambar sampul' : 'Pilih gambar sampul'}>{cover ? <img src={mediaUrl(cover.secure_url, 960)} alt={cover.alt_text || title || 'Gambar sampul'} /> : <><ImagePlus size={40} strokeWidth={1.5} /><strong>Tambah Gambar Sampul</strong><span>Gambar utama artikel</span></>}</button>{cover && <button type="button" className="cms-article-cover-remove" onClick={() => change(() => setCover(null))} aria-label="Hapus gambar sampul"><Trash2 size={16} /></button>}</div>{fieldError('cover_media_id')}
         <div className="cms-field"><label>Judul Artikel<input value={title} maxLength={255} onChange={event => change(() => setTitle(event.target.value))} placeholder="Tulis judul yang jelas dan menarik" aria-invalid={Boolean(errors.title)} /></label>{fieldError('title')}</div>
-        <div className="cms-article-main-row"><div className="cms-field"><label>Jenis Konten<select value={contentType} onChange={event => change(() => setContentType(event.target.value as typeof contentType))}>{contentTypes.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label></div><div className="cms-field"><label>Kategori<select value={categoryId} disabled={categoryLoading} onChange={event => change(() => setCategoryId(event.target.value))} aria-invalid={Boolean(errors.category_id)}><option value="">{categoryLoading ? 'Memuat kategori…' : 'Pilih kategori'}</option>{categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>{fieldError('category_id')}</div></div>
+        <div className="cms-article-main-row"><div className="cms-field"><label>Jenis Konten<select value={contentType} onChange={event => change(() => setContentType(event.target.value as typeof contentType))}>{contentTypes.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label></div><div className="cms-field"><label>Kategori<select value={categoryId} disabled={categoryLoading} onChange={event => change(() => setCategoryId(event.target.value))} aria-invalid={Boolean(errors.category_id)}><option value="">{categoryLoading ? 'Memuat kategori…' : 'Pilih kategori'}</option>{categoryId&&!categories.some(category=>String(category.id)===categoryId)&&<option value={categoryId}>Kategori tersimpan (tidak aktif)</option>}{categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>{fieldError('category_id')}</div></div>
         <div className="cms-field"><label>Ringkasan<textarea value={excerpt} maxLength={1000} rows={4} onChange={event => change(() => setExcerpt(event.target.value))} placeholder="Tulis pengantar singkat untuk kartu berita dan halaman artikel" aria-invalid={Boolean(errors.excerpt)} /></label>{fieldError('excerpt')}<small>{excerpt.length}/1000 karakter</small></div>
       </section>
       <section className="cms-article-card cms-article-body-card"><h2>Isi Artikel</h2><p className="cms-article-help">Susun naskah dengan paragraf, subjudul, daftar, kutipan, dan tautan. Tempel sebagai teks biasa.</p><Suspense fallback={<Loading />}><RichEditor label="Isi Artikel" value={body} onChange={value => change(() => setBody(value))} editorial /></Suspense>{fieldError('body')}</section>
       <section className="cms-article-card"><h2>Gambar Artikel</h2><p className="cms-article-help">Gambar tambahan tampil setelah isi artikel, sesuai urutan di bawah ini. Maksimal 100 gambar.</p><div className="cms-article-gallery" aria-label="Gambar tambahan artikel">{gallery.map((image, index) => <div key={image.id} className={`cms-article-image ${dragIndex === index ? 'dragging' : ''}`} data-article-image-index={index}><button type="button" className="cms-article-image-select" onClick={() => setPicker({ kind: 'gallery', index })} aria-label={`Ganti gambar artikel ${index + 1}`}><img src={mediaUrl(image.secure_url, 280)} alt={image.alt_text || `Gambar artikel ${index + 1}`} /></button><span className="cms-article-image-number">{index + 1}</span><div className="cms-article-image-actions"><button type="button" onClick={() => moveImage(index, index - 1)} disabled={index === 0} aria-label={`Naikkan gambar artikel ${index + 1}`}><ArrowUp size={15} /></button><button type="button" onClick={() => moveImage(index, index + 1)} disabled={index === gallery.length - 1} aria-label={`Turunkan gambar artikel ${index + 1}`}><ArrowDown size={15} /></button><button type="button" className="cms-article-image-grip" onPointerDown={event => dragStart(event, index)} onPointerUp={dragEnd} onPointerCancel={() => { drag.current = null; setDragIndex(null); }} aria-label={`Seret gambar artikel ${index + 1} untuk mengubah urutan`}><GripVertical size={15} /></button><button type="button" onClick={() => change(() => setGallery(previous => previous.filter((_, position) => position !== index)))} aria-label={`Hapus gambar artikel ${index + 1}`}><Trash2 size={15} /></button></div></div>)}{gallery.length < 100 && <button type="button" className="cms-article-gallery-add" onClick={() => setPicker({ kind: 'gallery', index: null })}><Plus size={24} /><span>Tambah Gambar</span></button>}</div>{!gallery.length && <p className="cms-article-empty">Belum ada gambar tambahan.</p>}{fieldError('gallery_media_ids')}</section>
-      <section className="cms-article-card"><h2>Penulis &amp; Waktu Baca</h2><div className="cms-article-main-row"><div className="cms-field"><label>Penulis<select aria-label="Penulis" value={authorValue} disabled={authorLoading} onChange={event => change(() => setAuthorValue(event.target.value))} aria-invalid={Boolean(errors.author)}><option value="">{authorLoading ? 'Memuat penulis…' : 'Pilih penulis'}</option><optgroup label="Anggota CMS">{authors.filter(option => option.source === 'user').map(option => <option key={`user:${option.id}`} value={`user:${option.id}`}>{option.name}</option>)}</optgroup><optgroup label="Anggota Tim">{authors.filter(option => option.source === 'team').map(option => <option key={`team:${option.id}`} value={`team:${option.id}`}>{option.name}</option>)}</optgroup></select></label>{fieldError('author')}</div><div className="cms-field"><label>Estimasi Waktu Baca<div className="cms-article-minutes"><input type="number" inputMode="numeric" step="1" min="1" max="999" value={displayedMinutes} onChange={event => change(() => { setReadingOverride(true); setManualMinutes(event.target.value); })} aria-invalid={Boolean(errors.reading_time_minutes)} placeholder="Otomatis" /><span>menit</span></div></label>{fieldError('reading_time_minutes')}<div className="cms-article-reading-help"><small>Perkiraan otomatis: {suggested ?? '—'} menit · 200 kata/menit</small>{readingOverride && <button type="button" onClick={() => change(() => { setReadingOverride(false); setManualMinutes(''); })}><RotateCcw size={13} /> Hitung ulang</button>}</div></div></div></section>
-    </div><aside className="cms-article-side"><div className="cms-article-preview"><h2>Preview</h2><div className="cms-article-preview-cover">{cover ? <img src={mediaUrl(cover.secure_url, 600)} alt={cover.alt_text || 'Pratinjau sampul'} /> : <><ImagePlus size={36} strokeWidth={1.5} /><span>Gambar sampul tampil di sini</span></>}</div><div className="cms-article-preview-meta"><span>{chosenCategory?.name ?? contentTypes.find(([value]) => value === contentType)?.[1]}</span>{chosenCategory && <span>{contentTypes.find(([value]) => value === contentType)?.[1]}</span>}</div><h3>{title.trim() || 'Judul Artikel'}</h3><p className="cms-article-preview-excerpt">{excerpt.trim() || 'Ringkasan artikel akan tampil di sini.'}</p><div className="cms-article-preview-byline">{chosenAuthor?.name && <span>Oleh {chosenAuthor.name}</span>}{displayedMinutes && validReadingMinutes(displayedMinutes) && <span>{displayedMinutes} menit baca</span>}</div><div ref={previewBody} className={`cms-article-preview-body ${previewExpanded ? 'expanded' : ''}`}>{safeBody ? <div dangerouslySetInnerHTML={{ __html: safeBody }} /> : <p>Isi artikel akan tampil di sini.</p>}</div>{previewCanExpand && <button type="button" className="cms-article-preview-expand" onClick={() => setPreviewExpanded(!previewExpanded)}>{previewExpanded ? 'Sembunyikan' : 'Lihat Semua'} <ArrowRight size={14} /></button>}<p className="cms-article-preview-count">{gallery.length ? `${gallery.length} gambar tambahan, urutan: ${gallery.slice(0, 3).map(image => image.original_filename || `Gambar ${image.id}`).join(' → ')}${gallery.length > 3 ? ' → …' : ''}` : 'Belum ada gambar tambahan'}</p></div><div className="cms-article-save"><button type="button" className="cms-button primary" disabled={!canPublish || busy || Boolean(saved)} onClick={() => void save('publish')}>{busy ? 'Menyimpan…' : 'Simpan Artikel'}</button><button type="button" className="cms-button secondary" disabled={busy || Boolean(saved)} onClick={() => void save('draft')}>{busy ? 'Menyimpan…' : 'Simpan Draf'}</button>{!canPublish && <small>Anda dapat menyimpan draf; menerbitkan artikel memerlukan izin khusus.</small>}</div></aside></fieldset>
+      <section className="cms-article-card"><h2>Penulis &amp; Waktu Baca</h2><div className="cms-article-main-row"><div className="cms-field"><label>Penulis<select aria-label="Penulis" value={authorValue} disabled={authorLoading} onChange={event => change(() => setAuthorValue(event.target.value))} aria-invalid={Boolean(errors.author)}><option value="">{authorLoading ? 'Memuat penulis…' : 'Pilih penulis'}</option>{authorValue&&!chosenAuthor&&<option value={authorValue}>Penulis tersimpan (tidak tersedia)</option>}<optgroup label="Anggota CMS">{authors.filter(option => option.source === 'user').map(option => <option key={`user:${option.id}`} value={`user:${option.id}`}>{option.name}</option>)}</optgroup><optgroup label="Anggota Tim">{authors.filter(option => option.source === 'team').map(option => <option key={`team:${option.id}`} value={`team:${option.id}`}>{option.name}</option>)}</optgroup></select></label>{fieldError('author')}</div><div className="cms-field"><label>Estimasi Waktu Baca<div className="cms-article-minutes"><input type="number" inputMode="numeric" step="1" min="1" max="999" value={displayedMinutes} onChange={event => change(() => { setReadingOverride(true); setManualMinutes(event.target.value); })} aria-invalid={Boolean(errors.reading_time_minutes)} placeholder="Otomatis" /><span>menit</span></div></label>{fieldError('reading_time_minutes')}<div className="cms-article-reading-help"><small>Perkiraan otomatis: {suggested ?? '—'} menit · 200 kata/menit</small>{readingOverride && <button type="button" onClick={() => change(() => { setReadingOverride(false); setManualMinutes(''); })}><RotateCcw size={13} /> Hitung ulang</button>}</div></div></div></section>
+    </div><aside className="cms-article-side"><div className="cms-article-preview"><h2>Preview</h2><div className="cms-article-preview-cover">{cover ? <img src={mediaUrl(cover.secure_url, 600)} alt={cover.alt_text || 'Pratinjau sampul'} /> : <><ImagePlus size={36} strokeWidth={1.5} /><span>Gambar sampul tampil di sini</span></>}</div><div className="cms-article-preview-meta"><span>{chosenCategory?.name ?? contentTypes.find(([value]) => value === contentType)?.[1]}</span>{chosenCategory && <span>{contentTypes.find(([value]) => value === contentType)?.[1]}</span>}</div><h3>{title.trim() || 'Judul Artikel'}</h3><p className="cms-article-preview-excerpt">{excerpt.trim() || 'Ringkasan artikel akan tampil di sini.'}</p><div className="cms-article-preview-byline">{chosenAuthor?.name && <span>Oleh {chosenAuthor.name}</span>}{displayedMinutes && validReadingMinutes(displayedMinutes) && <span>{displayedMinutes} menit baca</span>}</div><div ref={previewBody} className={`cms-article-preview-body ${previewExpanded ? 'expanded' : ''}`}>{safeBody ? <div dangerouslySetInnerHTML={{ __html: safeBody }} /> : <p>Isi artikel akan tampil di sini.</p>}</div>{previewCanExpand && <button type="button" className="cms-article-preview-expand" onClick={() => setPreviewExpanded(!previewExpanded)}>{previewExpanded ? 'Sembunyikan' : 'Lihat Semua'} <ArrowRight size={14} /></button>}<p className="cms-article-preview-count">{gallery.length ? `${gallery.length} gambar tambahan, urutan: ${gallery.slice(0, 3).map(image => image.original_filename || `Gambar ${image.id}`).join(' → ')}${gallery.length > 3 ? ' → …' : ''}` : 'Belum ada gambar tambahan'}</p></div><div className="cms-article-save"><button type="button" className="cms-button primary" disabled={!canPublish || busy || (!id&&Boolean(saved))} onClick={() => void save('publish')}>{busy ? 'Menyimpan…' : 'Simpan Artikel'}</button><button type="button" className="cms-button secondary" disabled={busy || (!id&&Boolean(saved))} onClick={() => void save('draft')}>{busy ? 'Menyimpan…' : 'Simpan Draf'}</button><ArchivePostButton kind="news" id={id} onArchived={()=>{setDirty(false);setEditorDirty(false);}}/>{!canPublish && <small>Anda dapat menyimpan draf; menerbitkan artikel memerlukan izin khusus.</small>}</div></aside></fieldset>
     {picker && <ProductMediaDialog scope="news" current={currentPhoto ?? null} used={usedPhotos} onSelect={onImage} onClose={() => setPicker(null)} />}
   </div>;
 }

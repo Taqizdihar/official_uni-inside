@@ -1,9 +1,9 @@
 export const platforms=[{key:'shopee',name:'Shopee',color:'#e9572e'},{key:'tokopedia',name:'Tokopedia',color:'#31984b'},{key:'tiktok',name:'TikTok Shop',color:'#252525'},{key:'shopify',name:'Shopify',color:'#67972d'},{key:'whatsapp',name:'WhatsApp',color:'#1b9f57'}] as const;
 export type Platform=typeof platforms[number]['key'];
-export type Feature={key:string;label:string;value_text:string};
-export type Variant={key:string;name:string;price:string;stock_quantity:string;is_active:boolean;media:Photo|null};
+export type Feature={id?:number;key:string;label:string;value_text:string};
+export type Variant={id?:number;key:string;name:string;price:string;stock_quantity:string;is_active:boolean;media:Photo|null};
 export type Photo={id:number;secure_url:string;alt_text?:string|null;original_filename?:string|null};
-export type Purchase={platform:Platform;url:string};
+export type Purchase={id?:number;platform:Platform;url:string};
 export const newKey=()=>globalThis.crypto.randomUUID();
 export function moveRow<T>(items:T[],from:number,to:number){if(from<0||to<0||from>=items.length||to>=items.length||from===to)return items;const copy=[...items];const [item]=copy.splice(from,1);copy.splice(to,0,item);return copy;}
 export function reorderPhotos(photos:(Photo|null)[],from:number,to:number){
