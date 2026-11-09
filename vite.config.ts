@@ -6,8 +6,7 @@ import {resolveFrontendApiBase} from './src/config/resolveApiBase';
 
 export default defineConfig(({command,mode}) => {
   const env = loadEnv(mode, process.cwd(), '');
-  // Match the frontend override: injected Kroombox API URLs must not
-  // invalidate or redirect a production build away from the Render API.
+  // Validate the configured API base at build time, before shipping the frontend.
   resolveFrontendApiBase({VITE_API_BASE_URL: env.VITE_API_BASE_URL ?? process.env.VITE_API_BASE_URL}, command === 'build');
   return {
     plugins: [react(), tailwindcss()],

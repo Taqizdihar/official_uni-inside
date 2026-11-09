@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {PRODUCTION_RENDER_API_BASE,resolveApiBase,resolveFrontendApiBase} from '../src/config/resolveApiBase';
+import {resolveApiBase,resolveFrontendApiBase} from '../src/config/resolveApiBase';
 
 test('resolves local, HTTPS production, and future same-origin API bases',()=>{
   assert.equal(resolveApiBase({},false),'http://localhost:4000/api/v1');
@@ -15,11 +15,19 @@ test('rejects missing, insecure, credential-bearing, or incorrectly scoped produ
   assert.throws(()=>resolveApiBase({VITE_API_BASE_URL:'https://api.example.invalid/v1'},true),/\/api\/v1/);
 });
 
-test('production frontend bypasses the Kroombox gateway regardless of injected VITE_API_BASE_URL',()=>{
-  for (const configured of [undefined, '', '/api/v1', 'https://uniinside.net/api/v1', 'https://cms-api.example.invalid/api/v1', 'http://localhost:4000/api/v1']) {
-    assert.equal(resolveFrontendApiBase({VITE_API_BASE_URL:configured},true),PRODUCTION_RENDER_API_BASE);
+test('production frontend uses the configured HTTPS or same-origin API base',()=>{
+  assert.equal(resolveFrontendApiBase({VITE_API_BASE_URL:'/api/v1'},true),'/api/v1');
+  assert.equal(resolveFrontendApiBase({VITE_API_BASE_URL:'https://backend.example.com/api/v1'},true),'https://backend.example.com/api/v1');
+  assert.equal(resolveFrontendApiBase({VITE_API_BASE_URL:'https://uni-inside-studio-landing-page.onrender.com/api/v1'},true),'https://uni-inside-studio-landing-page.onrender.com/api/v1');
+});
+
+test('production frontend rejects missing or invalid API configuration',()=>{
+  for (const configured of [undefined, '', '  ']) {
+    assert.throws(()=>resolveFrontendApiBase({VITE_API_BASE_URL:configured},true),/VITE_API_BASE_URL must be set/);
   }
-  assert.equal(PRODUCTION_RENDER_API_BASE,'https://uni-inside-studio-landing-page.onrender.com/api/v1');
+  for (const configured of ['http://localhost:4000/api/v1', 'https://backend.example.com/v1', '//backend.example.com/api/v1']) {
+    assert.throws(()=>resolveFrontendApiBase({VITE_API_BASE_URL:configured},true),/VITE_API_BASE_URL/);
+  }
 });
 
 test('development frontend still honors configured API URLs and local fallback',()=>{
