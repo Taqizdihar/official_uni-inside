@@ -3,8 +3,9 @@ import { decodeDatabaseCa } from '../database/tls';
 
 const bool = z.enum(['true', 'false']).default('false').transform(value => value === 'true');
 const positive = (fallback: number) => z.coerce.number().int().positive().default(fallback);
-// The V2 dump supports these CMS editors. Production deployments opt in by
-// default, while an explicit false remains a per-feature rollback switch.
+// These V2 editors are guarded by live schema/reference checks. In production,
+// stale false values from an older hosting template must not hide supported
+// fields after the database has been imported.
 const productionV2Flags = [
   'SOCIAL_MEDIA_V2_ENABLED','PRODUCT_VARIANT_MEDIA_ENABLED','HERO_THREE_LINE_ENABLED',
   'SECONDARY_CONTENT_SLOTS_ENABLED','CONTACT_PLACEMENTS_ENABLED','FOOTER_V2_ENABLED',
@@ -77,9 +78,9 @@ const schema = z.object({
 
 export type Config = z.infer<typeof schema> & { origins: string[] };
 export function loadConfig(source: NodeJS.ProcessEnv = process.env): Config {
-  const enabledDefaults=source.NODE_ENV==='production'
-    ?Object.fromEntries(productionV2Flags.filter(key=>source[key]===undefined).map(key=>[key,'true'])):{};
-  const result = schema.safeParse({...source,...enabledDefaults});
+  const productionEditors=source.NODE_ENV==='production'
+    ?Object.fromEntries(productionV2Flags.map(key=>[key,'true'])):{};
+  const result = schema.safeParse({...source,...productionEditors});
   if (!result.success) {
     throw new Error(`Invalid backend configuration: ${result.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ')}`);
   }
