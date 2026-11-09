@@ -66,11 +66,11 @@ export function validateHeroEdit(next:HeroEdit,current:HeroEdit,ready:boolean) {
     else if(value!=null&&length(value)>max)errors.push(issue(path,`Maksimal ${max} karakter.`));
     else if(value!=null&&/[<>\r\n]/u.test(value))errors.push(issue(path,'Gunakan teks biasa tanpa markup atau baris baru.'));
   };
-  if(!next.headingLine1.startsWith('Ideas'))errors.push(issue('headingLine1','Judul baris 1 harus diawali dengan Ideas.'));
-  else if(next.headingLine1!==current.headingLine1&&length(next.headingLine1.slice(5))>9)errors.push(issue('headingLine1','Maksimal 9 karakter setelah Ideas.'));
+  if(!next.headingLine1.startsWith('Ideas ')&&next.headingLine1!==current.headingLine1)errors.push(issue('headingLine1','Judul baris 1 harus diawali dengan Ideas dan satu spasi.'));
+  else if(next.headingLine1!==current.headingLine1&&length(next.headingLine1.slice(6))>9)errors.push(issue('headingLine1','Maksimal 9 karakter setelah Ideas.'));
   else if(next.headingLine1!==current.headingLine1&&/[<>\r\n]/u.test(next.headingLine1))errors.push(issue('headingLine1','Gunakan teks biasa tanpa markup atau baris baru.'));
   check('headingLine2',next.headingLine2,current.headingLine2,18,true);
-  if(ready){if((next.headingLine3??'')!==(current.headingLine3??''))check('headingLine3',next.headingLine3??'',current.headingLine3??'',18,true);}
+  if(ready){if((next.headingLine3??'')!==(current.headingLine3??''))check('headingLine3',next.headingLine3??'',current.headingLine3??'',18,false);}
   else if(next.headingLine3!==undefined)errors.push(issue('headingLine3','Baris 3 belum dapat disimpan sampai kolom database tersedia.'));
   check('descriptionLine1',next.descriptionLine1,current.descriptionLine1,50,true);
   check('descriptionLine2',next.descriptionLine2,current.descriptionLine2,50,false);

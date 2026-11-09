@@ -17,7 +17,7 @@
   --radius-sm:8px;--radius-md:12px;--radius-lg:18px;
   --shadow-sm:0 2px 8px #2021210a;--shadow-md:0 12px 32px #20212114;--shadow-lg:0 28px 68px #0004;
   --focus-ring:0 0 0 3px #ffd52d75;--sidebar-width:272px;--topbar-height:72px;--control-height:44px;--motion:180ms;
-  color:var(--ink);background:var(--paper);font-family:Inter,Poppins,system-ui,sans-serif;font-size:14px;line-height:1.55;
+  color:var(--ink);background:var(--paper);font-family:Poppins,system-ui,sans-serif;font-size:14px;line-height:1.55;
 }
 .cms *{scrollbar-width:thin;scrollbar-color:#adb0ab transparent}
 .cms *::-webkit-scrollbar{width:8px;height:8px}

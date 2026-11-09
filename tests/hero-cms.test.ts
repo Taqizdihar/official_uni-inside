@@ -17,9 +17,13 @@ test('Hero form rejects unsafe destinations and overlong complete callout lines'
   assert.equal(validateHero(next,existing,false)['callouts.0.label'],'Maksimal 30 karakter.');
 });
 test('Hero form accepts nine characters after the fixed Ideas prefix, including spaces',()=>{
-  const next=structuredClone(existing);next.headingLine1='Ideas123456789';
+  const next=structuredClone(existing);next.headingLine1='Ideas 123456789';
   assert.equal(validateHero(next,existing,false).headingLine1,undefined);
   next.headingLine1='Ideas 12345678';assert.equal(validateHero(next,existing,false).headingLine1,undefined);
-  next.headingLine1='Ideas 123456789';assert.equal(validateHero(next,existing,false).headingLine1,'Maksimal 9 karakter setelah Ideas.');
-  next.headingLine1='Hello';assert.equal(validateHero(next,existing,false).headingLine1,'Judul baris 1 harus diawali dengan Ideas.');
+  next.headingLine1='Ideas 1234567890';assert.equal(validateHero(next,existing,false).headingLine1,'Maksimal 9 karakter setelah Ideas.');
+  next.headingLine1='Hello';assert.equal(validateHero(next,existing,false).headingLine1,'Judul baris 1 harus diawali dengan Ideas dan satu spasi.');
+});
+test('Hero third heading can be cleared when its column is enabled',()=>{
+  const previous={...existing,headingLine3:'Third line'};
+  assert.equal(validateHero({...previous,headingLine3:''},previous,true).headingLine3,undefined);
 });

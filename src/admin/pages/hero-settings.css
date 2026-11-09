@@ -21,7 +21,7 @@
 .cms-hero-grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .cms-hero-grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .cms-hero-field { min-width: 0; }
-.cms-hero-field label { display: block; margin-bottom: 9px; font-weight: 750; line-height: 1.4; }
+.cms-hero-field label { display: block; margin-bottom: 9px; font-weight: 500; line-height: 1.4; }
 .cms-hero-field input {
   display: block;
   width: 100%;
@@ -75,20 +75,23 @@
 .cms-hero-help { display: flex; justify-content: space-between; gap: 12px; min-height: 20px; margin-top: 6px; }
 .cms-hero-help small { color: var(--muted, #62655f); font-size: 12px; line-height: 1.45; }
 .cms-hero-help small:last-child { margin-left: auto; white-space: nowrap; }
+.cms-hero-help small.at-limit { color: #b42318; }
+.cms-hero-field label .cms-required { color: #b42318; font-weight: 600; }
+.cms-hero-field label .cms-optional { margin-left: 8px; font-size: 12px; font-style: italic; font-weight: 400; color: var(--muted, #62655f); }
 .cms-hero-section .cms-field-error { display: block; margin-top: 5px; color: var(--danger, #a5322d); font-weight: 750; }
 .cms-hero-pending { margin-top: 24px; padding: 14px 16px; border: 1px solid #c2a341; border-radius: 12px; background: #fff9df; color: #584613; line-height: 1.5; }
 .cms-hero-main-copy { margin-top: 28px; }
 .cms-hero-trust { margin-top: 32px; }
 .cms-hero-subcard, .cms-hero-workspace, .cms-hero-callout-group { min-width: 0; padding: 20px; border: 1px solid var(--line, #e4e4df); border-radius: 15px; background: #fcfcfa; }
-.cms-hero-subcard h3 { margin: 0 0 20px; font-size: 16px; }
+.cms-hero-subcard h3 { margin: 0 0 20px; font-size: 16px; font-weight: 700; }
 .cms-hero-subcard .cms-hero-grid { gap: 14px; }
-.cms-hero-subcard > .cms-hero-field { margin-top: 20px; }
+.cms-hero-subcard > .cms-hero-field { margin-bottom: 20px; }
 .cms-hero-workspace-head { display: flex; align-items: center; gap: 12px; min-height: 44px; margin-bottom: 20px; }
 .cms-hero-workspace-head img { width: 44px; height: 44px; object-fit: contain; }
-.cms-hero-workspace-head h3 { margin: 0; font-size: 17px; }
+.cms-hero-workspace-head h3 { margin: 0; font-size: 17px; font-weight: 700; }
 .cms-hero-cta { padding: 18px; border: 1px solid #dedfd8; border-radius: 13px; background: #fff; }
 .cms-hero-cta + .cms-hero-cta { margin-top: 18px; }
-.cms-hero-cta h4 { margin: 0 0 16px; font-size: 15px; }
+.cms-hero-cta h4 { margin: 0 0 16px; font-size: 15px; font-weight: 700; }
 .cms-hero-cta .cms-hero-field + .cms-hero-field { margin-top: 16px; }
 .cms-hero-callout-group > div + div { margin-top: 16px; }
 .cms-hero-actions { display: flex; justify-content: flex-end; gap: 12px; }

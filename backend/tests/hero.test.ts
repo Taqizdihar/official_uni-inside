@@ -15,7 +15,7 @@ describe('Hero editor contract',()=>{
   });
   it('checks all text limits while preserving unchanged legacy values',()=>{
     const cases:[(edit:HeroEdit)=>void,string][]=[
-      [v=>{v.headingLine1='Ideas1234567890';},'headingLine1'],
+      [v=>{v.headingLine1='Ideas 1234567890';},'headingLine1'],
       [v=>{v.headingLine2='x'.repeat(19);},'headingLine2'],
       [v=>{v.descriptionLine1='x'.repeat(51);},'descriptionLine1'],
       [v=>{v.descriptionLine2='x'.repeat(51);},'descriptionLine2'],
@@ -27,9 +27,9 @@ describe('Hero editor contract',()=>{
     expect(validateHeroEdit({...legacy,descriptionLine2:'Updated'},legacy,false)).toEqual([]);
   });
   it('keeps Ideas at the start of an editable first line',()=>{
-    const next=copy();next.headingLine1='Ideas123456789';expect(validate(next)).toEqual([]);
+    const next=copy();next.headingLine1='Ideas 123456789';expect(validate(next)).toEqual([]);
     next.headingLine1='Ideas 12345678';expect(validate(next)).toEqual([]);
-    next.headingLine1='Ideas 123456789';expect(validate(next)).toContainEqual(expect.objectContaining({path:'headingLine1',message:'Maksimal 9 karakter setelah Ideas.'}));
+    next.headingLine1='Ideas 1234567890';expect(validate(next)).toContainEqual(expect.objectContaining({path:'headingLine1',message:'Maksimal 9 karakter setelah Ideas.'}));
     next.headingLine1='Our Ideas';expect(validate(next)).toContainEqual(expect.objectContaining({path:'headingLine1'}));
     const legacy=copy();legacy.headingLine1='Ideas Captured.';
     expect(validateHeroEdit({...legacy,descriptionLine2:'Updated'},legacy,false)).toEqual([]);
@@ -64,6 +64,8 @@ describe('Hero editor contract',()=>{
     const blank={...current,headingLine3:''};
     expect(validateHeroEdit({...blank,headingLine2:'New second line'},blank,true)).toEqual([]);
     expect(validateHeroEdit({...blank,headingLine3:'Made tangible'},blank,true)).toEqual([]);
+    const ready={...current,headingLine3:'Saved line'};
+    expect(validateHeroEdit({...ready,headingLine3:''},ready,true)).toEqual([]);
     expect(validateHeroEdit({...blank,headingLine3:'x'.repeat(19)},blank,true)).toContainEqual(expect.objectContaining({path:'headingLine3'}));
   });
   it('saves an Ideas-prefixed first line and the complete numeric callout together',async()=>{

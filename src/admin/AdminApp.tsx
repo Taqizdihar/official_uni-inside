@@ -1,3 +1,4 @@
+import {useEffect} from 'react';
 import {Navigate,Route,Routes,useLocation,useParams} from 'react-router-dom';
 import {AuthProvider,useAuth} from './auth/AuthProvider';
 import {CmsLayout} from './layouts/CmsLayout';
@@ -32,7 +33,7 @@ function HeroOrResourceEditor(){const {resource,key}=useParams();const target=ho
 function secondaryLegacyPath(key?:string){return `/admin/secondary/${key==='media_kit'?'media-kit':['products','services','news','projects'].includes(key??'')?key:'products'}`;}
 function SiteEditor(){const {resource,key}=useParams();return resource==='page-settings'?<Navigate to={secondaryLegacyPath(key)} replace/>:<ResourceEditorPage/>;}
 function SiteLanding(){const {resource}=useParams();return resource==='page-settings'?<Navigate to="/admin/secondary/products" replace/>:<ResourceLandingPage/>;}
-export default function AdminApp(){return <div className="cms" lang="id"><AuthProvider><Routes>
+export default function AdminApp(){useEffect(()=>{document.title='Uni-Inside Studio | Internal CMS';},[]);return <div className="cms" lang="id"><AuthProvider><Routes>
   <Route path="/admin">
   <Route path="login" element={<Guest><LoginPage/></Guest>}/>
   <Route path="accept-invitation" element={<Guest><TokenPage mode="invitation"/></Guest>}/>

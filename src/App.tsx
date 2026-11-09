@@ -671,7 +671,7 @@ export default function App() {
           WebkitBackdropFilter: 'blur(12px)',
         }}
       >
-        <a href="#" aria-label="Uni-Inside home" className="flex items-center gap-3 flex-shrink-0 cursor-pointer">
+        <a href="/" aria-label="Uni-Inside home" className="flex items-center gap-3 flex-shrink-0 cursor-pointer">
           <div className="relative w-[60px] h-[60px] sm:w-[66px] sm:h-[66px] flex items-center justify-center">
             <motion.img
               src={logoDarkTheme}
